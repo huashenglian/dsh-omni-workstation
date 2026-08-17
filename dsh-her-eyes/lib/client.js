@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
 				helpBtn: "说明",
 				helpSearchPlaceholder: "搜索文档…",
 				helpPlaceholder: "内容待补充。",
+				helpNoResult: "无匹配结果",
 				helpGroupVlm: "VLM",
 				helpGroupImggen: "图像生成",
 				helpVlmTitle: "VLM 视觉模型",
@@ -146,6 +147,7 @@ ddHint: "选择模型",
 				helpBtn: "Help",
 				helpSearchPlaceholder: "Search docs…",
 				helpPlaceholder: "Content TBD.",
+				helpNoResult: "No results found",
 				helpGroupVlm: "VLM",
 				helpGroupImggen: "Image Generation",
 				helpVlmTitle: "VLM Vision Models",
@@ -388,10 +390,18 @@ ddHint: "Pick a model",
   ".vlm-help-modal { position: relative; width: 90vw; max-width: 1100px; height: 85vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
   ".vlm-help-close { position: absolute; top: 8px; right: 12px; z-index: 2; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
   ".vlm-help-close:hover { color: var(--dsh-fg, #eee); }",
-  ".vlm-help-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); display: flex; flex-direction: column; overflow: hidden; }",
-  ".vlm-help-search-wrap { padding: 12px 12px 8px 12px; flex-shrink: 0; }",
-  ".vlm-help-search { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg-2, rgba(128,128,128,0.1)); color: var(--dsh-fg, #eee); font-size: 13px; outline: none; }",
+  ".vlm-help-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); display: flex; flex-direction: column; overflow: visible; }",
+  ".vlm-help-search-wrap { padding: 12px 12px 8px 12px; flex-shrink: 0; position: relative; }",
+  ".vlm-help-search { width: 100%; box-sizing: border-box; padding: 7px 28px 7px 10px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg-2, rgba(128,128,128,0.1)); color: var(--dsh-fg, #eee); font-size: 13px; outline: none; }",
   ".vlm-help-search:focus { border-color: var(--dsh-accent, #58a6ff); }",
+  ".vlm-help-search-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 4px; }",
+  ".vlm-help-search-clear:hover { color: var(--dsh-fg, #eee); }",
+  ".vlm-help-search-popup { position: absolute; top: calc(100% + 4px); left: 12px; width: 380px; max-height: 320px; overflow-y: auto; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 0 8px 8px 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; }",
+  ".vlm-help-search-result { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: none; border: none; border-radius: 6px; cursor: pointer; text-align: left; }",
+  ".vlm-help-search-result:hover { background: rgba(88,166,255,0.1); }",
+  ".vlm-help-search-result-title { font-size: 13px; font-weight: 600; color: var(--dsh-fg, #eee); }",
+  ".vlm-help-search-result-snippet { font-size: 12px; color: var(--dsh-fg-muted, #999); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }",
+  ".vlm-help-search-empty { padding: 12px 10px; font-size: 13px; color: var(--dsh-fg-muted, #888); text-align: center; }",
   ".vlm-help-nav { flex: 1; overflow-y: auto; padding: 4px 0 16px 0; display: flex; flex-direction: column; gap: 1px; }",
   ".vlm-help-group { display: flex; flex-direction: column; }",
   ".vlm-help-group-title { padding: 8px 16px; background: none; border: none; color: var(--dsh-fg, #eee); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; cursor: pointer; opacity: 0.7; }",
@@ -410,6 +420,12 @@ ddHint: "Pick a model",
   "  .vlm-help-close:hover { color: light-dark(#222, #eee); }",
   "  .vlm-help-sidebar { border-right-color: light-dark(#ddd, #444); }",
   "  .vlm-help-search { background-color: light-dark(rgba(0,0,0,0.04), rgba(128,128,128,0.1)); color: light-dark(#333, #eee); border-color: light-dark(#ccc, #555); }",
+  "  .vlm-help-search-clear { color: light-dark(#999, #888); }",
+  "  .vlm-help-search-clear:hover { color: light-dark(#333, #eee); }",
+  "  .vlm-help-search-popup { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }",
+  "  .vlm-help-search-result-title { color: light-dark(#111, #eee); }",
+  "  .vlm-help-search-result-snippet { color: light-dark(#666, #999); }",
+  "  .vlm-help-search-empty { color: light-dark(#999, #888); }",
   "  .vlm-help-group-title { color: light-dark(#555, #eee); }",
   "  .vlm-help-nav-item { color: light-dark(#333, #aaa); }",
   "  .vlm-help-nav-item:hover { color: light-dark(#000, #eee); background-color: light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05)); }",
@@ -1226,10 +1242,11 @@ ddHint: "Pick a model",
 		var active = React.useState("vlm-overview");
 		var query = React.useState("");
 		var collapsed = React.useState({});
+		var searchOpen = React.useState(false);
 		var q = query[0].toLowerCase().trim();
 		var filtered = q ? allSections.filter(function (s) {
 			return s.title.toLowerCase().indexOf(q) >= 0 || (s.content && s.content.toLowerCase().indexOf(q) >= 0);
-		}) : null;
+		}) : [];
 		var cur = allSections.find(function (s) { return s.id === active[0]; }) || allSections[0];
 		function toggleGroup(id) {
 			var c = {};
@@ -1237,6 +1254,17 @@ ddHint: "Pick a model",
 			c[id] = !c[id];
 			collapsed[1](c);
 		}
+		React.useEffect(function () {
+			if (!searchOpen[0]) return;
+			function onDocClick(e) {
+				var tgt = e.target;
+				if (!tgt || !tgt.closest || !tgt.closest(".vlm-help-search-wrap")) {
+					searchOpen[1](false);
+				}
+			}
+			document.addEventListener("click", onDocClick);
+			return function () { document.removeEventListener("click", onDocClick); };
+		}, [searchOpen[0]]);
 		return React.createElement("div", { className: "vlm-help-overlay", onClick: props.onClose }, [
 			React.createElement("div", { className: "vlm-help-modal", onClick: function (e) { e.stopPropagation(); } }, [
 				React.createElement("button", { className: "vlm-help-close", onClick: props.onClose }, "×"),
@@ -1247,17 +1275,32 @@ ddHint: "Pick a model",
 							type: "text",
 							placeholder: t("helpSearchPlaceholder"),
 							value: query[0],
-							onChange: function (e) { query[1](e.target.value); }
-						})
+							onChange: function (e) {
+								query[1](e.target.value);
+								searchOpen[1](e.target.value.trim().length > 0);
+							},
+							onFocus: function () { if (query[0].trim()) searchOpen[1](true); }
+						}),
+						query[0] ? React.createElement("button", {
+							className: "vlm-help-search-clear",
+							onClick: function () { query[1](""); searchOpen[1](false); }
+						}, "×") : null,
+						searchOpen[0] && q ? React.createElement("div", { className: "vlm-help-search-popup" },
+							filtered.length > 0 ? filtered.map(function (s) {
+								var snippet = s.content || t("helpPlaceholder");
+								return React.createElement("button", {
+									key: s.id,
+									className: "vlm-help-search-result",
+									onClick: function () { active[1](s.id); query[1](""); searchOpen[1](false); }
+								}, [
+									React.createElement("div", { className: "vlm-help-search-result-title" }, s.title),
+									React.createElement("div", { className: "vlm-help-search-result-snippet" }, snippet)
+								]);
+							}) : React.createElement("div", { className: "vlm-help-search-empty" }, t("helpNoResult"))
+						) : null
 					]),
 					React.createElement("div", { className: "vlm-help-nav" },
-						filtered ? filtered.map(function (s) {
-							return React.createElement("button", {
-								key: s.id,
-								className: "vlm-help-nav-item" + (active[0] === s.id ? " active" : ""),
-								onClick: function () { active[1](s.id); query[1](""); }
-							}, s.title);
-						}) : groups.map(function (g) {
+						groups.map(function (g) {
 							return React.createElement("div", { key: g.id, className: "vlm-help-group" }, [
 								React.createElement("button", {
 									className: "vlm-help-group-title",
