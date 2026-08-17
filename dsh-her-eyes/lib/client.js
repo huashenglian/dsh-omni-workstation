@@ -25,6 +25,17 @@ window.__ModuleLoader__.load({
 				aboutDesc: "dsh-her-eyes — 应用级多模态视觉分析插件。为 AI 提供 analyze_image（看图）与 generate_image（生图）工具，支持多卡片列表、单次请求内回退、JPEG→PNG 重编码兜底。",
 				checkUpdateBtn: "检测更新",
 				versionLabel: "版本 ",
+				helpBtn: "说明",
+				helpVlmTitle: "VLM 视觉模型",
+				helpVlmContent: "配置多模态视觉模型（VLM）。所有修改自动保存、立即生效，无需手动点保存。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
+				helpImggenTitle: "图像生成",
+				helpImggenContent: "配置图像生成模型。AI 通过 generate_image 工具生成图片并保存到工作区 generated-images/ 目录。所有修改自动保存。",
+				helpAnalyzeTitle: "analyze_image 工具",
+				helpAnalyzeContent: "让 AI 分析本地图片或对话中上传的图片。支持 image_path（本地文件路径）和 attachment_id（上传附件 id）两种图片来源，同时给出时以 attachment_id 为准。结果包含 AI 的文字描述、使用的模型和卡片、尝试次数。",
+				helpFailoverTitle: "卡片与回退",
+				helpFailoverContent: "多卡片列表按顺序从上到下调用。单次请求内，一张卡片连续失败超过重试次数后回退到下一张；超时立即回退不重试。每次新请求重新从顶部卡片开始。支持自定义供应商和 28 个内置固定供应商（OpenAI / Anthropic / Gemini / Groq / MiniMax 等）。",
+				helpAutoVisionTitle: "Auto Vision",
+				helpAutoVisionContent: "VLM 开启时，模型选择器多出一个 Auto Vision 条目。选中后可上传图片；auto-vision 会将图片改写为 analyze_image marker，委派给你最近使用的推理模型（文本模型当脑，analyze_image 当眼）。VLM 关闭或无有效配置时，该条目消失，图片上传被拒绝。",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
@@ -128,6 +139,17 @@ ddHint: "选择模型",
 				aboutDesc: "dsh-her-eyes — application-level multimodal vision plugin. Gives the AI analyze_image (vision) and generate_image tools with multi-card failover and JPEG→PNG re-encode fallback.",
 				checkUpdateBtn: "Check for Updates",
 				versionLabel: "Version ",
+				helpBtn: "Help",
+				helpVlmTitle: "VLM Vision Models",
+				helpVlmContent: "Configure multimodal vision models. All changes auto-save and take effect immediately. The AI calls analyze_image top-down by card order; retries and falls back to the next card past the limit; new requests restart from the top. If no card is configured, analyze_image is hidden.",
+				helpImggenTitle: "Image Generation",
+				helpImggenContent: "Configure image generation models. The AI generates images via generate_image and saves them to generated-images/. All changes auto-save.",
+				helpAnalyzeTitle: "analyze_image Tool",
+				helpAnalyzeContent: "Lets the AI analyze local or uploaded images. Supports image_path (local file path) and attachment_id (uploaded attachment id); attachment_id wins when both are given. Results include the AI's text description, model used, and attempt count.",
+				helpFailoverTitle: "Cards & Failover",
+				helpFailoverContent: "Multi-card list called top-down. Falls back to next card past retry limit; timeout falls back immediately without retry; new requests restart from the top card. Supports custom providers and 28 built-in fixed providers (OpenAI / Anthropic / Gemini / Groq / MiniMax, etc.).",
+				helpAutoVisionTitle: "Auto Vision",
+				helpAutoVisionContent: "When VLM is on, the picker shows an Auto Vision entry. Select it to enable image upload; it delegates to your last-used text model with image rewrite (text model as brain, analyze_image as eyes). VLM off or no valid config → entry disappears, upload rejected.",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
@@ -352,7 +374,19 @@ ddHint: "Pick a model",
   ".vlm-settings-section .vlm-row { gap: 20px; }",
   ".vlm-about-card { margin-top: 16px; align-items: flex-start; }",
   ".vlm-about-update-btn { align-self: flex-start; }",
-  ".vlm-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }"
+  ".vlm-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }",
+  ".vlm-about-btns { display: flex; gap: 8px; }",
+  ".vlm-help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
+  ".vlm-help-modal { position: relative; width: 80%; max-width: 800px; max-height: 80vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
+  ".vlm-help-close { position: absolute; top: 8px; right: 12px; z-index: 1; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
+  ".vlm-help-close:hover { color: var(--dsh-fg, #eee); }",
+  ".vlm-help-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); padding: 16px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }",
+  ".vlm-help-nav-item { padding: 8px 16px; background: none; border: none; color: var(--dsh-fg-muted, #aaa); font-size: 13px; text-align: left; cursor: pointer; }",
+  ".vlm-help-nav-item:hover { color: var(--dsh-fg, #eee); background: rgba(255,255,255,0.05); }",
+  ".vlm-help-nav-item.active { color: var(--dsh-accent, #58a6ff); border-left: 3px solid var(--dsh-accent, #58a6ff); }",
+  ".vlm-help-content { flex: 1; padding: 24px 28px; overflow-y: auto; }",
+  ".vlm-help-content-title { font-size: 16px; font-weight: 600; color: var(--dsh-fg, #eee); margin: 0 0 12px 0; }",
+  ".vlm-help-content-text { font-size: 14px; line-height: 1.7; color: var(--dsh-fg-muted, #bbb); margin: 0; }"
 ].join("\n");
 
 		function ensureStyles() {
@@ -1127,11 +1161,48 @@ ddHint: "Pick a model",
 		return React.createElement("div", { className: "vlm-card vlm-about-card" }, [
 			React.createElement("span", { className: "vlm-settings-section-title" }, t("aboutTitle")),
 			React.createElement("p", { className: "vlm-desc" }, t("aboutDesc")),
-			React.createElement("button", {
-				className: "vlm-btn vlm-about-update-btn",
-				onClick: function () { /* ghost: pending new repo */ }
-			}, t("checkUpdateBtn")),
+			React.createElement("div", { className: "vlm-about-btns" }, [
+				React.createElement("button", {
+					className: "vlm-btn",
+					onClick: function () { if (props.onHelp) props.onHelp(); }
+				}, t("helpBtn")),
+				React.createElement("button", {
+					className: "vlm-btn",
+					onClick: function () { /* ghost: pending new repo */ }
+				}, t("checkUpdateBtn"))
+			]),
 			React.createElement("p", { className: "vlm-status vlm-about-version" }, t("versionLabel") + (props.version || ""))
+		]);
+	}
+
+	function HelpModal(props) {
+		var t = props.t;
+		var sections = [
+			{ id: "vlm", title: t("helpVlmTitle"), content: t("helpVlmContent") },
+			{ id: "imggen", title: t("helpImggenTitle"), content: t("helpImggenContent") },
+			{ id: "analyze", title: t("helpAnalyzeTitle"), content: t("helpAnalyzeContent") },
+			{ id: "failover", title: t("helpFailoverTitle"), content: t("helpFailoverContent") },
+			{ id: "autovision", title: t("helpAutoVisionTitle"), content: t("helpAutoVisionContent") }
+		];
+		var active = React.useState("vlm");
+		var cur = sections.find(function (s) { return s.id === active[0]; }) || sections[0];
+		return React.createElement("div", { className: "vlm-help-overlay", onClick: props.onClose }, [
+			React.createElement("div", { className: "vlm-help-modal", onClick: function (e) { e.stopPropagation(); } }, [
+				React.createElement("button", { className: "vlm-help-close", onClick: props.onClose }, "×"),
+				React.createElement("div", { className: "vlm-help-sidebar" },
+					sections.map(function (s) {
+						return React.createElement("button", {
+							key: s.id,
+							className: "vlm-help-nav-item" + (active[0] === s.id ? " active" : ""),
+							onClick: function () { active[1](s.id); }
+						}, s.title);
+					})
+				),
+				React.createElement("div", { className: "vlm-help-content" }, [
+					React.createElement("h3", { className: "vlm-help-content-title" }, cur.title),
+					React.createElement("p", { className: "vlm-help-content-text" }, cur.content)
+				])
+			])
 		]);
 	}
 
@@ -1140,6 +1211,7 @@ ddHint: "Pick a model",
 			var t = (props && props.t) || tBound || (function (k) { return k; });
 			var snap = React.useState(null);
 			var draft = React.useState(null);
+			var helpOpen = React.useState(false);
 			var keyDraft = React.useState({});
 			var busy = React.useState("");
 			var msg = React.useState("");
@@ -1682,7 +1754,7 @@ ddHint: "Pick a model",
 				onToggleImggen: toggleImggen,
 				onPatchGlobal: patchGlobal
 			}),
-			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "" })
+			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "", onHelp: function () { helpOpen[1](true); } })
 		]);
 
 			return React.createElement("div", { className: "vlm-page" }, [
@@ -1697,7 +1769,8 @@ ddHint: "Pick a model",
 				]),
 					React.createElement("button", { className: "vlm-tab" + (tab[0] === "settings" ? " active" : ""), onClick: function () { tab[1]("settings"); } }, t("settingsTab"))
 				]),
-				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : settingsBody)
+				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : settingsBody),
+				helpOpen[0] ? React.createElement(HelpModal, { t: t, onClose: function () { helpOpen[1](false); } }) : null
 			]);
 		}
 
