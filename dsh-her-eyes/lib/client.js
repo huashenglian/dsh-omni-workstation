@@ -354,14 +354,6 @@ ddHint: "Pick a model",
 			"  .vlm-tab { color: light-dark(#666, #999); }",
 			"  .vlm-tab.active { color: light-dark(#fff, #eee); }",
 			"  .vlm-dd-group { color: light-dark(#666, #888); }",
-			"  .vlm-help-modal { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); }",
-			"  .vlm-help-close { color: light-dark(#666, #888); }",
-			"  .vlm-help-close:hover { color: light-dark(#222, #eee); }",
-			"  .vlm-help-sidebar { border-right-color: light-dark(#ddd, #444); }",
-			"  .vlm-help-nav-item { color: light-dark(#333, #aaa); }",
-			"  .vlm-help-nav-item:hover { color: light-dark(#000, #eee); background-color: light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05)); }",
-			"  .vlm-help-content-title { color: light-dark(#111, #eee); }",
-			"  .vlm-help-content-text { color: light-dark(#333, #bbb); }",
 			"}",
 			// ---- retry row (single line) ----
 			".vlm-retry-row { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 8px 14px; }",
@@ -394,7 +386,19 @@ ddHint: "Pick a model",
   ".vlm-help-nav-item.active { color: var(--dsh-accent, #58a6ff); border-left: 3px solid var(--dsh-accent, #58a6ff); }",
   ".vlm-help-content { flex: 1; padding: 24px 28px; overflow-y: auto; }",
   ".vlm-help-content-title { font-size: 16px; font-weight: 600; color: var(--dsh-fg, #eee); margin: 0 0 12px 0; }",
-  ".vlm-help-content-text { font-size: 14px; line-height: 1.7; color: var(--dsh-fg-muted, #bbb); margin: 0; }"
+  ".vlm-help-content-text { font-size: 14px; line-height: 1.7; color: var(--dsh-fg-muted, #bbb); margin: 0; }",
+  // ---- Help modal light theme override (must come AFTER the base rules above
+  // so light-dark() wins at equal specificity; respects harness color-scheme) ----
+  "@supports (color: light-dark(#000, #fff)) {",
+  "  .vlm-help-modal { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); }",
+  "  .vlm-help-close { color: light-dark(#666, #888); }",
+  "  .vlm-help-close:hover { color: light-dark(#222, #eee); }",
+  "  .vlm-help-sidebar { border-right-color: light-dark(#ddd, #444); }",
+  "  .vlm-help-nav-item { color: light-dark(#333, #aaa); }",
+  "  .vlm-help-nav-item:hover { color: light-dark(#000, #eee); background-color: light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05)); }",
+  "  .vlm-help-content-title { color: light-dark(#111, #eee); }",
+  "  .vlm-help-content-text { color: light-dark(#333, #bbb); }",
+  "}"
 ].join("\n");
 
 		function ensureStyles() {
