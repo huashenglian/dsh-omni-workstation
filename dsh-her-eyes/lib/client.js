@@ -26,6 +26,10 @@ window.__ModuleLoader__.load({
 				checkUpdateBtn: "检测更新",
 				versionLabel: "版本 ",
 				helpBtn: "说明",
+				helpSearchPlaceholder: "搜索文档…",
+				helpPlaceholder: "内容待补充。",
+				helpGroupVlm: "VLM",
+				helpGroupImggen: "图像生成",
 				helpVlmTitle: "VLM 视觉模型",
 				helpVlmContent: "配置多模态视觉模型（VLM）。所有修改自动保存、立即生效，无需手动点保存。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
 				helpImggenTitle: "图像生成",
@@ -34,8 +38,8 @@ window.__ModuleLoader__.load({
 				helpAnalyzeContent: "让 AI 分析本地图片或对话中上传的图片。支持 image_path（本地文件路径）和 attachment_id（上传附件 id）两种图片来源，同时给出时以 attachment_id 为准。结果包含 AI 的文字描述、使用的模型和卡片、尝试次数。",
 				helpFailoverTitle: "卡片与回退",
 				helpFailoverContent: "多卡片列表按顺序从上到下调用。单次请求内，一张卡片连续失败超过重试次数后回退到下一张；超时立即回退不重试。每次新请求重新从顶部卡片开始。支持自定义供应商和 28 个内置固定供应商（OpenAI / Anthropic / Gemini / Groq / MiniMax 等）。",
-				helpAutoVisionTitle: "Auto Vision",
-				helpAutoVisionContent: "VLM 开启时，模型选择器多出一个 Auto Vision 条目。选中后可上传图片；auto-vision 会将图片改写为 analyze_image marker，委派给你最近使用的推理模型（文本模型当脑，analyze_image 当眼）。VLM 关闭或无有效配置时，该条目消失，图片上传被拒绝。",
+				helpMirrorTitle: "镜像模型",
+				helpMirrorContent: "",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
@@ -140,6 +144,10 @@ ddHint: "选择模型",
 				checkUpdateBtn: "Check for Updates",
 				versionLabel: "Version ",
 				helpBtn: "Help",
+				helpSearchPlaceholder: "Search docs…",
+				helpPlaceholder: "Content TBD.",
+				helpGroupVlm: "VLM",
+				helpGroupImggen: "Image Generation",
 				helpVlmTitle: "VLM Vision Models",
 				helpVlmContent: "Configure multimodal vision models. All changes auto-save and take effect immediately. The AI calls analyze_image top-down by card order; retries and falls back to the next card past the limit; new requests restart from the top. If no card is configured, analyze_image is hidden.",
 				helpImggenTitle: "Image Generation",
@@ -148,8 +156,8 @@ ddHint: "选择模型",
 				helpAnalyzeContent: "Lets the AI analyze local or uploaded images. Supports image_path (local file path) and attachment_id (uploaded attachment id); attachment_id wins when both are given. Results include the AI's text description, model used, and attempt count.",
 				helpFailoverTitle: "Cards & Failover",
 				helpFailoverContent: "Multi-card list called top-down. Falls back to next card past retry limit; timeout falls back immediately without retry; new requests restart from the top card. Supports custom providers and 28 built-in fixed providers (OpenAI / Anthropic / Gemini / Groq / MiniMax, etc.).",
-				helpAutoVisionTitle: "Auto Vision",
-				helpAutoVisionContent: "When VLM is on, the picker shows an Auto Vision entry. Select it to enable image upload; it delegates to your last-used text model with image rewrite (text model as brain, analyze_image as eyes). VLM off or no valid config → entry disappears, upload rejected.",
+				helpMirrorTitle: "Mirror Model",
+				helpMirrorContent: "",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
@@ -377,23 +385,32 @@ ddHint: "Pick a model",
   ".vlm-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }",
   ".vlm-about-btns { display: flex; gap: 8px; }",
   ".vlm-help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
-  ".vlm-help-modal { position: relative; width: 80%; max-width: 800px; max-height: 80vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
-  ".vlm-help-close { position: absolute; top: 8px; right: 12px; z-index: 1; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
+  ".vlm-help-modal { position: relative; width: 90vw; max-width: 1100px; height: 85vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
+  ".vlm-help-close { position: absolute; top: 8px; right: 12px; z-index: 2; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
   ".vlm-help-close:hover { color: var(--dsh-fg, #eee); }",
-  ".vlm-help-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); padding: 16px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }",
-  ".vlm-help-nav-item { padding: 8px 16px; background: none; border: none; color: var(--dsh-fg-muted, #aaa); font-size: 13px; text-align: left; cursor: pointer; }",
+  ".vlm-help-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); display: flex; flex-direction: column; overflow: hidden; }",
+  ".vlm-help-search-wrap { padding: 12px 12px 8px 12px; flex-shrink: 0; }",
+  ".vlm-help-search { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg-2, rgba(128,128,128,0.1)); color: var(--dsh-fg, #eee); font-size: 13px; outline: none; }",
+  ".vlm-help-search:focus { border-color: var(--dsh-accent, #58a6ff); }",
+  ".vlm-help-nav { flex: 1; overflow-y: auto; padding: 4px 0 16px 0; display: flex; flex-direction: column; gap: 1px; }",
+  ".vlm-help-group { display: flex; flex-direction: column; }",
+  ".vlm-help-group-title { padding: 8px 16px; background: none; border: none; color: var(--dsh-fg, #eee); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; cursor: pointer; opacity: 0.7; }",
+  ".vlm-help-group-title:hover { opacity: 1; }",
+  ".vlm-help-nav-item { padding: 7px 16px 7px 24px; background: none; border: none; color: var(--dsh-fg-muted, #aaa); font-size: 13px; text-align: left; cursor: pointer; border-left: 3px solid transparent; }",
   ".vlm-help-nav-item:hover { color: var(--dsh-fg, #eee); background: rgba(255,255,255,0.05); }",
-  ".vlm-help-nav-item.active { color: var(--dsh-accent, #58a6ff); border-left: 3px solid var(--dsh-accent, #58a6ff); }",
-  ".vlm-help-content { flex: 1; padding: 24px 28px; overflow-y: auto; }",
-  ".vlm-help-content-title { font-size: 16px; font-weight: 600; color: var(--dsh-fg, #eee); margin: 0 0 12px 0; }",
-  ".vlm-help-content-text { font-size: 14px; line-height: 1.7; color: var(--dsh-fg-muted, #bbb); margin: 0; }",
-  // ---- Help modal light theme override (must come AFTER the base rules above
-  // so light-dark() wins at equal specificity; respects harness color-scheme) ----
+  ".vlm-help-nav-item.active { color: var(--dsh-accent, #58a6ff); border-left-color: var(--dsh-accent, #58a6ff); }",
+  ".vlm-help-content { flex: 1; padding: 28px 32px; overflow-y: auto; }",
+  ".vlm-help-content-title { font-size: 18px; font-weight: 600; color: var(--dsh-fg, #eee); margin: 0 0 16px 0; }",
+  ".vlm-help-content-text { font-size: 14px; line-height: 1.75; color: var(--dsh-fg-muted, #bbb); margin: 0; }",
+  ".vlm-help-placeholder { opacity: 0.4; font-style: italic; }",
+  // ---- Help modal light theme override (must come AFTER base rules) ----
   "@supports (color: light-dark(#000, #fff)) {",
   "  .vlm-help-modal { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); }",
   "  .vlm-help-close { color: light-dark(#666, #888); }",
   "  .vlm-help-close:hover { color: light-dark(#222, #eee); }",
   "  .vlm-help-sidebar { border-right-color: light-dark(#ddd, #444); }",
+  "  .vlm-help-search { background-color: light-dark(rgba(0,0,0,0.04), rgba(128,128,128,0.1)); color: light-dark(#333, #eee); border-color: light-dark(#ccc, #555); }",
+  "  .vlm-help-group-title { color: light-dark(#555, #eee); }",
   "  .vlm-help-nav-item { color: light-dark(#333, #aaa); }",
   "  .vlm-help-nav-item:hover { color: light-dark(#000, #eee); background-color: light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05)); }",
   "  .vlm-help-content-title { color: light-dark(#111, #eee); }",
@@ -1189,30 +1206,79 @@ ddHint: "Pick a model",
 
 	function HelpModal(props) {
 		var t = props.t;
-		var sections = [
-			{ id: "vlm", title: t("helpVlmTitle"), content: t("helpVlmContent") },
-			{ id: "imggen", title: t("helpImggenTitle"), content: t("helpImggenContent") },
-			{ id: "analyze", title: t("helpAnalyzeTitle"), content: t("helpAnalyzeContent") },
-			{ id: "failover", title: t("helpFailoverTitle"), content: t("helpFailoverContent") },
-			{ id: "autovision", title: t("helpAutoVisionTitle"), content: t("helpAutoVisionContent") }
+		var groups = [
+			{
+				id: "vlm", title: t("helpGroupVlm"), sections: [
+					{ id: "vlm-overview", title: t("helpVlmTitle"), content: t("helpVlmContent") },
+					{ id: "vlm-analyze", title: t("helpAnalyzeTitle"), content: t("helpAnalyzeContent") },
+					{ id: "vlm-failover", title: t("helpFailoverTitle"), content: t("helpFailoverContent") },
+					{ id: "vlm-mirror", title: t("helpMirrorTitle"), content: t("helpMirrorContent") }
+				]
+			},
+			{
+				id: "imggen", title: t("helpGroupImggen"), sections: [
+					{ id: "imggen-overview", title: t("helpImggenTitle"), content: t("helpImggenContent") }
+				]
+			}
 		];
-		var active = React.useState("vlm");
-		var cur = sections.find(function (s) { return s.id === active[0]; }) || sections[0];
+		var allSections = [];
+		groups.forEach(function (g) { g.sections.forEach(function (s) { allSections.push(s); }); });
+		var active = React.useState("vlm-overview");
+		var query = React.useState("");
+		var collapsed = React.useState({});
+		var q = query[0].toLowerCase().trim();
+		var filtered = q ? allSections.filter(function (s) {
+			return s.title.toLowerCase().indexOf(q) >= 0 || (s.content && s.content.toLowerCase().indexOf(q) >= 0);
+		}) : null;
+		var cur = allSections.find(function (s) { return s.id === active[0]; }) || allSections[0];
+		function toggleGroup(id) {
+			var c = {};
+			for (var k in collapsed[0]) c[k] = collapsed[0][k];
+			c[id] = !c[id];
+			collapsed[1](c);
+		}
 		return React.createElement("div", { className: "vlm-help-overlay", onClick: props.onClose }, [
 			React.createElement("div", { className: "vlm-help-modal", onClick: function (e) { e.stopPropagation(); } }, [
 				React.createElement("button", { className: "vlm-help-close", onClick: props.onClose }, "×"),
-				React.createElement("div", { className: "vlm-help-sidebar" },
-					sections.map(function (s) {
-						return React.createElement("button", {
-							key: s.id,
-							className: "vlm-help-nav-item" + (active[0] === s.id ? " active" : ""),
-							onClick: function () { active[1](s.id); }
-						}, s.title);
-					})
-				),
+				React.createElement("div", { className: "vlm-help-sidebar" }, [
+					React.createElement("div", { className: "vlm-help-search-wrap" }, [
+						React.createElement("input", {
+							className: "vlm-help-search",
+							type: "text",
+							placeholder: t("helpSearchPlaceholder"),
+							value: query[0],
+							onChange: function (e) { query[1](e.target.value); }
+						})
+					]),
+					React.createElement("div", { className: "vlm-help-nav" },
+						filtered ? filtered.map(function (s) {
+							return React.createElement("button", {
+								key: s.id,
+								className: "vlm-help-nav-item" + (active[0] === s.id ? " active" : ""),
+								onClick: function () { active[1](s.id); query[1](""); }
+							}, s.title);
+						}) : groups.map(function (g) {
+							return React.createElement("div", { key: g.id, className: "vlm-help-group" }, [
+								React.createElement("button", {
+									className: "vlm-help-group-title",
+									onClick: function () { toggleGroup(g.id); }
+								}, (collapsed[0][g.id] ? "▶ " : "▼ ") + g.title),
+								!collapsed[0][g.id] ? g.sections.map(function (s) {
+									return React.createElement("button", {
+										key: s.id,
+										className: "vlm-help-nav-item" + (active[0] === s.id ? " active" : ""),
+										onClick: function () { active[1](s.id); }
+									}, s.title);
+								}) : null
+							]);
+						})
+					)
+				]),
 				React.createElement("div", { className: "vlm-help-content" }, [
 					React.createElement("h3", { className: "vlm-help-content-title" }, cur.title),
-					React.createElement("p", { className: "vlm-help-content-text" }, cur.content)
+					cur.content ?
+						React.createElement("p", { className: "vlm-help-content-text" }, cur.content)
+						: React.createElement("p", { className: "vlm-help-content-text vlm-help-placeholder" }, t("helpPlaceholder"))
 				])
 			])
 		]);
