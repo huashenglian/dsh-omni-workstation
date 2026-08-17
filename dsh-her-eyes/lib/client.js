@@ -1,0 +1,1733 @@
+window.__ModuleLoader__.load({
+	id: "dsh-her-eyes",
+	factory: (require) => {
+		var module = { exports: {} };
+		var exports = module.exports;
+		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+		var React = require("react");
+
+		// ---------- i18n dictionaries (inlined; locale service registers once) ----------
+		var NS = "settings.her-eyes";
+		var DICTS = {
+			zh: {
+				nav: "多模态",
+				loading: "加载中…",
+				loadFail: "加载配置失败：",
+				unknown: "未知错误",
+				saving: " · 正在自动保存…",
+				intro: "配置多模态视觉模型 (VLM)：所有修改自动保存、立即生效，无需“保存”按钮。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
+				retryTitle: "重试与回退",
+				retryLabel: "重试次数（默认 5：单张卡片在单次请求内连续失败超过该值后，回退到下一张卡片）",
+				statusPrefix: "当前有效卡片 ",
+				toolVisible: " · analyze_image 工具已启用",
+				toolHidden: " · analyze_image 工具已隐藏（无有效配置）",
+				aboutTitle: "关于",
+				aboutDesc: "dsh-her-eyes — 应用级多模态视觉分析插件。为 AI 提供 analyze_image（看图）与 generate_image（生图）工具，支持多卡片列表、单次请求内回退、JPEG→PNG 重编码兜底。",
+				checkUpdateBtn: "检测更新",
+				versionLabel: "版本 ",
+				cardListTitle: "API 卡片",
+				addCard: "添加模型",
+				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
+				cardNamePh: "VLM API",
+				nameHint: "双击重命名",
+				providerLabel: "供应商",
+				providerCustom: "自定义",
+				providerOllama: "Ollama",
+				protocolLabel: "API 协议",
+				timeoutLabel: "超时 (ms)",
+				protoOpenaiCompletions: "openai-completions",
+				protoOpenaiResponses: "openai-responses",
+				protoAnthropicMessages: "anthropic-messages",
+				protoGoogleGemini: "google-gemini",
+				endpointLabel: "端点 URL",
+				endpointPh: "如 https://api.openai.com/v1 或 http://127.0.0.1:8080（Ollama）",
+				ollamaHint: "Ollama 为本地模型服务器：只需填写 URL，无需 API Key。",
+				apiKeyLabel: "API Key（输入后自动保存；留空保持不变）",
+				apiKeySet: "已设置（输入新值以替换）",
+				modelLabel: "模型",
+				modelPh: "如 gpt-4o / qwen-vl-max / glm-4v / llama3.2-vision",
+				fetchBtn: "获取可用模型",
+				fetching: "获取中…",
+				endpointHint: "提示：填好端点（和 Key）后点“获取可用模型”即可拉取模型列表；所有修改都会自动保存。",
+				modelsAvail: "可用模型：",
+				fetchOkPrefix: "可用模型 ",
+				fetchOkSuffix: " 个",
+				fetchFail: "获取模型列表失败：",
+				saveFail: "保存失败：",
+				menuPinTop: "置顶",
+				menuPinBottom: "沉底",
+				menuDelete: "删除",
+				keyReveal: "显示 Key",
+				keyHide: "隐藏 Key",
+ddHint: "选择模型",
+			dragHint: "拖动调整顺序",
+			tabImggen: "生图",
+			moduleSwitch: "模块开关",
+			toolOff: " · analyze_image 已停用（模块开关关闭）",
+			imggenIntro: "配置图像生成模型：AI 通过 generate_image 工具生成图片并保存到工作区 generated-images/ 目录。所有修改自动保存。",
+			imggenTitle: "生图配置",
+			imggenProviderLabel: "供应商",
+			imggenProtocolLabel: "API 协议",
+			imggenProtocolImages: "openai-images",
+			imggenProtocolChat: "openai-completions",
+			imggenApiPathLabel: "API 路径",
+			imggenApiPathPh: "默认 /images/generations",
+			imggenEndpointLabel: "端点 URL",
+			imggenKeyLabel: "API Key（输入后自动保存；留空保持不变）",
+			imggenModelLabel: "模型",
+			imggenTimeoutLabel: "超时 (ms)",
+			imggenRetryLabel: "重试次数",
+			imggenResponseFormatLabel: "响应格式",
+			imggenFormatAuto: "自动（优先 b64_json，url 立即下载）",
+			imggenFormatB64: "b64_json",
+			imggenFormatUrl: "url",
+			imggenFilterLabel: "仅显示生图模型",
+			imggenFilterHint: "获取模型时按关键词筛选（含 image 的模型），关闭则拉取全部",
+			imggenFetchBtn: "获取可用模型",
+			imggenFetching: "获取中…",
+			imggenReset: "重置配置",
+			imggenResetConfirm: "确定",
+			imggenResetHint: "重置所有生图配置为初始状态",
+			imggenNoConfig: "未配置有效的生图 API，generate_image 工具已隐藏。",
+			imggenStatusPrefix: "生图有效配置",
+			batchCollapseAll: "收纳全部",
+			batchExpandAll: "展开全部",
+			batchDeleteAll: "删除全部",
+			confirmDelete: "确定",
+			fixedUrlLabel: "内置端点",
+			providerGroupGeneral: "通用",
+			providerGroupBuiltin: "内置供应商",
+			fallbackTitle: "兜底模型",
+			fallbackProviderLabel: "供应商",
+			fallbackModelsLabel: "模型列表（从上到下回退）",
+			settingsTab: "设置",
+			settingsTitle: "全局配置",
+			settingsModuleSection: "模块开关",
+			settingsBackoffSection: "退避策略",
+			backoffBaseLabel: "退避基数 (ms)",
+			backoffMaxLabel: "退避上限 (ms)",
+			backoff429BaseLabel: "429 退避基数 (ms)",
+			backoff429MaxLabel: "429 退避上限 (ms)",
+			retryStatusCodesLabel: "重试状态码",
+			retryStatusCodesHint: "逗号分隔的 HTTP 状态码，触发重试+回退",
+			verifyReminderLabel: "生图后自动验证提醒"
+		},
+			en: {
+				nav: "Multimodal",
+				loading: "Loading…",
+				loadFail: "Failed to load config: ",
+				unknown: "unknown error",
+				saving: " · auto-saving…",
+				intro: "Configure Multimodal Vision-Language Models (VLM). All changes auto-save and take effect immediately — no Save button. The AI calls these API cards via the analyze_image tool top-down; within a single request it retries and falls back to the next card past the retry limit, and every new request restarts from the top card. If no card is fully configured, analyze_image is hidden automatically.",
+				retryTitle: "Retry & Fallback",
+				retryLabel: "Retry count (default 5: within a single request, a card falls back to the next after this many consecutive failures)",
+				statusPrefix: "Valid cards: ",
+				toolVisible: " · analyze_image enabled",
+				toolHidden: " · analyze_image hidden (no valid config)",
+				aboutTitle: "About",
+				aboutDesc: "dsh-her-eyes — application-level multimodal vision plugin. Gives the AI analyze_image (vision) and generate_image tools with multi-card failover and JPEG→PNG re-encode fallback.",
+				checkUpdateBtn: "Check for Updates",
+				versionLabel: "Version ",
+				cardListTitle: "API Cards",
+				addCard: "Add Model",
+				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
+				cardNamePh: "VLM API",
+				nameHint: "Double-click to rename",
+				providerLabel: "Provider",
+				providerCustom: "Custom",
+				providerOllama: "Ollama",
+				protocolLabel: "API Protocol",
+				timeoutLabel: "Timeout (ms)",
+				protoOpenaiCompletions: "openai-completions",
+				protoOpenaiResponses: "openai-responses",
+				protoAnthropicMessages: "anthropic-messages",
+				protoGoogleGemini: "google-gemini",
+				endpointLabel: "Endpoint URL",
+				endpointPh: "e.g. https://api.openai.com/v1 or http://127.0.0.1:8080 (Ollama)",
+				ollamaHint: "Ollama is a local model server: just fill in the URL, no API Key needed.",
+				apiKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
+				apiKeySet: "Set (enter new value to replace)",
+				modelLabel: "Model",
+				modelPh: "e.g. gpt-4o / qwen-vl-max / glm-4v / llama3.2-vision",
+				fetchBtn: "Fetch available models",
+				fetching: "Fetching…",
+				endpointHint: "Tip: enter the endpoint (and Key) then click “Fetch available models” to list models; all edits auto-save.",
+				modelsAvail: "Available models: ",
+				fetchOkPrefix: "Available models: ",
+				fetchOkSuffix: "",
+				fetchFail: "Failed to fetch models: ",
+				saveFail: "Save failed: ",
+				menuPinTop: "Pin to Top",
+				menuPinBottom: "Send to Bottom",
+				menuDelete: "Delete",
+				keyReveal: "Show key",
+				keyHide: "Hide key",
+ddHint: "Pick a model",
+			dragHint: "Drag to reorder",
+			tabImggen: "Image Gen",
+			moduleSwitch: "Module switch",
+			toolOff: " · analyze_image disabled (module switch off)",
+			imggenIntro: "Configure image generation models: the AI generates images via the generate_image tool and saves them to the workspace generated-images/ directory. All changes auto-save.",
+			imggenTitle: "Image Gen Config",
+			imggenProviderLabel: "Provider",
+			imggenProtocolLabel: "API Protocol",
+			imggenProtocolImages: "openai-images",
+			imggenProtocolChat: "openai-completions",
+			imggenApiPathLabel: "API Path",
+			imggenApiPathPh: "Default /images/generations",
+			imggenEndpointLabel: "Endpoint URL",
+			imggenKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
+			imggenModelLabel: "Model",
+			imggenTimeoutLabel: "Timeout (ms)",
+			imggenRetryLabel: "Retry count",
+			imggenResponseFormatLabel: "Response format",
+			imggenFormatAuto: "Auto (b64_json preferred; url downloaded immediately)",
+			imggenFormatB64: "b64_json",
+			imggenFormatUrl: "url",
+			imggenFilterLabel: "Show image models only",
+			imggenFilterHint: "Filter models by keyword (image) when fetching; off fetches all",
+			imggenFetchBtn: "Fetch available models",
+			imggenFetching: "Fetching…",
+			imggenReset: "Reset config",
+			imggenResetConfirm: "Confirm",
+			imggenResetHint: "Reset all image-generation config to defaults",
+			imggenNoConfig: "No valid image-generation API configured; generate_image is hidden.",
+			imggenStatusPrefix: "Image gen valid config",
+			batchCollapseAll: "Collapse all",
+			batchExpandAll: "Expand all",
+			batchDeleteAll: "Delete all",
+			confirmDelete: "Confirm",
+			fixedUrlLabel: "Built-in endpoint",
+			providerGroupGeneral: "General",
+			providerGroupBuiltin: "Built-in providers",
+			fallbackTitle: "Fallback Models",
+			fallbackProviderLabel: "Provider",
+			fallbackModelsLabel: "Model list (failover top to bottom)",
+			settingsTab: "Settings",
+			settingsTitle: "Global Config",
+			settingsModuleSection: "Module Switches",
+			settingsBackoffSection: "Backoff Strategy",
+			backoffBaseLabel: "Backoff Base (ms)",
+			backoffMaxLabel: "Backoff Max (ms)",
+			backoff429BaseLabel: "429 Backoff Base (ms)",
+			backoff429MaxLabel: "429 Backoff Max (ms)",
+			retryStatusCodesLabel: "Retry Status Codes",
+			retryStatusCodesHint: "Comma-separated HTTP status codes that trigger retry+failover",
+			verifyReminderLabel: "Auto-verify reminder after image generation"
+		}
+		};
+		var tBound = null;
+
+		// ---------- RPC to the host half (web routes) ----------
+		function call(method, payload) {
+			var url = "/vlm/" + method;
+			var init = { headers: { Accept: "application/json" } };
+			if (!(method === "config" && payload === undefined)) {
+				init.method = "POST";
+				init.headers["Content-Type"] = "application/json";
+				init.body = JSON.stringify(payload || {});
+			}
+			return fetch(url, init).then(function (response) {
+				return response.json().catch(function () { return null; });
+			});
+		}
+
+		// ---------- styling ----------
+		var CSS = [
+			".vlm-page { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px; font-size: 13px; color: var(--dsh-fg, #eee); }",
+			".vlm-card { border: 1px solid var(--dsh-border, #555); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--dsh-bg-2, rgba(128,128,128,0.07)); }",
+			".vlm-card h3 { margin: 0 0 2px; font-size: 14px; }",
+			".vlm-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }",
+			".vlm-grow { flex: 1; }",
+			".vlm-label { opacity: 0.8; }",
+			".vlm-input { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg, #1e1e1e); color: var(--dsh-fg, #eee); font-size: 13px; box-sizing: border-box; width: 100%; }",
+			".vlm-row { display: flex; gap: 8px; align-items: flex-end; }",
+			".vlm-row .vlm-field { flex: 1; }",
+			".vlm-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg-2, #333); color: var(--dsh-fg, #eee); cursor: pointer; font-size: 13px; white-space: nowrap; }",
+			".vlm-btn:disabled { opacity: 0.55; cursor: default; }",
+			".vlm-models { font-size: 11px; opacity: 0.75; margin: 0; word-break: break-all; }",
+			".vlm-status { font-size: 11px; opacity: 0.75; margin: 0; }",
+			".vlm-msg { font-size: 12px; margin: 0; }",
+			".vlm-err { color: #f85149; }",
+			".vlm-ok { color: #3fb950; }",
+			".vlm-desc { font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.6; }",
+			// ---- card list ----
+			".vlm-list { display: flex; flex-direction: column; gap: 10px; }",
+			".vlm-list-head { display: flex; align-items: center; justify-content: space-between; }",
+			".vlm-list-title { font-size: 13px; font-weight: 600; }",
+			".vlm-add-btn { font-weight: 500; }",
+			// ---- card head ----
+			".vlm-card-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }",
+			".vlm-drag-handle { cursor: grab; color: var(--dsh-fg-muted, #888); padding: 2px 4px; border-radius: 4px; flex: 0 0 auto; -webkit-user-select: none; user-select: none; }",
+			".vlm-drag-handle:active { cursor: grabbing; }",
+			".vlm-card-name { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 500; cursor: text; -webkit-user-select: none; user-select: none; }",
+			".vlm-card-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+			".vlm-card-name-input { padding: 3px 6px; border-radius: 4px; border: 1px solid var(--dsh-accent, #58a6ff); background: var(--dsh-bg, #1e1e1e); color: var(--dsh-fg, #eee); font-size: 13px; width: 100%; box-sizing: border-box; }",
+			".vlm-card-summary { font-size: 11px; opacity: 0.55; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; flex: 0 1 auto; }",
+			".vlm-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 5px; border: none; background: transparent; color: var(--dsh-fg-muted, #888); cursor: pointer; padding: 0; flex: 0 0 auto; }",
+			".vlm-icon-btn:hover { background: var(--dsh-bg, rgba(128,128,128,0.15)); color: var(--dsh-fg, #eee); }",
+			".vlm-card-menu-wrap { position: relative; flex: 0 0 auto; }",
+			".vlm-card-menu { position: absolute; right: 0; top: 26px; min-width: 132px; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 100; padding: 4px; display: flex; flex-direction: column; }",
+			".vlm-menu-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; color: var(--dsh-fg, #eee); }",
+			".vlm-menu-item:hover { background: var(--dsh-bg, rgba(128,128,128,0.2)); }",
+			".vlm-menu-item.vlm-menu-danger { color: #f85149; }",
+			".vlm-menu-item.vlm-menu-danger:hover { background: rgba(248,81,73,0.12); }",
+			// ---- card body ----
+			".vlm-card-body { display: flex; flex-direction: column; gap: 10px; }",
+			".vlm-select { appearance: auto; }",
+			".vlm-input::-ms-reveal, .vlm-input::-ms-clear { display: none; }",
+			// ---- key eye toggle ----
+			".vlm-key-wrap { position: relative; }",
+			".vlm-key-input { padding-right: 32px !important; }",
+			".vlm-eye-btn { position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--dsh-fg, #e6e6e6); cursor: pointer; padding: 0; border-radius: 4px; }",
+			".vlm-eye-btn:hover { color: #fff; background: rgba(128,128,128,0.2); }",
+			// ---- model dropdown ----
+			".vlm-model-wrap { position: relative; }",
+			".vlm-model-input { padding-right: 32px !important; }",
+			".vlm-model-dropdown { position: absolute; left: 0; right: 0; top: calc(100% + 2px); max-height: 180px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 110; padding: 4px; }",
+			".vlm-dd-item { padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--dsh-fg, #eee); word-break: break-all; }",
+			".vlm-dd-item:hover { background: var(--dsh-bg, rgba(128,128,128,0.2)); }",
+			".vlm-dd-item.active { color: var(--dsh-accent, #58a6ff); }",
+			// ---- drag feedback ----
+			".vlm-card.dragging { opacity: 0.45; border-style: dashed; }",
+			".vlm-card.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
+			// ---- tabs & module switches ----
+			".vlm-tabs { display: flex; gap: 6px; }",
+			".vlm-tab { position: relative; padding: 6px 28px 6px 14px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: transparent; color: var(--dsh-fg-muted, #888); cursor: pointer; font-size: 13px; flex: 0 1 auto; white-space: nowrap; }",
+			".vlm-tab.active { background: var(--dsh-bg-2, #333); border-color: var(--dsh-accent, #58a6ff); color: var(--dsh-fg, #eee); }",
+			".vlm-tab-dot { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }",
+			".vlm-tab-dot.on { background: #3fb950; }",
+			".vlm-tab-dot.off { background: #f85149; }",
+			".vlm-tab-body { display: flex; flex-direction: column; gap: 14px; }",
+			".vlm-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }",
+			".vlm-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
+			".vlm-switch input { opacity: 0; width: 0; height: 0; }",
+			".vlm-switch-slider { position: absolute; inset: 0; border-radius: 9px; background: var(--dsh-bg, #333); border: 1px solid var(--dsh-border, #555); cursor: pointer; transition: background 0.15s; }",
+			".vlm-switch-slider::before { content: ''; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; border-radius: 50%; background: var(--dsh-fg-muted, #888); transition: transform 0.15s; }",
+			".vlm-switch input:checked + .vlm-switch-slider { background: var(--dsh-accent, #58a6ff); }",
+			".vlm-switch input:checked + .vlm-switch-slider::before { transform: translateX(16px); background: #fff; }",
+			// ---- batch actions ----
+			".vlm-batch-wrap { position: relative; flex: 0 0 auto; }",
+			".vlm-batch-btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }",
+			".vlm-batch-menu { position: absolute; right: 0; top: 26px; min-width: 132px; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 100; padding: 4px; display: flex; flex-direction: column; }",
+			// ---- provider dropdown (custom, height capped ~60% of native popup) ----
+			".vlm-provider-wrap { position: relative; }",
+			".vlm-provider-btn { text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }",
+			".vlm-provider-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+			".vlm-provider-arrow { flex: 0 0 auto; }",
+			".vlm-provider-dropdown { position: absolute; left: 0; right: 0; top: calc(100% + 2px); max-height: 320px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
+			".vlm-dd-group { padding: 6px 10px 2px; font-size: 11px; color: var(--dsh-fg-muted, #888); }",
+			".vlm-fixed-url { font-size: 11px; opacity: 0.6; margin: 0; word-break: break-all; -webkit-user-select: all; user-select: all; }",
+			".vlm-menu-item.vlm-menu-confirm { background: rgba(248, 81, 73, 0.18); }",
+			// ---- imggen panel ----
+			".vlm-imggen-panel { border: 1px solid var(--dsh-border, #555); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--dsh-bg-2, rgba(128,128,128,0.07)); }",
+			".vlm-imggen-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }",
+			".vlm-imggen-title { flex: 1; font-size: 14px; font-weight: 500; }",
+			// ---- light-dark() theme override (respects harness color-scheme on <html>) ----
+			// 浅色主题：输入框/按键背景深灰 + 文字白色；深色主题不变
+			"@supports (color: light-dark(#000, #fff)) {",
+			"  .vlm-page { color: light-dark(#333, #eee); }",
+			"  .vlm-input, .vlm-btn, .vlm-provider-btn { background-color: light-dark(#3a3a3a, #1e1e1e); color: light-dark(#fff, #eee); border-color: light-dark(#555, #555); }",
+			"  .vlm-dd-item { color: light-dark(#fff, #eee); }",
+			"  .vlm-tab { color: light-dark(#666, #999); }",
+			"  .vlm-tab.active { color: light-dark(#fff, #eee); }",
+			"  .vlm-dd-group { color: light-dark(#666, #888); }",
+			"}",
+			// ---- retry row (single line) ----
+			".vlm-retry-row { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 8px 14px; }",
+			".vlm-retry-label { flex: 0 0 auto; font-weight: 500; }",
+			".vlm-retry-sep { flex: 0 0 auto; opacity: 0.3; }",
+			".vlm-retry-status { flex: 1; opacity: 0.6; }",
+			".vlm-retry-input { width: 60px !important; flex: 0 0 60px; }",
+			// ---- fallback card ----
+			".vlm-fallback-card { border-style: dashed; }",
+			".vlm-fb-model-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--dsh-border, #555); border-radius: 6px; margin-bottom: 4px; background: var(--dsh-bg-2, rgba(128,128,128,0.07)); }",
+			".vlm-fb-model-id { flex: 1; font-size: 12px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+			".vlm-fb-model-item.dragging { opacity: 0.45; border-style: dashed; }",
+			".vlm-fb-model-item.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
+			// ---- settings panel ----
+			".vlm-settings-panel { display: flex; flex-direction: column; gap: 14px; }",
+			".vlm-settings-section { display: flex; flex-direction: column; gap: 8px; }",
+".vlm-settings-section-title { font-size: 13px; font-weight: 600; opacity: 0.8; }",
+  ".vlm-settings-section .vlm-row { gap: 20px; }",
+  ".vlm-about-card { margin-top: 16px; align-items: flex-start; }",
+  ".vlm-about-update-btn { align-self: flex-start; }",
+  ".vlm-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }"
+].join("\n");
+
+		function ensureStyles() {
+			if (typeof document === "undefined" || document.getElementById("dsh-her-eyes-css") !== null) return;
+			var tag = document.createElement("style");
+			tag.id = "dsh-her-eyes-css";
+			tag.textContent = CSS;
+			document.head.appendChild(tag);
+		}
+
+		// ---------- auto-save helpers (debounced, merging pending patches) ----------
+		function debounce(fn, ms) {
+			var timer = null;
+			return function () {
+				var self = this;
+				var args = arguments;
+				if (timer !== null) clearTimeout(timer);
+				timer = setTimeout(function () {
+					timer = null;
+					fn.apply(self, args);
+				}, ms);
+			};
+		}
+
+		function mergePatch(a, b) {
+			if (a === null || a === undefined) return b;
+			if (b === null || b === undefined) return a;
+			if (typeof a !== "object" || Array.isArray(a) || typeof b !== "object" || Array.isArray(b)) return b;
+			var out = Object.assign({}, a);
+			for (var key of Object.keys(b)) out[key] = key in out ? mergePatch(out[key], b[key]) : b[key];
+			return out;
+		}
+
+		var pendingPatch = null;
+		var scheduleSave = debounce(function () {
+			if (pendingPatch === null) return;
+			var patch = pendingPatch;
+			pendingPatch = null;
+			call("config", patch).catch(function () {});
+		}, 600);
+		function queueSave(patch) {
+			pendingPatch = mergePatch(pendingPatch, patch);
+			scheduleSave();
+		}
+
+		var et = function (e) { return (e && e.message ? e.message : String(e)); };
+
+		// ---------- inline SVG icon ----------
+		function SvgIcon(props) {
+			var d = props && props.d;
+			var paths = Array.isArray(d) ? d : [];
+			return React.createElement("svg", {
+				width: (props && props.width) || 14,
+				height: (props && props.height) || 14,
+				viewBox: "0 0 16 16",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 1.5,
+				strokeLinecap: "round",
+				strokeLinejoin: "round"
+			}, paths.map(function (p, i) { return React.createElement("path", { key: i, d: p }); }));
+		}
+		var I_DRAG = ["M3.5 2.5v0", "M8 2.5v0", "M12.5 2.5v0", "M3.5 8v0", "M8 8v0", "M12.5 8v0", "M3.5 13.5v0", "M8 13.5v0", "M12.5 13.5v0"];
+		var I_MENU = ["M3 8v0", "M8 8v0", "M13 8v0"];
+		var I_COLLAPSE = ["M4 6.5l4 4 4-4"];
+		var I_EXPAND = ["M6.5 4l4 4-4 4"];
+		var I_PIN_TOP = ["M8 13V3", "M4 7L8 3l4 4"];
+		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
+		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
+		var I_EYE = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"];
+		var I_EYE_OFF = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z", "M2 2l12 12"];
+
+		// ---------- provider presets (mirror of the host half) ----------
+		// fixed: true = URL & protocol are built in and NOT user-editable.
+		var PROVIDERS_UI = {
+			custom: { fixed: false, keyRequired: true },
+			ollama: { fixed: false, keyRequired: false },
+			agnes: { fixed: true, protocol: "anthropic-messages", endpoint: "https://apihub.agnes-ai.com", name: "Agnes AI" },
+			"agnes-cn": { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.agnes-ai.cn", name: "Agnes AI CN" },
+			anthropic: { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.anthropic.com", name: "Anthropic" },
+			"ant-ling": { fixed: true, protocol: "openai-completions", endpoint: "https://api.ant-ling.com/v1", name: "Ant Ling" },
+			cerebras: { fixed: true, protocol: "openai-completions", endpoint: "https://api.cerebras.ai/v1", name: "Cerebras" },
+			fireworks: { fixed: true, protocol: "openai-completions", endpoint: "https://api.fireworks.ai/inference", name: "Fireworks AI" },
+			google: { fixed: true, protocol: "google-gemini", endpoint: "https://generativelanguage.googleapis.com/v1beta", name: "Google Gemini" },
+			groq: { fixed: true, protocol: "openai-completions", endpoint: "https://api.groq.com/openai/v1", name: "Groq" },
+			huggingface: { fixed: true, protocol: "openai-completions", endpoint: "https://router.huggingface.co/v1", name: "Hugging Face" },
+			"kimi-coding": { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.kimi.com/coding", name: "Kimi Coding" },
+			minimax: { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.minimax.io/anthropic", name: "MiniMax" },
+			"minimax-cn": { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.minimaxi.com/anthropic", name: "MiniMax CN" },
+			moonshotai: { fixed: true, protocol: "openai-completions", endpoint: "https://api.moonshot.ai/v1", name: "Moonshot AI" },
+			"moonshotai-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://api.moonshot.cn/v1", name: "Moonshot AI CN" },
+			nvidia: { fixed: true, protocol: "openai-completions", endpoint: "https://integrate.api.nvidia.com/v1", name: "NVIDIA NIM" },
+			openai: { fixed: true, protocol: "openai-responses", endpoint: "https://api.openai.com/v1", name: "OpenAI" },
+			openrouter: { fixed: true, protocol: "openai-completions", endpoint: "https://openrouter.ai/api/v1", name: "OpenRouter" },
+			"qwen-token-plan": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1", name: "Qwen Token Plan" },
+			"qwen-token-plan-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", name: "Qwen Token Plan CN" },
+			together: { fixed: true, protocol: "openai-completions", endpoint: "https://api.together.ai/v1", name: "Together AI" },
+			"vercel-ai-gateway": { fixed: true, protocol: "anthropic-messages", endpoint: "https://ai-gateway.vercel.sh", name: "Vercel AI Gateway" },
+			xai: { fixed: true, protocol: "openai-completions", endpoint: "https://api.x.ai/v1", name: "xAI" },
+			xiaomi: { fixed: true, protocol: "openai-completions", endpoint: "https://api.xiaomimimo.com/v1", name: "Xiaomi MiMo" },
+			"xiaomi-token-plan-ams": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan-ams.xiaomimimo.com/v1", name: "Xiaomi Token Plan (AMS)" },
+			"xiaomi-token-plan-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan-cn.xiaomimimo.com/v1", name: "Xiaomi Token Plan CN" },
+			"xiaomi-token-plan-sgp": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan-sgp.xiaomimimo.com/v1", name: "Xiaomi Token Plan (SGP)" },
+			zai: { fixed: true, protocol: "openai-completions", endpoint: "https://api.z.ai/api/coding/paas/v4", name: "Z.AI" },
+			"zai-coding-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://open.bigmodel.cn/api/coding/paas/v4", name: "Z.AI Coding CN" }
+		};
+		var PROVIDER_IDS_UI = Object.keys(PROVIDERS_UI).sort();
+		// 生图面板供应商：仅保留已知提供生图模型的供应商（排除纯文本/编码/不支持的）
+		var IMGGEN_PROVIDER_IDS_UI = PROVIDER_IDS_UI.filter(function (p) {
+			return p === "custom" || p === "ollama" ||
+				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface"].indexOf(p) >= 0;
+		});
+
+		function providerDisplay(id, t) {
+			var m = PROVIDERS_UI[id];
+			if (!m) return id;
+			if (id === "custom") return t("providerCustom");
+			if (id === "ollama") return t("providerOllama");
+			return m.name;
+		}
+
+		// Flip the model dropdown upward when there is not enough room below.
+		function ddRef(el) {
+			if (!el) return;
+			var wrap = el.closest(".vlm-model-wrap");
+			if (!wrap) return;
+			var below = window.innerHeight - wrap.getBoundingClientRect().bottom;
+			if (below < 210) { el.style.top = "auto"; el.style.bottom = "calc(100% + 2px)"; }
+		}
+
+		// Flip the provider dropdown: below insufficient → up; above insufficient → down (default).
+		function provDdRef(el) {
+			if (!el) return;
+			var wrap = el.closest(".vlm-provider-wrap");
+			if (!wrap) return;
+			var rect = wrap.getBoundingClientRect();
+			var below = window.innerHeight - rect.bottom;
+			if (below < 340) { el.style.top = "auto"; el.style.bottom = "calc(100% + 2px)"; }
+		}
+
+		// ---------- shared UI atoms ----------
+		function Field(props) {
+			return React.createElement("label", { className: "vlm-field" }, [
+				React.createElement("span", { className: "vlm-label" }, props.label),
+				React.createElement("input", {
+					className: "vlm-input",
+					type: props.password ? "password" : props.number ? "number" : "text",
+					value: props.value,
+					placeholder: props.placeholder || "",
+					list: props.list || undefined,
+					min: props.min,
+					onChange: props.onChange
+				})
+			]);
+		}
+
+		function SelectField(props) {
+			return React.createElement("label", { className: "vlm-field" }, [
+				React.createElement("span", { className: "vlm-label" }, props.label),
+				React.createElement("select", {
+					className: "vlm-input vlm-select",
+					value: props.value,
+					onChange: props.onChange
+				}, (props.optgroups
+					? props.optgroups.map(function (g) {
+						return React.createElement("optgroup", { key: g.label, label: g.label },
+							g.options.map(function (o) {
+								return React.createElement("option", { key: o.value, value: o.value }, o.label);
+							}));
+					})
+					: (props.options || []).map(function (o) {
+						return React.createElement("option", { key: o.value, value: o.value }, o.label);
+					})))
+			]);
+		}
+
+		// ---------- API card component ----------
+		function ApiCard(props) {
+			var t = props.t;
+			var card = props.card;
+			var id = card.id;
+			var index = props.index;
+			var expanded = !card.collapsed;
+			var isOllama = card.provider === "ollama";
+			var prov = PROVIDERS_UI[card.provider] || {};
+			var isFixed = !!prov.fixed;
+			var confirmDel = props.confirmDel === id;
+			var provOpen = props.openProv === id;
+			var modelList = (props.models && Array.isArray(props.models[id])) ? props.models[id] : [];
+			var keyDraftValue = (props.keyDraft && props.keyDraft[id]) || "";
+			var busy = props.busy;
+			var menuOpen = props.menuOpen === id;
+			var renaming = props.renameId === id;
+
+			// collapsed summary line: endpoint (or provider), truncated
+			var summary = "";
+			if (card.collapsed) {
+				var s = isFixed ? prov.endpoint : (card.endpoint ? card.endpoint : (isOllama ? "Ollama" : card.protocol));
+				if (s.length > 42) s = s.slice(0, 42) + "…";
+				summary = "· " + s;
+			}
+
+			var isDragging = props.dragFrom === index;
+			var isDropTarget = props.dropOver === index;
+			var isRevealed = !!((props.revealed && props.revealed[id]));
+			var isDdOpen = props.openDd === id;
+
+			// drag helpers (handle is always draggable; show whole-card ghost)
+			function dragStart(e) {
+				if (e.dataTransfer) {
+					e.dataTransfer.setData("text/plain", String(index));
+					e.dataTransfer.effectAllowed = "move";
+					var cardEl = e.currentTarget.closest(".vlm-card");
+					if (cardEl && e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(cardEl, 20, 12);
+				}
+				props.onDragStart(index);
+			}
+			function dragOver(e) {
+				e.preventDefault();
+				if (props.dragFrom !== null && props.dragFrom !== index) props.onDropOver(index);
+			}
+			function drop(e) {
+				e.preventDefault();
+				var from = Number(e.dataTransfer.getData("text/plain"));
+				if (!Number.isNaN(from) && from !== index) props.onReorder(from, index);
+				props.onDragEnd();
+			}
+			function dragEnd() {
+				props.onDragEnd();
+			}
+
+			// rename helpers
+			function startRename() { props.onStartRename(id); }
+			function commitRename(e) {
+				var v = e.target.value;
+				if (e.key === "Enter") {
+					var trimmed = String(v || "").trim();
+					if (trimmed && trimmed !== card.name) props.onPatch(id, "name", trimmed);
+					props.onEndRename();
+				} else if (e.key === "Escape") {
+					props.onEndRename();
+				}
+			}
+			function blurRename(e) {
+				var v = String(e.target.value || "").trim();
+				if (v && v !== card.name) props.onPatch(id, "name", v);
+				props.onEndRename();
+			}
+
+			var providerGroups = [
+				{ label: t("providerGroupGeneral"), options: [
+					{ value: "custom", label: t("providerCustom") },
+					{ value: "ollama", label: t("providerOllama") }
+				] },
+				{ label: t("providerGroupBuiltin"), options: PROVIDER_IDS_UI.filter(function (p) { return p !== "custom" && p !== "ollama"; }).map(function (p) {
+					return { value: p, label: providerDisplay(p, t) };
+				}) }
+			];
+			var protocolOptions = [
+				{ value: "openai-completions", label: t("protoOpenaiCompletions") },
+				{ value: "openai-responses", label: t("protoOpenaiResponses") },
+				{ value: "anthropic-messages", label: t("protoAnthropicMessages") },
+				{ value: "google-gemini", label: t("protoGoogleGemini") }
+			];
+
+			var head = React.createElement("div", { className: "vlm-card-head" }, [
+				React.createElement("div", {
+					className: "vlm-drag-handle",
+					draggable: true,
+					title: t("dragHint"),
+					onDragStart: dragStart,
+					onDragEnd: dragEnd
+				}, React.createElement(SvgIcon, { d: I_DRAG })),
+				React.createElement("div", { className: "vlm-card-name" }, renaming
+					? React.createElement("input", {
+						className: "vlm-card-name-input",
+						defaultValue: card.name,
+						autoFocus: true,
+						onKeyDown: commitRename,
+						onBlur: blurRename
+					})
+					: [
+						React.createElement("span", { className: "vlm-card-name-text", onDoubleClick: startRename }, card.name || t("cardNamePh")),
+						summary ? React.createElement("span", { className: "vlm-card-summary" }, summary) : null
+					]),
+				React.createElement("div", { className: "vlm-card-menu-wrap" }, [
+					React.createElement("button", {
+						className: "vlm-icon-btn vlm-card-menu-btn",
+						onClick: function () { props.onToggleMenu(id); }
+					}, React.createElement(SvgIcon, { d: I_MENU })),
+					menuOpen ? React.createElement("div", { className: "vlm-card-menu" }, [
+						React.createElement("div", { className: "vlm-menu-item", onClick: function () { props.onMoveTop(id); props.onCloseMenu(); } },
+							React.createElement(SvgIcon, { d: I_PIN_TOP }), React.createElement("span", null, t("menuPinTop"))),
+						React.createElement("div", { className: "vlm-menu-item", onClick: function () { props.onMoveBottom(id); props.onCloseMenu(); } },
+							React.createElement(SvgIcon, { d: I_PIN_BOTTOM }), React.createElement("span", null, t("menuPinBottom"))),
+						React.createElement("div", { className: "vlm-menu-item vlm-menu-danger" + (confirmDel ? " vlm-menu-confirm" : ""), onClick: function () { props.onDeleteClick(id); } },
+							React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, confirmDel ? t("confirmDelete") : t("menuDelete")))
+					]) : null
+				]),
+				React.createElement("button", {
+					className: "vlm-icon-btn",
+					title: expanded ? "Collapse" : "Expand",
+					onClick: function () { props.onPatch(id, "collapsed", !card.collapsed); }
+				}, React.createElement(SvgIcon, { d: expanded ? I_COLLAPSE : I_EXPAND }))
+			]);
+
+			var body = null;
+			if (expanded) {
+				body = React.createElement("div", { className: "vlm-card-body" }, [
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement("div", { className: "vlm-field vlm-grow" }, [
+							React.createElement("span", { className: "vlm-label" }, t("providerLabel")),
+							React.createElement("div", { className: "vlm-provider-wrap" }, [
+								React.createElement("button", {
+									className: "vlm-input vlm-provider-btn", type: "button",
+									onClick: function () { props.onToggleProv(id); }
+								}, [
+									React.createElement("span", { className: "vlm-provider-label" }, providerDisplay(card.provider, t)),
+									React.createElement("span", { className: "vlm-provider-arrow" }, provOpen ? "▴" : "▾")
+								]),
+								provOpen ? React.createElement("div", { className: "vlm-provider-dropdown", ref: provDdRef }, providerGroups.map(function (g) {
+									return [React.createElement("div", { key: "g-" + g.label, className: "vlm-dd-group" }, g.label)].concat(g.options.map(function (o) {
+										return React.createElement("div", {
+											key: o.value, className: "vlm-dd-item" + (o.value === card.provider ? " active" : ""),
+											onClick: function () { props.onPickProvider(id, o.value); }
+										}, o.label);
+									}));
+								})) : null
+							])
+						]),
+						isFixed ? null : React.createElement(SelectField, {
+							label: t("protocolLabel"),
+							value: card.protocol,
+							options: protocolOptions,
+							onChange: function (e) { props.onPatch(id, "protocol", e.target.value); }
+						})
+					]),
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement(Field, {
+							label: t("timeoutLabel"),
+							number: true,
+							min: 1000,
+							value: String(card.timeoutMs != null ? card.timeoutMs : 120000),
+							placeholder: "120000",
+							onChange: function (e) { props.onPatch(id, "timeoutMs", e.target.value); }
+						}),
+						React.createElement(Field, {
+							label: "上下文窗口",
+							number: true, min: 1,
+							value: String(card.contextWindow != null ? card.contextWindow : ""),
+							placeholder: "262144",
+							onChange: function (e) { props.onPatch(id, "contextWindow", e.target.value); }
+						}),
+						React.createElement(Field, {
+							label: "最大输出",
+							number: true, min: 1,
+							value: String(card.maxOutput != null ? card.maxOutput : ""),
+							placeholder: "32768",
+							onChange: function (e) { props.onPatch(id, "maxOutput", e.target.value); }
+						})
+					]),
+					isFixed
+						? React.createElement("p", { className: "vlm-fixed-url" }, t("fixedUrlLabel") + ": " + prov.endpoint)
+						: React.createElement(Field, {
+							label: t("endpointLabel"),
+							value: card.endpoint || "",
+							placeholder: t("endpointPh"),
+							onChange: function (e) { props.onPatch(id, "endpoint", e.target.value); }
+						}),
+					isOllama
+						? React.createElement("p", { className: "vlm-models" }, t("ollamaHint"))
+						: React.createElement("label", { className: "vlm-field" }, [
+							React.createElement("span", { className: "vlm-label" }, t("apiKeyLabel")),
+							React.createElement("div", { className: "vlm-key-wrap" }, [
+								React.createElement("input", {
+									className: "vlm-input vlm-key-input",
+									type: isRevealed ? "text" : "password",
+									value: keyDraftValue,
+									placeholder: card.apiKeySet ? t("apiKeySet") : "sk-...",
+									onChange: function (e) { props.onSaveKey(id, e.target.value); }
+								}),
+								React.createElement("button", {
+									className: "vlm-eye-btn", type: "button",
+									title: isRevealed ? t("keyHide") : t("keyReveal"),
+									onClick: function (e) { e.preventDefault(); props.onToggleReveal(id); }
+								}, React.createElement(SvgIcon, { d: isRevealed ? I_EYE_OFF : I_EYE }))
+							])
+						]),
+					React.createElement("div", { className: "vlm-row" }, [
+					React.createElement("div", { className: "vlm-field vlm-grow" }, [
+						React.createElement("span", { className: "vlm-label" }, t("modelLabel")),
+						React.createElement("div", { className: "vlm-model-wrap" }, [
+							React.createElement("input", {
+								className: "vlm-input vlm-model-input",
+								type: "text",
+								value: card.model || "",
+								placeholder: t("modelPh"),
+								onChange: function (e) { props.onPatch(id, "model", e.target.value); }
+							}),
+							modelList.length > 0 ? React.createElement("button", {
+								className: "vlm-eye-btn", type: "button",
+								title: t("ddHint"),
+								onClick: function (e) { e.preventDefault(); props.onToggleDd(id); }
+							}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })) : null,
+							isDdOpen && modelList.length > 0 ? React.createElement("div", { className: "vlm-model-dropdown", ref: ddRef },
+								modelList.map(function (m) {
+									return React.createElement("div", {
+										key: m, className: "vlm-dd-item" + (m === card.model ? " active" : ""),
+										onClick: function () { props.onPickModel(id, m); }
+									}, m);
+								})) : null
+						])
+					]),
+					React.createElement("button", {
+						className: "vlm-btn",
+						disabled: busy !== "",
+						onClick: function () { props.onFetchModels(id); }
+					}, busy === "mdl-" + id ? t("fetching") : t("fetchBtn"))
+				]),
+					(!card.endpoint && !isFixed) ? React.createElement("p", { className: "vlm-models" }, t("endpointHint")) : null
+				]);
+			}
+
+			return React.createElement("div", {
+				className: "vlm-card" + (isDragging ? " dragging" : "") + (isDropTarget ? " drop-target" : ""),
+				onDragOver: dragOver,
+				onDrop: drop,
+				onDragEnd: dragEnd
+			}, [head, body]);
+		}
+
+		// ---------- image generation panel ----------
+		function ImggenPanel(props) {
+			var t = props.t;
+			var cfg = props.cfg || {};
+			var meta = PROVIDERS_UI[cfg.provider] || {};
+			var isFixed = !!meta.fixed;
+			var isOllama = cfg.provider === "ollama";
+			var defaultPath = cfg.protocol === "openai-completions" ? "/chat/completions" : "/images/generations";
+			var keyDraftValue = props.keyDraft || "";
+			var isRevealed = !!props.revealed;
+			var isDdOpen = !!props.openDd;
+			var provOpen = !!props.openProv;
+			var modelList = Array.isArray(props.modelList) ? props.modelList : [];
+			var busy = props.busy;
+			var menuOpen = React.useState(false);
+
+			// close the reset menu on outside click (also clears the armed confirm state)
+			React.useEffect(function () {
+				if (!menuOpen[0]) return;
+				function close(e) {
+					var tgt = e.target;
+					if (!tgt || !tgt.closest || !tgt.closest(".vlm-card-menu-wrap")) {
+						menuOpen[1](false);
+						if (props.onCloseMenu) props.onCloseMenu();
+					}
+				}
+				document.addEventListener("click", close);
+				return function () { document.removeEventListener("click", close); };
+			}, [menuOpen[0]]);
+
+			var providerGroups = [
+				{ label: t("providerGroupGeneral"), options: [
+					{ value: "custom", label: t("providerCustom") },
+					{ value: "ollama", label: t("providerOllama") }
+				] },
+				{ label: t("providerGroupBuiltin"), options: IMGGEN_PROVIDER_IDS_UI.filter(function (p) { return p !== "custom" && p !== "ollama"; }).map(function (p) {
+					return { value: p, label: providerDisplay(p, t) };
+				}) }
+			];
+			var protocolOptions = [
+				{ value: "openai-images", label: t("imggenProtocolImages") },
+				{ value: "openai-completions", label: t("imggenProtocolChat") }
+			];
+			var formatOptions = [
+				{ value: "auto", label: t("imggenFormatAuto") },
+				{ value: "b64_json", label: t("imggenFormatB64") },
+				{ value: "url", label: t("imggenFormatUrl") }
+			];
+
+			var head = React.createElement("div", { className: "vlm-imggen-head" }, [
+				React.createElement("span", { className: "vlm-imggen-title" }, t("imggenTitle")),
+				React.createElement("div", { className: "vlm-card-menu-wrap" }, [
+					React.createElement("button", {
+						className: "vlm-icon-btn vlm-card-menu-btn",
+						onClick: function () { menuOpen[1](!menuOpen[0]); }
+					}, React.createElement(SvgIcon, { d: I_MENU })),
+					menuOpen[0] ? React.createElement("div", { className: "vlm-card-menu" }, [
+						React.createElement("div", {
+							className: "vlm-menu-item vlm-menu-danger" + (props.confirmReset ? " vlm-menu-confirm" : ""),
+							title: t("imggenResetHint"),
+							onClick: function () {
+								var wasArmed = !!props.confirmReset;
+								props.onResetClick();
+								if (wasArmed) menuOpen[1](false);
+							}
+						}, React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, props.confirmReset ? t("imggenResetConfirm") : t("imggenReset")))
+					]) : null
+				])
+			]);
+
+			var body = React.createElement("div", { className: "vlm-card-body" }, [
+				React.createElement("div", { className: "vlm-row" }, [
+					React.createElement("div", { className: "vlm-field vlm-grow" }, [
+						React.createElement("span", { className: "vlm-label" }, t("imggenProviderLabel")),
+						React.createElement("div", { className: "vlm-provider-wrap" }, [
+							React.createElement("button", {
+								className: "vlm-input vlm-provider-btn", type: "button",
+								onClick: function () { props.onToggleProv(); }
+							}, [
+								React.createElement("span", { className: "vlm-provider-label" }, providerDisplay(cfg.provider, t)),
+								React.createElement("span", { className: "vlm-provider-arrow" }, provOpen ? "▴" : "▾")
+							]),
+							provOpen ? React.createElement("div", { className: "vlm-provider-dropdown", ref: provDdRef }, providerGroups.map(function (g) {
+								return [React.createElement("div", { key: "g-" + g.label, className: "vlm-dd-group" }, g.label)].concat(g.options.map(function (o) {
+									return React.createElement("div", {
+										key: o.value, className: "vlm-dd-item" + (o.value === cfg.provider ? " active" : ""),
+										onClick: function () { props.onPickProvider(o.value); }
+									}, o.label);
+								}));
+							})) : null
+						])
+					]),
+					isFixed ? null : React.createElement(SelectField, {
+						label: t("imggenProtocolLabel"),
+						value: cfg.protocol,
+						options: protocolOptions,
+						onChange: function (e) { props.onPatch("protocol", e.target.value); }
+					}),
+					React.createElement(Field, {
+						label: t("imggenTimeoutLabel"),
+						number: true,
+						min: 1000,
+						value: String(cfg.timeoutMs != null ? cfg.timeoutMs : 300000),
+						placeholder: "300000",
+						onChange: function (e) { props.onPatch("timeoutMs", e.target.value); }
+					})
+				]),
+				isFixed
+					? React.createElement("p", { className: "vlm-fixed-url" }, t("fixedUrlLabel") + ": " + meta.endpoint)
+					: React.createElement(Field, {
+						label: t("imggenEndpointLabel"),
+						value: cfg.endpoint || "",
+						placeholder: t("endpointPh"),
+						onChange: function (e) { props.onPatch("endpoint", e.target.value); }
+					}),
+				isFixed ? null : React.createElement(Field, {
+					label: t("imggenApiPathLabel"),
+					value: cfg.apiPath || "",
+					placeholder: cfg.protocol === "openai-completions" ? t("imggenApiPathPh").replace("images/generations", "chat/completions") : t("imggenApiPathPh"),
+					onChange: function (e) { props.onPatch("apiPath", e.target.value); }
+				}),
+				isOllama
+					? React.createElement("p", { className: "vlm-models" }, t("ollamaHint"))
+					: React.createElement("label", { className: "vlm-field" }, [
+						React.createElement("span", { className: "vlm-label" }, t("imggenKeyLabel")),
+						React.createElement("div", { className: "vlm-key-wrap" }, [
+							React.createElement("input", {
+								className: "vlm-input vlm-key-input",
+								type: isRevealed ? "text" : "password",
+								value: keyDraftValue,
+								placeholder: cfg.apiKeySet ? t("apiKeySet") : "sk-...",
+								onChange: function (e) { props.onSaveKey(e.target.value); }
+							}),
+							React.createElement("button", {
+								className: "vlm-eye-btn", type: "button",
+								title: isRevealed ? t("keyHide") : t("keyReveal"),
+								onClick: function (e) { e.preventDefault(); props.onToggleReveal(); }
+							}, React.createElement(SvgIcon, { d: isRevealed ? I_EYE_OFF : I_EYE }))
+						])
+					]),
+				React.createElement("div", { className: "vlm-row" }, [
+					React.createElement("div", { className: "vlm-field vlm-grow" }, [
+						React.createElement("span", { className: "vlm-label" }, t("imggenModelLabel")),
+						React.createElement("div", { className: "vlm-model-wrap" }, [
+							React.createElement("input", {
+								className: "vlm-input vlm-model-input",
+								type: "text",
+								value: cfg.model || "",
+								placeholder: t("modelPh"),
+								onChange: function (e) { props.onPatch("model", e.target.value); }
+							}),
+							modelList.length > 0 ? React.createElement("button", {
+								className: "vlm-eye-btn", type: "button",
+								title: t("ddHint"),
+								onClick: function (e) { e.preventDefault(); props.onToggleDd(); }
+							}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })) : null,
+							isDdOpen && modelList.length > 0 ? React.createElement("div", { className: "vlm-model-dropdown", ref: ddRef },
+								modelList.map(function (m) {
+									return React.createElement("div", {
+										key: m, className: "vlm-dd-item" + (m === cfg.model ? " active" : ""),
+										onClick: function () { props.onPickModel(m); }
+									}, m);
+								})) : null
+						])
+					]),
+					React.createElement("button", {
+						className: "vlm-btn",
+						disabled: busy !== "",
+						onClick: function () { props.onFetchModels(); }
+					}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn"))
+				]),
+				React.createElement("div", { className: "vlm-module-row" }, [
+					React.createElement("label", { className: "vlm-switch" }, [
+						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
+						React.createElement("span", { className: "vlm-switch-slider" })
+					]),
+					React.createElement("span", { className: "vlm-label" }, t("imggenFilterLabel")),
+					React.createElement("span", { className: "vlm-status" }, t("imggenFilterHint"))
+				]),
+				React.createElement("div", { className: "vlm-row" }, [
+					React.createElement(Field, {
+						label: t("imggenRetryLabel"),
+						number: true,
+						min: 0,
+						value: String(cfg.retryCount != null ? cfg.retryCount : 2),
+						placeholder: "2",
+						onChange: function (e) { props.onPatch("retryCount", e.target.value); }
+					}),
+					React.createElement(SelectField, {
+						label: t("imggenResponseFormatLabel"),
+						value: cfg.responseFormat || "auto",
+						options: formatOptions,
+						onChange: function (e) { props.onPatch("responseFormat", e.target.value); }
+					})
+				]),
+				React.createElement("p", { className: "vlm-status" },
+					t("imggenStatusPrefix") + (props.visible ? t("toolVisible") : t("toolHidden")) +
+					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
+			]);
+
+			return React.createElement("div", { className: "vlm-imggen-panel" }, [head, body]);
+		}
+
+		// ---------- fallback card ----------
+		function FallbackCard(props) {
+			var t = props.t;
+			var cfg = props.cfg || {};
+			var collapsed = props.collapsed !== false;
+			var modelList = (props.models && Array.isArray(props.models)) ? props.models : [];
+			var isDdOpen = props.openDd === true;
+			var providerOptions = [
+				{ value: "ovhcloud", label: "OVHcloud" }
+			];
+			var head = React.createElement("div", { className: "vlm-card-head" }, [
+				React.createElement("div", { className: "vlm-card-name" }, [
+					React.createElement("span", { className: "vlm-card-name-text" }, t("fallbackTitle") || "兜底模型"),
+					collapsed ? React.createElement("span", { className: "vlm-card-summary" }, cfg.provider + " · " + ((cfg.models && cfg.models.length) || 0) + " 个模型") : null
+				]),
+				React.createElement("button", {
+					className: "vlm-icon-btn",
+					title: collapsed ? "Expand" : "Collapse",
+					onClick: props.onToggleCollapse
+				}, React.createElement(SvgIcon, { d: collapsed ? I_EXPAND : I_COLLAPSE }))
+			]);
+			var body = null;
+			if (!collapsed) {
+				body = React.createElement("div", { className: "vlm-card-body" }, [
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement(SelectField, {
+							label: t("fallbackProviderLabel") || "供应商",
+							value: cfg.provider || "ovhcloud",
+							options: providerOptions,
+							onChange: function (e) { props.onChangeProvider(e.target.value); }
+						}),
+						React.createElement(Field, {
+							label: t("timeoutLabel"),
+							number: true, min: 1000,
+							value: String(cfg.timeoutMs || 120000),
+							placeholder: "120000",
+							onChange: function (e) { props.onPatch("timeoutMs", e.target.value); }
+						})
+					]),
+					React.createElement("div", { className: "vlm-field" }, [
+						React.createElement("span", { className: "vlm-label" }, t("fallbackModelsLabel") || "模型列表（从上到下回退）"),
+						React.createElement("div", { className: "vlm-row" }, [
+							React.createElement("div", { className: "vlm-field vlm-grow" }, [
+								React.createElement("div", { className: "vlm-model-wrap" }, [
+									React.createElement("input", {
+										className: "vlm-input vlm-model-input",
+										type: "text",
+										value: props.fbSearch || "",
+										placeholder: "输入关键词搜索模型",
+										onChange: function (e) { props.onSearchChange(e.target.value); }
+									}),
+									modelList.length > 0 ? React.createElement("button", {
+										className: "vlm-eye-btn", type: "button",
+										title: t("ddHint"),
+										onClick: function (e) { e.preventDefault(); props.onToggleDd(); }
+									}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })) : null,
+									isDdOpen ? React.createElement("div", { className: "vlm-model-dropdown", ref: ddRef },
+										(function () {
+											var search = String(props.fbSearch || "").toLowerCase();
+											var filtered = search ? modelList.filter(function (m) { return String(m).toLowerCase().indexOf(search) >= 0; }) : modelList;
+											return filtered.map(function (m) {
+												return React.createElement("div", {
+													key: m, className: "vlm-dd-item" + ((cfg.models || []).indexOf(m) >= 0 ? " active" : ""),
+													onClick: function () { props.onPickModel(m); }
+												}, m);
+											});
+										})()
+									) : null
+								])
+							]),
+							React.createElement("button", {
+								className: "vlm-btn",
+								disabled: props.busy !== "",
+								onClick: props.onFetchModels
+							}, props.busy === "fb-mdl" ? t("fetching") : t("fetchBtn"))
+						])
+					].concat((cfg.models || []).map(function (m, i) {
+						return React.createElement("div", {
+							key: "fb-" + i, className: "vlm-fb-model-item" + (props.fbDragFrom === i ? " dragging" : "") + (props.fbDropOver === i ? " drop-target" : ""),
+							draggable: true,
+							onDragStart: function (e) { if (e.dataTransfer) { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; } props.onDragStart && props.onDragStart(i); },
+							onDragOver: function (e) { e.preventDefault(); if (props.fbDragFrom !== null && props.fbDragFrom !== i) props.onDropOver && props.onDropOver(i); },
+							onDrop: function (e) { e.preventDefault(); var from = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(from) && from !== i) props.onReorder && props.onReorder(from, i); props.onDragEnd && props.onDragEnd(); },
+							onDragEnd: function () { props.onDragEnd && props.onDragEnd(); }
+						}, [
+							React.createElement("div", { className: "vlm-drag-handle", title: t("dragHint") || "拖动调整顺序" }, React.createElement(SvgIcon, { d: I_DRAG })),
+							React.createElement("span", { className: "vlm-fb-model-id" }, m),
+							React.createElement("button", {
+								className: "vlm-icon-btn",
+								title: t("menuDelete") || "删除",
+								onClick: function () { props.onRemoveModel(m); }
+							}, React.createElement(SvgIcon, { d: I_TRASH }))
+						]);
+					})))
+				]);
+			}
+			return React.createElement("div", { className: "vlm-card vlm-fallback-card" }, [head, body]);
+		}
+
+		// ---------- settings panel (global config) ----------
+		function SettingsPanel(props) {
+			var t = props.t;
+			var gc = props.globalConfig || {};
+			return React.createElement("div", { className: "vlm-card vlm-settings-panel" }, [
+				React.createElement("div", { className: "vlm-settings-section" }, [
+					React.createElement("span", { className: "vlm-settings-section-title" }, t("settingsModuleSection")),
+					React.createElement("div", { className: "vlm-row" }, [
+						props.moduleRow("VLM", props.vlmOn, props.onToggleVlm, ""),
+						props.moduleRow(t("tabImggen"), props.imggenOn, props.onToggleImggen, "")
+					])
+				]),
+				React.createElement("div", { className: "vlm-settings-section" }, [
+					React.createElement("span", { className: "vlm-settings-section-title" }, t("settingsBackoffSection")),
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement(Field, { label: t("backoffBaseLabel"), number: true, min: 100, value: String(gc.backoffBase || 800), placeholder: "800", onChange: function (e) { props.onPatchGlobal("backoffBase", e.target.value); } }),
+						React.createElement(Field, { label: t("backoffMaxLabel"), number: true, min: 500, value: String(gc.backoffMax || 5000), placeholder: "5000", onChange: function (e) { props.onPatchGlobal("backoffMax", e.target.value); } })
+					]),
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement(Field, { label: t("backoff429BaseLabel"), number: true, min: 100, value: String(gc.backoff429Base || 2000), placeholder: "2000", onChange: function (e) { props.onPatchGlobal("backoff429Base", e.target.value); } }),
+						React.createElement(Field, { label: t("backoff429MaxLabel"), number: true, min: 500, value: String(gc.backoff429Max || 10000), placeholder: "10000", onChange: function (e) { props.onPatchGlobal("backoff429Max", e.target.value); } })
+					]),
+					React.createElement(Field, { label: t("retryStatusCodesLabel"), value: gc.retryStatusCodes || "402,408,429,500,502,503,504,NET", placeholder: "402,408,429,500,502,503,504,NET", onChange: function (e) { props.onPatchGlobal("retryStatusCodes", e.target.value); } }),
+					React.createElement("p", { className: "vlm-status" }, t("retryStatusCodesHint")),
+					React.createElement("div", { className: "vlm-module-row" }, [
+						React.createElement("label", { className: "vlm-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: gc.verifyReminder !== false, onChange: function (e) { props.onPatchGlobal("verifyReminder", e.target.checked); } }),
+							React.createElement("span", { className: "vlm-switch-slider" })
+						]),
+					React.createElement("span", { className: "vlm-label" }, t("verifyReminderLabel")),
+					React.createElement("span", { className: "vlm-status" }, gc.verifyReminder !== false ? "已开启" : "已关闭")
+				])
+			])
+		]);
+	}
+
+	function AboutCard(props) {
+		var t = props.t;
+		return React.createElement("div", { className: "vlm-card vlm-about-card" }, [
+			React.createElement("span", { className: "vlm-settings-section-title" }, t("aboutTitle")),
+			React.createElement("p", { className: "vlm-desc" }, t("aboutDesc")),
+			React.createElement("button", {
+				className: "vlm-btn vlm-about-update-btn",
+				onClick: function () { /* ghost: pending new repo */ }
+			}, t("checkUpdateBtn")),
+			React.createElement("p", { className: "vlm-status vlm-about-version" }, t("versionLabel") + (props.version || ""))
+		]);
+	}
+
+		// ---------- settings page ----------
+		function VlmSettingsPage(props) {
+			var t = (props && props.t) || tBound || (function (k) { return k; });
+			var snap = React.useState(null);
+			var draft = React.useState(null);
+			var keyDraft = React.useState({});
+			var busy = React.useState("");
+			var msg = React.useState("");
+			var errState = React.useState(false);
+			var saveState = React.useState("");
+			var models = React.useState({});
+			var menuOpen = React.useState(null);
+			var renameId = React.useState(null);
+			var dragFrom = React.useState(null);
+			var dropOver = React.useState(null);
+			var modelCount = React.useState(null);
+			var revealed = React.useState({});
+			var openDd = React.useState(null);
+			var openProv = React.useState(null);
+			var tab = React.useState("vlm");
+			var batchOpen = React.useState(false);
+			var confirmDel = React.useState(null);
+			var confirmDelAll = React.useState(false);
+			var igKeyDraft = React.useState("");
+			var igRevealed = React.useState(false);
+			var igOpenDd = React.useState(false);
+			var igOpenProv = React.useState(false);
+			var igBusy = React.useState("");
+			var igConfirmReset = React.useState(false);
+			var igModelList = React.useState([]);
+			var igModelCount = React.useState(null);
+			var fbCollapsed = React.useState(true);
+			var fbModels = React.useState([]);
+			var fbOpenDd = React.useState(false);
+			var fbBusy = React.useState("");
+			var fbSearch = React.useState("");
+			var fbDragFrom = React.useState(null);
+			var fbDropOver = React.useState(null);
+
+			function reorderFallbackModels(fromIndex, toIndex) {
+				updateDraft(function (d) {
+					if (!d.fallbackConfig || !Array.isArray(d.fallbackConfig.models)) return d;
+					var arr = d.fallbackConfig.models.slice();
+					var moved = arr.splice(fromIndex, 1)[0];
+					arr.splice(toIndex, 0, moved);
+					d.fallbackConfig = Object.assign({}, d.fallbackConfig, { models: arr });
+					return d;
+				});
+				saveState[1]("saving");
+				queueSave({ fallbackConfig: { field: "reorder", value: { from: fromIndex, to: toIndex } } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function setMsg(text, isError) {
+				msg[1](text);
+				errState[1](!!isError);
+			}
+
+			React.useEffect(function () {
+				call("config").then(function (s) {
+					if (s && s.config) {
+						snap[1](s);
+						draft[1](s.config);
+					} else {
+						setMsg(t("loadFail") + (s && s.error ? s.error : t("unknown")), true);
+					}
+				}).catch(function (e) { setMsg(t("loadFail") + et(e), true); });
+			}, []);
+
+			// close card menu / model dropdown on outside click
+			React.useEffect(function () {
+				if (!menuOpen[0] && !openDd[0] && !batchOpen[0] && !openProv[0] && !igOpenDd[0] && !igOpenProv[0] && !igConfirmReset[0] && !fbOpenDd[0]) return;
+				function close(e) {
+					var tgt = e.target;
+					if (!tgt || !tgt.closest) { menuOpen[1](null); openDd[1](null); batchOpen[1](false); openProv[1](null); igOpenDd[1](false); igOpenProv[1](false); igConfirmReset[1](false); fbOpenDd[1](false); confirmDel[1](null); confirmDelAll[1](false); return; }
+					if (!tgt.closest(".vlm-card-menu-wrap")) { menuOpen[1](null); confirmDel[1](null); igConfirmReset[1](false); }
+					if (!tgt.closest(".vlm-model-wrap")) { openDd[1](null); igOpenDd[1](false); fbOpenDd[1](false); }
+					if (!tgt.closest(".vlm-provider-wrap")) { openProv[1](null); igOpenProv[1](false); }
+					if (!tgt.closest(".vlm-batch-wrap")) { batchOpen[1](false); confirmDelAll[1](false); }
+				}
+				document.addEventListener("click", close);
+				return function () { document.removeEventListener("click", close); };
+			}, [menuOpen[0], openDd[0], batchOpen[0], openProv[0], igOpenDd[0], igOpenProv[0], igConfirmReset[0], fbOpenDd[0]]);
+
+			if (!draft[0]) {
+				return React.createElement("div", { className: "vlm-page" }, [
+					React.createElement("p", { className: "vlm-desc" }, t("loading")),
+					msg[0] ? React.createElement("p", { className: "vlm-msg vlm-err" }, msg[0]) : null
+				]);
+			}
+
+			function updateDraft(fn) {
+				draft[1](function (d) { return fn(JSON.parse(JSON.stringify(d))); });
+			}
+
+			// ---- field patch: local update + debounced save ----
+			function patchCard(id, field, value) {
+				updateDraft(function (d) {
+					var card = d.apis.find(function (c) { return c.id === id; });
+					if (card) card[field] = value;
+					return d;
+				});
+				if (field === "apiKey" && String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ patchCard: { id: id, field: field, value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			// ---- structure operations: local update + immediate POST, then sync ----
+			function commitStructure(patch, localFn) {
+				if (localFn) updateDraft(localFn);
+				busy[1]("struct");
+				call("config", patch).then(function (r) {
+					if (r && r.config) {
+						draft[1](r.config);
+						snap[1](r);
+					} else {
+						setMsg(t("saveFail") + (r && r.error ? r.error : t("unknown")), true);
+						call("config").then(function (s) {
+							if (s && s.config) { draft[1](s.config); snap[1](s); }
+						});
+					}
+				}).catch(function (e) { setMsg(t("saveFail") + et(e), true); }).finally(function () { busy[1](""); });
+			}
+
+			function addCard() {
+				commitStructure({ addCard: {} });
+			}
+			function deleteCard(id) {
+				commitStructure({ deleteCard: { id: id } }, function (d) {
+					d.apis = d.apis.filter(function (c) { return c.id !== id; });
+					return d;
+				});
+			}
+			function moveCardTo(id, position) {
+				commitStructure({ moveCardTo: { id: id, position: position } }, function (d) {
+					var from = d.apis.findIndex(function (c) { return c.id === id; });
+					if (from >= 0) {
+						var moved = d.apis.splice(from, 1)[0];
+						if (position === "top") d.apis.unshift(moved);
+						else d.apis.push(moved);
+					}
+					return d;
+				});
+			}
+			function reorderCard(fromIndex, toIndex) {
+				var d = draft[0];
+				if (!d || fromIndex < 0 || fromIndex >= d.apis.length) return;
+				var id = d.apis[fromIndex].id;
+				commitStructure({ reorderCard: { id: id, to: toIndex } }, function (dd) {
+					var arr = dd.apis.slice();
+					var moved = arr.splice(fromIndex, 1)[0];
+					arr.splice(toIndex, 0, moved);
+					dd.apis = arr;
+					return dd;
+				});
+			}
+
+			// 供应商变更：只 patch provider 字段；endpoint/protocol 由后端 effectiveCard 在请求时
+			// 按预设表推导（固定供应商用内置值，custom/ollama 用存储值），不在切换时覆写存储值。
+			function changeProvider(id, v) {
+				if (!PROVIDERS_UI[v]) return;
+				patchCard(id, "provider", v);
+			}
+			function batchCollapse(v) {
+				batchOpen[1](false);
+				confirmDelAll[1](false);
+				commitStructure({ apis: (draft[0].apis || []).map(function (c) { return Object.assign({}, c, { collapsed: v }); }) }, function (d) {
+					d.apis = d.apis.map(function (c) { return Object.assign({}, c, { collapsed: v }); });
+					return d;
+				});
+			}
+			function batchDeleteAll() {
+				if (!confirmDelAll[0]) { confirmDelAll[1](true); return; }
+				batchOpen[1](false);
+				confirmDelAll[1](false);
+				commitStructure({ apis: [] }, function (d) { d.apis = []; return d; });
+			}
+			function deleteClick(id) {
+				if (confirmDel[0] !== id) { confirmDel[1](id); return; }
+				confirmDel[1](null);
+				deleteCard(id);
+				menuOpen[1](null);
+			}
+			function toggleVlm() {
+				var v = draft[0].vlmEnabled !== false ? false : true;
+				updateDraft(function (d) { d.vlmEnabled = v; return d; });
+				saveState[1]("saving");
+				queueSave({ vlmEnabled: v });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function toggleImggen() {
+				var v = draft[0].imggenEnabled !== true ? true : false;
+				updateDraft(function (d) { d.imggenEnabled = v; return d; });
+				saveState[1]("saving");
+				queueSave({ imggenEnabled: v });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function patchRetry(value) {
+				updateDraft(function (d) { d.retryCount = Number(value) || 5; return d; });
+				saveState[1]("saving");
+				queueSave({ retryCount: Number(value) || 5 });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function patchFallback(field, value) {
+				updateDraft(function (d) { d.fallbackConfig = Object.assign({}, d.fallbackConfig, { [field]: value }); return d; });
+				saveState[1]("saving");
+				queueSave({ fallbackConfig: { field: field, value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function patchGlobal(field, value) {
+				updateDraft(function (d) { d.globalConfig = Object.assign({}, d.globalConfig, { [field]: value }); return d; });
+				saveState[1]("saving");
+				queueSave({ globalConfig: { field: field, value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function changeFallbackProvider(v) {
+				var defaults = ["Qwen3.5-397B-A17B", "Qwen2.5-VL-72B-Instruct", "Qwen3.6-27B", "Mistral-Small-3.2-24B-Instruct-2506", "Qwen3.5-9B"];
+				commitStructure({ fallbackConfig: { field: "provider", value: v } }, function (d) {
+					if (!d.fallbackConfig) d.fallbackConfig = {};
+					d.fallbackConfig.provider = v;
+					var curModels = d.fallbackConfig.models || [];
+					var isOvhDefaults = curModels.length > 0 && curModels.every(function (m) { return defaults.indexOf(m) >= 0; });
+					if (curModels.length === 0 || isOvhDefaults) {
+						d.fallbackConfig.models = defaults;
+					}
+					return d;
+				});
+				fbModels[1]([]);
+				fbOpenDd[1](false);
+			}
+			function fetchFallbackModels() {
+				fbBusy[1]("fb-mdl");
+				var fbProv = draft[0].fallbackConfig && draft[0].fallbackConfig.provider || "ovhcloud";
+				var defaults = ["Qwen3.5-397B-A17B", "Qwen2.5-VL-72B-Instruct", "Qwen3.6-27B", "Mistral-Small-3.2-24B-Instruct-2506", "Qwen3.5-9B"];
+				call("models", { fallback: true, provider: fbProv }).then(function (r) {
+					if (r && r.ok && (r.models || []).length > 0) {
+						fbModels[1](r.models || []);
+					} else {
+						fbModels[1](defaults);
+					}
+					fbOpenDd[1](true);
+				}).catch(function (e) {
+					fbModels[1](defaults);
+					fbOpenDd[1](true);
+				}).finally(function () { fbBusy[1](""); });
+			}
+			function setFbSearch(v) { fbSearch[1](v); }
+			function pickFallbackModel(m) {
+				queueSave({ fallbackConfig: { field: "addModel", value: m } });
+				updateDraft(function (d) {
+					if (d.fallbackConfig) {
+						d.fallbackConfig.models = d.fallbackConfig.models || [];
+						if (!d.fallbackConfig.models.includes(m)) d.fallbackConfig.models.push(m);
+					}
+					return d;
+				});
+				fbOpenDd[1](false);
+				saveState[1]("saving"); Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function removeFallbackModel(m) {
+				queueSave({ fallbackConfig: { field: "removeModel", value: m } });
+				updateDraft(function (d) { if (d.fallbackConfig) d.fallbackConfig.models = (d.fallbackConfig.models || []).filter(function (x) { return x !== m; }); return d; });
+				saveState[1]("saving"); Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function saveKey(id, value) {
+				keyDraft[1](function (k) { return Object.assign({}, k, { [id]: value }); });
+				if (String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ patchCard: { id: id, field: "apiKey", value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			function toggleReveal(id) {
+				var card = (draft[0].apis || []).find(function (c) { return c.id === id; });
+				var willShow = !revealed[0][id];
+				if (willShow && !keyDraft[0][id] && card && card.apiKeySet) {
+					call("key", { cardId: id }).then(function (r) {
+						if (r && r.ok) {
+							keyDraft[1](function (k) { return Object.assign({}, k, { [id]: r.apiKey || "" }); });
+						}
+					}).catch(function () {});
+				}
+				if (!willShow) {
+					// Hidden: clear the draft so the "已设置" placeholder shows again (not dots)
+					keyDraft[1](function (k) { var n = Object.assign({}, k); n[id] = ""; return n; });
+				}
+				revealed[1](function (r) { var n = Object.assign({}, r); n[id] = willShow; return n; });
+			}
+
+			function toggleDd(id) {
+				openDd[1](openDd[0] === id ? null : id);
+			}
+			function pickModel(id, m) {
+				patchCard(id, "model", m);
+				openDd[1](null);
+			}
+
+			function fetchModels(id) {
+				var card = draft[0].apis.find(function (c) { return c.id === id; });
+				if (!card) return;
+				busy[1]("mdl-" + id);
+				setMsg("", false);
+				call("models", {
+					cardId: id,
+					endpoint: card.endpoint || undefined,
+					apiKey: keyDraft[0][id] || undefined,
+					protocol: card.protocol,
+					provider: card.provider
+				}).then(function (r) {
+					if (r && r.ok) {
+						models[1](function (m) { return Object.assign({}, m, { [id]: r.models || [] }); });
+						modelCount[1]({ cardId: id, count: (r.models || []).length });
+						if ((r.models || []).length > 0) openDd[1](id); // auto-open dropdown
+					} else {
+						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+					}
+				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); }).finally(function () { busy[1](""); });
+			}
+
+			// ---- imggen field patch: local update + debounced save ----
+			function patchImggen(field, value) {
+				updateDraft(function (d) {
+					d.imggenConfig = Object.assign({}, d.imggenConfig, { [field]: value });
+					return d;
+				});
+				if (field === "apiKey" && String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ imggenConfig: { field: field, value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function saveImggenKey(value) {
+				igKeyDraft[1](value);
+				if (String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ imggenConfig: { field: "apiKey", value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function toggleIgReveal() {
+				var willShow = !igRevealed[0];
+				if (willShow && !igKeyDraft[0] && igc.apiKeySet) {
+					call("key", { imggen: true }).then(function (r) {
+						if (r && r.ok) igKeyDraft[1](r.apiKey || "");
+					}).catch(function () {});
+				}
+				if (!willShow) igKeyDraft[1]("");
+				igRevealed[1](willShow);
+			}
+			function fetchImggenModels() {
+				igBusy[1]("ig-mdl");
+				igModelList[1]([]);
+				setMsg("", false);
+				call("models", {
+					imggen: true,
+					endpoint: igc.endpoint || undefined,
+					protocol: igc.protocol,
+					apiKey: igKeyDraft[0] || undefined
+				}).then(function (r) {
+					if (r && r.ok) {
+						igModelList[1](r.models || []);
+						igModelCount[1]((r.models || []).length);
+						if ((r.models || []).length > 0) igOpenDd[1](true); // auto-open dropdown
+					} else {
+						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+					}
+				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); }).finally(function () { igBusy[1](""); });
+			}
+			function pickIgModel(m) {
+				patchImggen("model", m);
+				igOpenDd[1](false);
+			}
+			function toggleIgFilter() {
+				patchImggen("filterImageModels", !igc.filterImageModels);
+			}
+			function changeIgProvider(v) {
+				if (!PROVIDERS_UI[v]) return;
+				patchImggen("provider", v);
+			}
+			function resetImggen() {
+				if (!igConfirmReset[0]) { igConfirmReset[1](true); return; }
+				igConfirmReset[1](false);
+				igModelList[1]([]);
+				igModelCount[1](null);
+				igKeyDraft[1]("");
+				igRevealed[1](false);
+				commitStructure({ imggenReset: true }, function (d) { d.imggenConfig = null; return d; });
+			}
+
+			var apis = draft[0].apis || [];
+			var visible = snap[0] ? snap[0].visible : false;
+			var validCount = apis.filter(function (c) {
+				var prov = PROVIDERS_UI[c.provider] || {};
+				if (!prov.fixed && !c.endpoint) return false;
+				if (!c.model) return false;
+				if (!prov.keyRequired) return true;
+				return !!c.apiKeySet;
+			}).length;
+			var vlmOn = draft[0].vlmEnabled !== false;
+			var imggenOn = draft[0].imggenEnabled === true;
+			var toolStatus = vlmOn ? (validCount > 0 ? t("toolVisible") : t("toolHidden")) : t("toolOff");
+			var igc = draft[0].imggenConfig || {};
+			var igcValid = !!(igc && (PROVIDERS_UI[igc.provider] ? (PROVIDERS_UI[igc.provider].fixed ? true : !!igc.endpoint) : !!igc.endpoint) && igc.model && (PROVIDERS_UI[igc.provider] && !PROVIDERS_UI[igc.provider].keyRequired ? true : !!igc.apiKeySet));
+			var imggenVisible = snap[0] ? snap[0].imggenVisible : false;
+
+			var cardProps = {
+				t: t,
+				busy: busy[0],
+				keyDraft: keyDraft[0],
+				models: models[0],
+				menuOpen: menuOpen[0],
+				renameId: renameId[0],
+				dragFrom: dragFrom[0],
+				dropOver: dropOver[0],
+				revealed: revealed[0],
+				openDd: openDd[0],
+				onPatch: patchCard,
+				onSaveKey: saveKey,
+				onFetchModels: fetchModels,
+				onToggleReveal: toggleReveal,
+				onToggleDd: toggleDd,
+				onPickModel: pickModel,
+				onToggleMenu: function (id) { menuOpen[1](menuOpen[0] === id ? null : id); confirmDel[1](null); },
+				onCloseMenu: function () { menuOpen[1](null); confirmDel[1](null); },
+				onStartRename: function (id) { renameId[1](id); },
+				onEndRename: function () { renameId[1](null); },
+				onDelete: deleteCard,
+				confirmDel: confirmDel[0],
+				openProv: openProv[0],
+				onChangeProvider: changeProvider,
+				onToggleProv: function (id) { openProv[1](openProv[0] === id ? null : id); },
+				onPickProvider: function (id, v) { changeProvider(id, v); openProv[1](null); },
+				onDeleteClick: deleteClick,
+				onMoveTop: function (id) { moveCardTo(id, "top"); },
+				onMoveBottom: function (id) { moveCardTo(id, "bottom"); },
+				onReorder: reorderCard,
+				onDragStart: function (i) { dragFrom[1](i); },
+				onDropOver: function (i) { dropOver[1](i); },
+				onDragEnd: function () { dragFrom[1](null); dropOver[1](null); }
+			};
+
+			function moduleRow(label, checked, onChange, statusText) {
+				return React.createElement("div", { className: "vlm-module-row" }, [
+					React.createElement("label", { className: "vlm-switch" }, [
+						React.createElement("input", { type: "checkbox", checked: checked, onChange: onChange }),
+						React.createElement("span", { className: "vlm-switch-slider" })
+					]),
+					React.createElement("span", { className: "vlm-label" }, label),
+					React.createElement("span", { className: "vlm-status" }, statusText || "")
+				]);
+			}
+
+			var retryCard = React.createElement("div", { className: "vlm-card vlm-retry-row" }, [
+				React.createElement("span", { className: "vlm-label vlm-retry-label" }, t("retryTitle")),
+				React.createElement("input", {
+					className: "vlm-input vlm-retry-input",
+					type: "number", min: 1,
+					value: String(draft[0].retryCount || 3),
+					onChange: function (e) { patchRetry(e.target.value); }
+				})
+			]);
+
+			var listHead = React.createElement("div", { className: "vlm-list-head" }, [
+				React.createElement("span", { className: "vlm-list-title" },
+					t("cardListTitle") + " (" + apis.length + ")" +
+					(modelCount[0] ? " · " + t("fetchOkPrefix") + modelCount[0].count + t("fetchOkSuffix") : "")),
+				React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
+					React.createElement("button", {
+						className: "vlm-btn vlm-add-btn",
+						disabled: busy[0] !== "",
+						onClick: addCard
+					}, t("addCard")),
+					React.createElement("div", { className: "vlm-batch-wrap" }, [
+						React.createElement("button", {
+							className: "vlm-btn vlm-batch-btn",
+							title: t("batchDeleteAll"),
+							disabled: busy[0] !== "",
+							onClick: function () { batchOpen[1](!batchOpen[0]); confirmDelAll[1](false); }
+						}, React.createElement(SvgIcon, { d: I_COLLAPSE })),
+						batchOpen[0] ? React.createElement("div", { className: "vlm-batch-menu" }, [
+							React.createElement("div", { className: "vlm-menu-item", onClick: function () { batchCollapse(true); } },
+								React.createElement(SvgIcon, { d: I_COLLAPSE }), React.createElement("span", null, t("batchCollapseAll"))),
+							React.createElement("div", { className: "vlm-menu-item", onClick: function () { batchCollapse(false); } },
+								React.createElement(SvgIcon, { d: I_EXPAND }), React.createElement("span", null, t("batchExpandAll"))),
+							React.createElement("div", { className: "vlm-menu-item vlm-menu-danger" + (confirmDelAll[0] ? " vlm-menu-confirm" : ""), onClick: batchDeleteAll },
+								React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, confirmDelAll[0] ? t("confirmDelete") : t("batchDeleteAll")))
+						]) : null
+					])
+				])
+			]);
+
+			var vlmBody = React.createElement("div", { className: "vlm-tab-body" }, [
+				retryCard,
+				React.createElement(FallbackCard, {
+					t: t,
+					cfg: draft[0].fallbackConfig || {},
+					busy: fbBusy[0],
+					models: fbModels[0],
+					openDd: fbOpenDd[0],
+					collapsed: fbCollapsed[0],
+					onPatch: patchFallback,
+					onChangeProvider: changeFallbackProvider,
+					onFetchModels: fetchFallbackModels,
+					onRemoveModel: removeFallbackModel,
+					onPickModel: pickFallbackModel,
+					onToggleCollapse: function () { fbCollapsed[1](!fbCollapsed[0]); },
+					onToggleDd: function () { fbOpenDd[1](!fbOpenDd[0]); },
+					fbSearch: fbSearch[0],
+					onSearchChange: setFbSearch,
+					fbDragFrom: fbDragFrom[0],
+					fbDropOver: fbDropOver[0],
+					onDragStart: function (i) { fbDragFrom[1](i); },
+					onDropOver: function (i) { fbDropOver[1](i); },
+					onDragEnd: function () { fbDragFrom[1](null); fbDropOver[1](null); },
+					onReorder: reorderFallbackModels
+				}),
+				React.createElement("div", { className: "vlm-list" }, [
+					listHead,
+					apis.length === 0 ? React.createElement("p", { className: "vlm-msg" }, t("noCards")) : null,
+					apis.map(function (card, index) {
+						return React.createElement(ApiCard, Object.assign({ key: card.id, card: card, index: index }, cardProps));
+					})
+				]),
+				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
+			]);
+
+			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
+				igcValid
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); } }, props))
+					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
+				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
+			]);
+
+			var settingsBody = React.createElement("div", { className: "vlm-tab-body" }, [
+			React.createElement(SettingsPanel, {
+				t: t,
+				globalConfig: draft[0].globalConfig || {},
+				vlmOn: vlmOn,
+				imggenOn: imggenOn,
+				moduleRow: moduleRow,
+				onToggleVlm: toggleVlm,
+				onToggleImggen: toggleImggen,
+				onPatchGlobal: patchGlobal
+			}),
+			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "" })
+		]);
+
+			return React.createElement("div", { className: "vlm-page" }, [
+				React.createElement("div", { className: "vlm-tabs" }, [
+					React.createElement("button", { className: "vlm-tab" + (tab[0] === "vlm" ? " active" : ""), onClick: function () { tab[1]("vlm"); } }, [
+					"VLM",
+					React.createElement("span", { className: "vlm-tab-dot " + (vlmOn ? "on" : "off") })
+				]),
+					React.createElement("button", { className: "vlm-tab" + (tab[0] === "imggen" ? " active" : ""), onClick: function () { tab[1]("imggen"); } }, [
+					t("tabImggen"),
+					React.createElement("span", { className: "vlm-tab-dot " + (imggenOn ? "on" : "off") })
+				]),
+					React.createElement("button", { className: "vlm-tab" + (tab[0] === "settings" ? " active" : ""), onClick: function () { tab[1]("settings"); } }, t("settingsTab"))
+				]),
+				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : settingsBody)
+			]);
+		}
+
+		// ---------- plugin entry ----------
+		function apply(ctx) {
+			ensureStyles();
+			var locale = ctx.get ? ctx.get("locale") : null;
+			if (locale) {
+				tBound = locale.bind(NS);
+				var effect0 = typeof ctx.effect === "function" ? ctx.effect : function (fn) { var d = fn(); return d; };
+				effect0(function () { return locale.register(NS, DICTS); });
+			}
+			var slots = ctx.get ? ctx.get("slots") : ctx.slots;
+			if (!slots) return;
+			var effect = typeof ctx.effect === "function" ? ctx.effect : function (fn) { var d = fn(); return d; };
+			var connection = ctx.get ? ctx.get("connection") : ctx.connection;
+			var sessions = ctx.get ? ctx.get("sessions") : ctx.sessions;
+
+			effect(function () {
+				return slots.inject("settings.section", function () {
+					return slots.register(
+						{ name: "settings.section", id: "vlm-vision", order: 40, locale: NS, label: function () { return tBound ? tBound("nav") : "多模态"; } },
+						function (props) { return React.createElement(VlmSettingsPage, { close: props && props.close, t: (props && props.t) || tBound, connection: connection, sessions: sessions }); }
+					);
+				});
+			});
+		}
+
+		exports.apply = apply;
+		exports.inject = ["slots", "locale", "connection", "sessions"];
+		return module.exports;
+	}
+});
