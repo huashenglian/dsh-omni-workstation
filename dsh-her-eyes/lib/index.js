@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import jpegJs from './vendor/jpeg-js/index.cjs'
 import { encodePng } from './vendor/png.js'
+import { buildVisionToolDefs } from './vision-tools.js'
 
 const name = 'dsh-her-eyes'
 const inject = ['tools', 'webServer', 'llm']
@@ -67,6 +68,7 @@ const PROVIDERS = {
   'xiaomi-token-plan-cn':  { protocol: 'openai-completions', endpoint: 'https://token-plan-cn.xiaomimimo.com/v1', keyRequired: true, fixedUrl: true },
   'xiaomi-token-plan-sgp': { protocol: 'openai-completions', endpoint: 'https://token-plan-sgp.xiaomimimo.com/v1', keyRequired: true, fixedUrl: true },
   zai:               { protocol: 'openai-completions', endpoint: 'https://api.z.ai/api/coding/paas/v4', keyRequired: true, fixedUrl: true },
+  bailian:           { protocol: 'dashscope-image', endpoint: '', keyRequired: true, fixedUrl: false },
   'zai-coding-cn':     { protocol: 'openai-completions', endpoint: 'https://open.bigmodel.cn/api/coding/paas/v4', keyRequired: true, fixedUrl: true }
 }
 const PROVIDER_IDS = Object.keys(PROVIDERS)
@@ -96,7 +98,8 @@ const clampTimeout = (v, def = 120000) => {
 }
 
 // ---------- imggen (image generation) config model ----------
-const IMGGEN_PROTOCOLS = ['openai-images', 'openai-completions']
+const IMGGEN_PROTOCOLS = ['openai-images', 'openai-completions', 'dashscope-image']
+const VISION_TOOL_NAMES = ['zoom_image', 'sample_colors', 'image_diff', 'ocr_image', 'detect_elements', 'show_image']
 
 const defaultImggenConfig = () => ({
   provider: 'custom',
@@ -114,7 +117,8 @@ const defaultImggenConfig = () => ({
 function normalizeImggenConfig(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultImggenConfig()
   const provider = PROVIDER_IDS.includes(raw.provider) ? raw.provider : 'custom'
-  const protocol = IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images'
+  // bailian（阿里云百炼）始终走 DashScope 原生协议（UI 隐藏 protocol 字段）
+  const protocol = provider === 'bailian' ? 'dashscope-image' : (IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images')
   const retryRaw = Math.floor(Number(raw.retryCount))
   return {
     provider,
@@ -157,6 +161,9 @@ function isImggenConfigValid(c) {
 let idCounter = 0
 const genId = () => 'c_' + Date.now().toString(36) + '_' + (idCounter++).toString(36)
 
+let presetIdCounter = 0
+const genPresetId = () => 'p_' + Date.now().toString(36) + '_' + (presetIdCounter++).toString(36)
+
 const newCard = (overrides) => ({
   id: genId(),
   name: 'VLM API',
@@ -174,6 +181,60 @@ const newCard = (overrides) => ({
 
 const defaultConfig = () => ({ retryCount: 3, apis: [newCard()] })
 
+// v1.9: mirror model config — controls twin routes in /model picker.
+// autoVisionEnabled: register the single `auto-vision` twin (v1.8 behavior).
+// mirrorAllEnabled: register `<provider>-her-eyes` per live provider (v1.7
+// behavior; masks the mappings list since per-provider twins already cover
+// every model). mappings: custom per-model twins that delegate to a specific
+// originalProvider/originalModel, each with an optional mirrorName (default
+// `<originalModel>-vision`).
+const defaultMirrorConfig = () => ({
+  autoVisionEnabled: true,   // preserve current v1.8 behavior (auto-vision always on)
+  mirrorAllEnabled: false,
+  mappings: []
+})
+
+function normalizeMirrorConfig(raw) {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  const mappings = Array.isArray(src.mappings) ? src.mappings
+    .filter((m) => m && typeof m === 'object')
+    .map((m) => ({
+      id: typeof m.id === 'string' && m.id.length > 0 ? m.id : genId(),
+      originalProvider: typeof m.originalProvider === 'string' ? m.originalProvider : '',
+      originalModel: typeof m.originalModel === 'string' ? m.originalModel : '',
+      mirrorName: typeof m.mirrorName === 'string' ? m.mirrorName.trim() : ''
+    })) : []
+  return {
+    autoVisionEnabled: src.autoVisionEnabled !== false,
+    mirrorAllEnabled: src.mirrorAllEnabled === true,
+    mappings
+  }
+}
+
+const maskedMirror = (c) => ({
+  autoVisionEnabled: c.autoVisionEnabled !== false,
+  mirrorAllEnabled: c.mirrorAllEnabled === true,
+  mappings: (c.mappings || []).map((m) => ({
+    id: m.id,
+    originalProvider: m.originalProvider,
+    originalModel: m.originalModel,
+    mirrorName: m.mirrorName
+  }))
+})
+
+// Sanitize a mirror name into a route id safe for registerAdapter. Prefix
+// `her-eyes-m-` avoids collision with real provider routes and is filtered by
+// the agent/request + syncTwins self-recursion guards.
+const mirrorRouteId = (mirrorName) => {
+  const base = String(mirrorName || '').replace(/[^a-zA-Z0-9_-]/g, '-')
+  return 'her-eyes-m-' + (base.length > 0 ? base : 'mirror')
+}
+// Default display name when mirrorName is empty: `<originalModel>-vision`.
+const mirrorDisplayName = (mapping) => {
+  const name = String(mapping.mirrorName || '').trim()
+  return name.length > 0 ? name : String(mapping.originalModel) + '-vision'
+}
+
 function normalizeConfig(raw) {
   const fallback = defaultConfig()
   const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
@@ -181,6 +242,10 @@ function normalizeConfig(raw) {
   const retryCount = Number.isFinite(retryRaw) && retryRaw > 0 ? Math.min(Math.floor(retryRaw), 20) : fallback.retryCount
   const vlmEnabled = src.vlmEnabled !== false
   const imggenEnabled = src.imggenEnabled === true
+  const rawToggles = src.visionToolToggles && typeof src.visionToolToggles === 'object' && !Array.isArray(src.visionToolToggles) ? src.visionToolToggles : {}
+  const visionToolToggles = {}
+  for (const name of VISION_TOOL_NAMES) { visionToolToggles[name] = rawToggles[name] !== false }
+  const visionToolsEnabled = src.visionToolsEnabled !== false
   let apis
   if (Array.isArray(src.apis)) {
     apis = src.apis.map((a) => {
@@ -223,15 +288,39 @@ function normalizeConfig(raw) {
     retryStatusCodes: typeof src.globalConfig.retryStatusCodes === 'string' && src.globalConfig.retryStatusCodes.length > 0 ? src.globalConfig.retryStatusCodes : '402,408,429,500,502,503,504,NET',
     verifyReminder: src.globalConfig.verifyReminder !== false
   } : defaultGlobalConfig()
-  return { retryCount, vlmEnabled, imggenEnabled, autoSelectTwin: src.autoSelectTwin !== false, apis, imggenConfig, fallbackConfig, globalConfig }
+ const mirrorConfig = normalizeMirrorConfig(src.mirrorConfig)
+  // ---- imggen presets (v2.1): preset is source of truth; imggenConfig = active preset's config ----
+  let imggenPresets = []
+  if (Array.isArray(src.imggenPresets)) {
+    imggenPresets = src.imggenPresets
+      .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
+      .map((p) => ({
+        id: typeof p.id === 'string' && p.id.length > 0 ? p.id : genPresetId(),
+        name: typeof p.name === 'string' && p.name.length > 0 ? String(p.name).slice(0, 60) : '默认',
+        config: normalizeImggenConfig(p.config)
+      }))
+  }
+  if (imggenPresets.length === 0) {
+    // 无预设 → 从 imggenConfig 创建 '默认' 预设（含清空所有预设后自动重建）
+    imggenPresets = [{ id: genPresetId(), name: '默认', config: normalizeImggenConfig(src.imggenConfig) }]
+  }
+  let activeImggenPreset = typeof src.activeImggenPreset === 'string' && src.activeImggenPreset.length > 0 && imggenPresets.some((p) => p.id === src.activeImggenPreset) ? src.activeImggenPreset : imggenPresets[0].id
+  // sync: runtime imggenConfig = active preset's config (source of truth)
+  const activePreset = imggenPresets.find((p) => p.id === activeImggenPreset) || imggenPresets[0]
+  const runtimeImggenConfig = normalizeImggenConfig(activePreset.config)
+  return { retryCount, vlmEnabled, imggenEnabled, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig }
 }
 
 const masked = (cfg) => ({
   retryCount: cfg.retryCount,
   vlmEnabled: cfg.vlmEnabled !== false,
   imggenEnabled: cfg.imggenEnabled === true,
-  autoSelectTwin: cfg.autoSelectTwin !== false,
-  imggenConfig: maskedImggen(cfg.imggenConfig || defaultImggenConfig()),
+  visionToolsEnabled: cfg.visionToolsEnabled !== false,
+    visionToolToggles: cfg.visionToolToggles || {},
+ mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
+ imggenConfig: maskedImggen(cfg.imggenConfig || defaultImggenConfig()),
+  imggenPresets: (Array.isArray(cfg.imggenPresets) ? cfg.imggenPresets : []).map((p) => ({ id: p.id, name: p.name, config: maskedImggen(p.config || defaultImggenConfig()) })),
+  activeImggenPreset: cfg.activeImggenPreset || (Array.isArray(cfg.imggenPresets) && cfg.imggenPresets.length > 0 ? cfg.imggenPresets[0].id : ''),
   fallbackConfig: cfg.fallbackConfig ? { provider: cfg.fallbackConfig.provider, models: cfg.fallbackConfig.models, timeoutMs: cfg.fallbackConfig.timeoutMs } : null,
   globalConfig: cfg.globalConfig ? Object.assign({}, cfg.globalConfig, { verifyReminder: cfg.globalConfig.verifyReminder !== false }) : defaultGlobalConfig(),
   apis: cfg.apis.map((a) => ({
@@ -454,6 +543,238 @@ function collectAttachmentRefs(events) {
     })
   }
   return refs
+}
+
+// ---------- shared image resolution (analyze_image + vision toolkit) ----------
+// Resolve `image_path` / `attachment_id` from tool args into image bytes + mime.
+// Shared by analyze_image and the vision toolkit tools. Error messages are
+// matched by the analyze-image-attachment tests (keep them stable).
+async function resolveImage(exec, args) {
+  const ctx = appCtx
+  const attachmentId = String(args && args.attachment_id || '').trim()
+  const imagePath = String(args && args.image_path || '').trim()
+  if (!attachmentId && !imagePath) {
+    throw new Error('必须提供 image_path（图片文件路径）或 attachment_id（上传图片的附件 id）之一')
+  }
+  let buffer
+  let mime
+  if (attachmentId) {
+    const session = exec && exec.agent && exec.agent.session
+    if (!session || !Array.isArray(session.events)) {
+      throw new Error('当前执行上下文无会话事件日志，无法解析 attachment_id')
+    }
+    const ref = collectAttachmentRefs(session.events).find((r) => String(r.attachmentId) === String(attachmentId))
+    if (!ref) throw new Error('未知附件 id "' + attachmentId + '"（必须来自本次对话中上传的图片）')
+    const attachments = ctx.get('attachments')
+    if (!attachments) throw new Error('附件服务不可用')
+    const stored = await attachments.readImage(ref)
+    buffer = stored && stored.data
+    if (!buffer || buffer.length === 0) throw new Error('附件读取失败（无数据）')
+    if (buffer.length > MAX_IMAGE_BYTES) throw new Error('附件超过 ' + Math.round(MAX_IMAGE_BYTES / 1024 / 1024) + 'MB')
+    // 附件按内容寻址存储、无扩展名，必须嗅探魔数而非按扩展名判断。
+    mime = sniffMediaType(new Uint8Array(buffer)) || 'image/png'
+  } else {
+    let resolved = imagePath
+    const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+    if (cwd && !/^[A-Za-z]:[\\/]/.test(imagePath) && !imagePath.startsWith('/') && !imagePath.startsWith('\\\\')) {
+      resolved = join(cwd, imagePath)
+    }
+    try {
+      buffer = readFileSync(resolved)
+      if (buffer.length > MAX_IMAGE_BYTES) throw new Error('文件超过 ' + Math.round(MAX_IMAGE_BYTES / 1024 / 1024) + 'MB')
+    } catch (e) {
+      throw new Error('无法读取图片 "' + imagePath + '"：' + String(e && e.message || e))
+    }
+    mime = mimeFor(resolved)
+  }
+  return { buffer, mime }
+}
+
+// ---------- shared VLM ask (analyze_image + vision toolkit) ----------
+// Run one image+question through the configured card failover chain and return
+// the parsed answer plus metadata. Extracted from analyze_image's execute so
+// ocr_image / detect_elements reuse the exact same request path. The image
+// bytes may be Buffer or Uint8Array; downscale/re-encode fallbacks are lazy.
+async function askVlm(ctx, buffer, mime, question, exec, opts = {}) {
+  const cfg = await loadConfig(ctx)
+  const signal = opts && opts.signal
+  const bytes = Buffer.isBuffer(buffer)
+    ? buffer
+    : (buffer instanceof Uint8Array ? Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength) : Buffer.from(buffer))
+  const isJpeg = mime === 'image/jpeg'
+  const base64 = bytesToBase64(bytes)
+  const dataUrl = 'data:' + mime + ';base64,' + base64
+  const baseImage = { mime, base64, dataUrl }
+  // Lazy downscale for keyless fallback providers: only computed when a
+  // fallback card is tried, cached for the rest of this call.
+  let dsImage = null
+  let dsDone = false
+  const getDs = () => {
+    if (dsDone) return dsImage
+    dsDone = true
+    dsImage = downscaleImage(bytes)
+    if (dsImage) console.log('[dsh-her-eyes] Image downscaled for fallback provider')
+    return dsImage
+  }
+  // Lazy JPEG→PNG re-encode: only computed on a 400/415 response, cached.
+  let altImage = null
+  let altDone = false
+  const getAlt = () => {
+    if (altDone) return altImage
+    altDone = true
+    try {
+      altImage = reencodeJpegToPng(bytes)
+    } catch (e) {
+      console.error('[dsh-her-eyes] JPEG 解码失败（重编码兜底不可用）：', String(e && e.message || e))
+      altImage = null
+    }
+    return altImage
+  }
+  const outcome = await callWithFailover(ctx, cfg, (card, alt) => {
+    var img = alt || baseImage
+    // For keyless fallback providers (no apiKey), use downscaled image to avoid 413
+    if (!card.apiKey && !alt) {
+      var ds = getDs()
+      if (ds) img = ds
+    }
+    const ec = effectiveCard(card)
+    return {
+      url: chatUrl(ec),
+      headers: protocolHeaders(ec, true),
+      body: protocolBody(ec, question, img.dataUrl, img.mime, img.base64)
+    }
+  }, signal, { isJpeg, getAlt })
+  const body = outcome.res.body && typeof outcome.res.body === 'object' ? outcome.res.body : {}
+  const answer = extractAnswer(outcome.card.protocol, body)
+  // usage must be an object when present; omit the key otherwise (the output
+  // schema marks it optional, and `null` fails the harness "must be an object"
+  // validation).
+  const usage = (body.usage && typeof body.usage === 'object' && !Array.isArray(body.usage)) ? body.usage : undefined
+  return {
+    text: answer,
+    body,
+    model: String(body.model || outcome.card.model || ''),
+    api: String(outcome.card.name || 'unknown'),
+    attempts: Number(outcome.attempts) || 1,
+    usage
+  }
+}
+
+// ---------- tool-result image stripping (token optimization) ----------
+// A tool result that renders an image block (show_image) is persisted as a
+// durable `tool/result` event and then flows into EVERY later request through
+// `Session.deriveMessages()` — including compaction, which reads the session
+// directly and bypasses agent/request. A text-only main model (pi-ai text
+// routes) rejects such nested images with UNSUPPORTED_CONTENT and the session
+// can stall forever. The fix has two layers, both run from an agent/pre-step
+// listener:
+//   1. shadow-sanitize historical `tool/result` events on the session surface
+//      (`surfaceOp: {op:'replace'}`, the same mechanism the host compaction
+//      pruner uses) so ANY later deriveMessages sees markers instead of images;
+//   2. sanitize tool-result messages in the pre-step claimed messages.
+// The Web UI transcript renders append-origin events, so the user still sees
+// the image; only the model-visible surface is sanitized. User-message images
+// are NOT touched (they are the admission-gated ones the harness allows).
+
+function toolImageMarker(block) {
+  const attachment = block && block.attachment ? block.attachment : {}
+  const id = attachment.attachmentId || attachment.id || 'unknown'
+  const name = attachment.name || 'tool image'
+  return {
+    type: 'text',
+    text: '[工具结果中包含图片「' + name + '」，附件 id「' + id + '」。该图片未随本次请求发送以节省 token；如需查看其内容，请调用 analyze_image（传入该附件 id 或对应图片路径）。]'
+  }
+}
+
+// Recursively detect an image block anywhere in a content tree.
+function blocksHaveImage(content) {
+  if (!Array.isArray(content)) return false
+  return content.some((b) => (b && b.type === 'image') || (Array.isArray(b && b.content) && blocksHaveImage(b.content)))
+}
+
+// Recursively freeze a plain structured-clone tree (the session log keeps its
+// messages deep-frozen; replacements must match).
+function deepFreezeLocal(value) {
+  if (value !== null && typeof value === 'object') {
+    for (const key of Object.keys(value)) deepFreezeLocal(value[key])
+    Object.freeze(value)
+  }
+  return value
+}
+
+// Build the sanitized, deep-frozen copy of a tool-result message: identical to
+// the original except that every image block (top-level or nested) is replaced
+// with a text marker. Returns the original object when it has no image.
+function sanitizeToolResultMessage(message) {
+  if (!message || !Array.isArray(message.content)) return message
+  const result = rewriteImagesDeep(message.content, toolImageMarker)
+  if (!result.changed) return message
+  const clone = structuredClone(message)
+  clone.content = result.content
+  return deepFreezeLocal(clone)
+}
+
+// Incrementally scan a session's surface for `tool/result` events whose message
+// contains an image block, and shadow them with a sanitized replacement event
+// so `Session.deriveMessages()` (normal requests AND compaction) yields markers.
+// `session -> { count, done }` keeps the scan cheap across many turns.
+const sessionSurfaceScans = new WeakMap()
+function sanitizeSessionToolResults(session, logger) {
+  if (!session) return
+  let events
+  let nodes
+  try {
+    events = session.events
+    nodes = session.surface && session.surface.nodes
+  } catch {
+    return // not a host Session: nothing to sanitize
+  }
+  if (!Array.isArray(events) || !Array.isArray(nodes) || nodes.length === 0) return
+  let scan = sessionSurfaceScans.get(session)
+  if (!scan) {
+    scan = { count: 0, done: new Set() }
+    sessionSurfaceScans.set(session, scan)
+  }
+  // Compaction replaces the surface wholesale; a shrunk node list means the
+  // positional cursor is stale, so restart from the head. Kept decisions are
+  // memoized in `done`, so a restart is a cheap no-op for examined events.
+  if (nodes.length < scan.count) {
+    scan.count = 0
+    scan.done = new Set()
+  }
+  if (nodes.length === scan.count) return
+  const newSeqs = nodes.slice(scan.count)
+  for (const seq of newSeqs) {
+    const event = events[seq]
+    if (!event || event.type !== 'tool/result' || scan.done.has(seq)) continue
+    const message = event.data && event.data.message
+    if (!message || !Array.isArray(message.content) || !blocksHaveImage(message.content)) {
+      scan.done.add(seq)
+      continue
+    }
+    const sanitized = sanitizeToolResultMessage(message)
+    if (sanitized === message) {
+      scan.done.add(seq)
+      continue
+    }
+    try {
+      session.append(
+        'tool/result',
+        { ...event.data, message: sanitized },
+        {
+          surfaceOp: { op: 'replace', start: seq, end: seq },
+          sourceEventSeqs: [seq],
+        },
+      )
+      scan.done.add(seq)
+      logger?.info?.('her-eyes: sanitized a tool-result image block out of the model surface (event seq %s)', seq)
+    } catch (error) {
+      // A failed shadow leaves the original event on the surface: the session
+      // stays usable instead of crashing the step.
+      logger?.warn?.('her-eyes: could not sanitize tool-result image at event seq %s (%s)', seq, String(error && error.message || error))
+    }
+  }
+  scan.count += newSeqs.length
 }
 
 // ---------- JPEG→PNG re-encode fallback ----------
@@ -790,6 +1111,21 @@ let toolDisposer = null
 let toolVisible = false
 let imggenDisposer = null
 let imggenVisible = false
+// vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show).
+// Registered via buildVisionToolDefs when visionToolsEnabled is on; gated
+// independently of vlmEnabled because the local-only tools need no cards.
+let visionToolDisposers = []
+let visionToolsVisible = false
+let visionToolDefNames = ''
+// test-only: reset vision toolkit registration state so tests start clean
+function _resetVisionTools() {
+  for (const dispose of visionToolDisposers) {
+    try { dispose() } catch { /* best-effort */ }
+  }
+  visionToolDisposers = []
+  visionToolDefNames = ''
+  visionToolsVisible = false
+}
 // provider -> { handle } disposer handles of registered `<provider>-her-eyes`
 // twin routes (the "+ Auto Vision" picker entries gated on the VLM switch).
 const twinHandles = new Map()
@@ -833,107 +1169,21 @@ const toolDef = defineTool({
   },
   async execute(args, exec) {
     const ctx = appCtx
-    const attachmentId = String(args && args.attachment_id || '').trim()
-    const imagePath = String(args && args.image_path || '').trim()
     const question = String(args && args.question || '').trim()
-    if (!attachmentId && !imagePath) throw new Error('analyze_image: 必须提供 image_path（图片文件路径）或 attachment_id（上传图片的附件 id）之一')
     if (!question) throw new Error('analyze_image: 缺少参数 question（你想从图片中了解什么）')
     const signal = exec && exec.signal ? exec.signal : undefined
-    const cfg = await loadConfig(ctx)
-
-    // 图片来源二选一：attachment_id（对话中上传的图片）优先，其次 image_path（本地文件）。
-    let buffer
-    let mime
-    let isJpeg
-    if (attachmentId) {
-      const session = exec && exec.agent && exec.agent.session
-      if (!session || !Array.isArray(session.events)) {
-        throw new Error('analyze_image: 当前执行上下文无会话事件日志，无法解析 attachment_id')
-      }
-      const ref = collectAttachmentRefs(session.events).find((r) => String(r.attachmentId) === String(attachmentId))
-      if (!ref) throw new Error('analyze_image: 未知附件 id "' + attachmentId + '"（必须来自本次对话中上传的图片）')
-      const attachments = ctx.get('attachments')
-      if (!attachments) throw new Error('analyze_image: 附件服务不可用')
-      const stored = await attachments.readImage(ref)
-      buffer = stored && stored.data
-      if (!buffer || buffer.length === 0) throw new Error('analyze_image: 附件读取失败（无数据）')
-      if (buffer.length > MAX_IMAGE_BYTES) throw new Error('analyze_image: 附件超过 ' + Math.round(MAX_IMAGE_BYTES / 1024 / 1024) + 'MB')
-      // 附件按内容寻址存储、无扩展名，必须嗅探魔数而非按扩展名判断。
-      mime = sniffMediaType(new Uint8Array(buffer)) || 'image/png'
-      isJpeg = mime === 'image/jpeg'
-    } else {
-      let resolved = imagePath
-      const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
-      if (cwd && !/^[A-Za-z]:[\\/]/.test(imagePath) && !imagePath.startsWith('/') && !imagePath.startsWith('\\\\')) {
-        resolved = join(cwd, imagePath)
-      }
-      try {
-        buffer = readFileSync(resolved)
-        if (buffer.length > MAX_IMAGE_BYTES) throw new Error('文件超过 ' + Math.round(MAX_IMAGE_BYTES / 1024 / 1024) + 'MB')
-      } catch (e) {
-        throw new Error('analyze_image: 无法读取图片 "' + imagePath + '"：' + String(e && e.message || e))
-      }
-      mime = mimeFor(resolved)
-      isJpeg = mime === 'image/jpeg'
-    }
-    const base64 = bytesToBase64(buffer)
-    const dataUrl = 'data:' + mime + ';base64,' + base64
-    var baseImage = { mime, base64, dataUrl }
-    // Lazy downscale for keyless fallback providers (Vireonix/OVH anonymous):
-    // only computed when a fallback card is tried, cached for the rest of this call.
-    var dsImage = null
-    var dsDone = false
-    var getDs = function () {
-      if (dsDone) return dsImage
-      dsDone = true
-      dsImage = downscaleImage(buffer)
-      if (dsImage) console.log('[dsh-her-eyes] Image downscaled for fallback provider')
-      return dsImage
-    }
-    // Lazy JPEG→PNG re-encode: only computed on a 400/415 response, cached for
-    // the rest of this call, and never re-encoded again for the same image.
-    let altImage = null
-    let altDone = false
-    const getAlt = () => {
-      if (altDone) return altImage
-      altDone = true
-      try {
-        altImage = reencodeJpegToPng(buffer)
-      } catch (e) {
-        console.error('[dsh-her-eyes] JPEG 解码失败（重编码兜底不可用）：', String(e && e.message || e))
-        altImage = null
-      }
-      return altImage
-    }
-    const outcome = await callWithFailover(ctx, cfg, (card, alt) => {
-      var img = alt || baseImage
-      // For keyless fallback providers (no apiKey), use downscaled image to avoid 413
-      if (!card.apiKey && !alt) {
-        var ds = getDs()
-        if (ds) img = ds
-      }
-      const ec = effectiveCard(card)
-      return {
-        url: chatUrl(ec),
-        headers: protocolHeaders(ec, true),
-        body: protocolBody(ec, question, img.dataUrl, img.mime, img.base64)
-      }
-    }, signal, { isJpeg, getAlt })
-    const body = outcome.res.body && typeof outcome.res.body === 'object' ? outcome.res.body : {}
-    const answer = extractAnswer(outcome.card.protocol, body)
-    // usage must be an object when present; omit the key otherwise (the output
-    // schema marks it optional, and `null` fails the harness "must be an object"
-    // validation).
-    const usage = (body.usage && typeof body.usage === 'object' && !Array.isArray(body.usage)) ? body.usage : undefined
+    // 图片来源与请求管线已提取为共享 resolveImage / askVlm（vision toolkit 复用）。
+    const { buffer, mime } = await resolveImage(exec, args)
+    const result = await askVlm(ctx, buffer, mime, question, exec, { signal })
     const ret = {
       ok: true,
-      answer: answer || '(VLM 未返回文本内容。原始响应：' + String(JSON.stringify(body)).slice(0, 1500) + ')',
-      model: String(body.model || outcome.card.model || ''),
-      api: String(outcome.card.name || 'unknown'),
-      attempts: Number(outcome.attempts) || 1
+      answer: result.text || '(VLM 未返回文本内容。原始响应：' + String(JSON.stringify(result.body || {})).slice(0, 1500) + ')',
+      model: result.model,
+      api: result.api,
+      attempts: result.attempts
     }
-    if (usage !== undefined) {
-      try { ret.usage = JSON.parse(JSON.stringify(usage)) } catch { /* skip non-serializable usage */ }
+    if (result.usage !== undefined) {
+      try { ret.usage = JSON.parse(JSON.stringify(result.usage)) } catch { /* skip non-serializable usage */ }
     }
     return ret
   }
@@ -960,6 +1210,24 @@ function extractImggenImages(protocol, body) {
     }
     return out
   }
+    if (protocol === 'dashscope-image') {
+      const out = []
+      // async task response: { output: { choices: [{ message: { content: [{ image: 'url' }] } }] } }
+      const choices = body && body.output && Array.isArray(body.output.choices) ? body.output.choices : []
+      for (const ch of choices) {
+        const content = ch && ch.message && Array.isArray(ch.message.content) ? ch.message.content : []
+        for (const item of content) {
+          if (item && typeof item.image === 'string' && item.image) out.push({ url: item.image })
+          if (item && typeof item.b64_json === 'string') out.push({ b64_json: item.b64_json })
+        }
+      }
+      // fallback: { output: { results: [{ url: '...' }] } }
+      const results = body && body.output && Array.isArray(body.output.results) ? body.output.results : []
+      for (const r of results) {
+        if (r && typeof r.url === 'string') out.push({ url: r.url })
+      }
+      return out
+    }
   // openai-images
   if (!Array.isArray(body.data)) return []
   return body.data
@@ -987,6 +1255,7 @@ const imggenToolDef = defineTool({
     prompt: { type: 'string', required: true, description: '图像生成提示词：详细描述想生成的图片内容、风格、构图、色调等' },
     size: { type: 'string', description: '图片尺寸，如 1024x1024 / 1792x1024；留空用模型默认' },
     n: { type: 'number', description: '生成图片数量，默认 1' },
+      reference_image: { type: 'string', description: '参考图路径（可选）。传入后以图生图模式生成。' },
     output_dir: { type: 'string', description: '保存目录绝对路径。不指定则保存到工作区根目录。根据项目情况选择合适位置，如游戏引擎资产目录、项目素材目录等。' }
   },
   output: {
@@ -1020,6 +1289,7 @@ const imggenToolDef = defineTool({
     if (!prompt) throw new Error('generate_image: 缺少参数 prompt（图像描述）')
     const size = args && args.size ? String(args.size).trim() : undefined
     const n = Math.max(1, Math.min(Math.floor(Number(args && args.n) || 1), 4))
+    const refImage = args && args.reference_image ? String(args.reference_image).trim() : ''
     const ctx = appCtx
     const cfg = await loadConfig(ctx)
     const igc = cfg.imggenConfig || defaultImggenConfig()
@@ -1040,21 +1310,87 @@ const imggenToolDef = defineTool({
     const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     if (igc.apiKey) headers.Authorization = 'Bearer ' + igc.apiKey
     let body
-    if (protocol === 'openai-completions') {
+    const attempts0 = Math.max(1, Math.min(igc.retryCount || 2, 10))
+    let last = null
+    if (protocol === 'dashscope-image') {
+      // DashScope native API: convert URL from /compatible-mode/v1 to /api/v1/services/aigc/image-generation/generation
+      const dsBaseRaw = String(endpoint || '').trim().replace(/\/+$/, '')
+      const dsBase = /\/compatible-mode\/v[0-9]+$/.test(dsBaseRaw)
+        ? dsBaseRaw.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
+        : dsBaseRaw.replace(/\/v[0-9]+$/, '/api/v1')
+      const dsUrl = dsBase + '/services/aigc/image-generation/generation'
+      const dsHeaders = Object.assign({}, headers, { 'X-DashScope-Async': 'enable' })
+      const contentParts = []
+      // reference image (optional): read file -> base64 data URL, placed BEFORE the text prompt (interleave)
+      if (refImage) {
+        try {
+          let refPath = refImage
+          const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+          if (cwd && !/^[A-Za-z]:[\\/]/.test(refPath) && !refPath.startsWith('/') && !refPath.startsWith('\\\\')) {
+            refPath = join(cwd, refPath)
+          }
+          const rb = readFileSync(refPath)
+          contentParts.push({ image: 'data:' + mimeFor(refPath) + ';base64,' + rb.toString('base64') })
+        } catch (e) { /* best-effort: skip invalid reference image */ }
+      }
+      contentParts.push({ text: prompt })
+      const isWan = String(igc.model || '').toLowerCase().startsWith('wan2.')
+      const dsBody = { model: igc.model, input: { messages: [{ role: 'user', content: contentParts }] }, parameters: { n: n, size: size || '1280*1280' } }
+      // wan2.x 文生图需 enable_interleave；参考图模式亦无条件开启（与百炼参考协议一致）
+      if (isWan || refImage) dsBody.parameters.enable_interleave = true
+      // async task: submit, then poll /api/v1/tasks/{task_id} every 3s (max 100 = ~5min)
+      for (let attempt = 1; attempt <= attempts0; attempt++) {
+        const submitRes = await httpJson(dsUrl, 'POST', dsHeaders, dsBody, clampTimeout(igc.timeoutMs, 300000))
+        const taskId = submitRes.ok && submitRes.body && submitRes.body.output && submitRes.body.output.task_id
+          ? submitRes.body.output.task_id
+          : null
+        if (!taskId) {
+          last = { data: [], status: submitRes.status, message: submitRes.message }
+          if (submitRes.status === 'TIMEOUT') break
+          if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+          continue
+        }
+        const taskUrl = dsBase + '/tasks/' + taskId
+        let pollSuccess = false
+        for (let poll = 0; poll < 100; poll++) {
+          await sleep(3000)
+          const pollRes = await httpJson(taskUrl, 'GET', { Accept: 'application/json', Authorization: 'Bearer ' + (igc.apiKey || '') }, null, clampTimeout(igc.timeoutMs, 300000))
+          const pollOutput = pollRes.ok && pollRes.body && pollRes.body.output ? pollRes.body.output : null
+          if (pollOutput && pollOutput.task_status === 'SUCCEEDED') {
+            last = { data: extractImggenImages('dashscope-image', pollRes.body), bodyModel: (pollOutput.model || igc.model) }
+            pollSuccess = true
+            break
+          }
+          if (pollOutput && (pollOutput.task_status === 'FAILED' || pollOutput.task_status === 'CANCELED')) {
+            last = { data: [], status: 200, message: 'DashScope 任务 ' + pollOutput.task_status + ': ' + (pollOutput.message || '') }
+            pollSuccess = true
+            break
+          }
+        }
+        if (pollSuccess) break
+        last = { data: [], status: 'POLL_TIMEOUT', message: 'DashScope 任务轮询超时（约 5 分钟未完成）' }
+        break
+      }
+    } else if (protocol === 'openai-completions') {
       body = { model: igc.model, messages: [{ role: 'user', content: prompt }], modalities: ['text', 'image'], stream: false }
+      for (let attempt = 1; attempt <= attempts0; attempt++) {
+        const res = await httpJson(url, 'POST', headers, body, clampTimeout(igc.timeoutMs, 300000))
+        if (res.ok && res.body) { last = { data: extractImggenImages(protocol, res.body), bodyModel: res.body.model }; break }
+        last = { data: [], status: res.status, message: res.message }
+        if (res.status === 'TIMEOUT') break
+        if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+      }
     } else {
       body = { model: igc.model, prompt, n }
       if (size) body.size = size
       if (igc.responseFormat === 'b64_json' || igc.responseFormat === 'url') body.response_format = igc.responseFormat
-    }
-    const attempts0 = Math.max(1, Math.min(igc.retryCount || 2, 10))
-    let last = null
-    for (let attempt = 1; attempt <= attempts0; attempt++) {
-      const res = await httpJson(url, 'POST', headers, body, clampTimeout(igc.timeoutMs, 300000))
-      if (res.ok && res.body) { last = { data: extractImggenImages(protocol, res.body), bodyModel: res.body.model }; break }
-      last = { data: [], status: res.status, message: res.message }
-      if (res.status === 'TIMEOUT') break
-      if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+      for (let attempt = 1; attempt <= attempts0; attempt++) {
+        const res = await httpJson(url, 'POST', headers, body, clampTimeout(igc.timeoutMs, 300000))
+        if (res.ok && res.body) { last = { data: extractImggenImages(protocol, res.body), bodyModel: res.body.model }; break }
+        last = { data: [], status: res.status, message: res.message }
+        if (res.status === 'TIMEOUT') break
+        if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+      }
     }
     if (!last || !last.data || last.data.length === 0) {
       throw new Error('generate_image: 生图请求失败' + (last && last.status ? '（HTTP ' + last.status + ': ' + String(last.message).slice(0, 200) + '）' : ''))
@@ -1120,16 +1456,10 @@ function makeTwinAdapter(ctx, provider) {
   const preserveImageInput = () => sourceAcceptsImages()
   return {
     providerInfo() {
-      const original = originalAdapter()
-      let info
-      try {
-        info = original && typeof original.providerInfo === 'function' ? original.providerInfo(sourceProvider()) : undefined
-      } catch {
-        info = undefined
-      }
-      const base = (info && info.name ? info.name : sourceProvider())
-      const suffix = lastSourceModel ? ' · ' + lastSourceModel : ''
-      return { id: twinRoute, name: base + ' + Auto Vision' + suffix }
+      // v1.9: generic name — no provider/model suffix, since auto-vision
+      // delegates to the LAST source (not a fixed provider). Showing a
+      // specific model name misled users into thinking routing was fixed.
+      return { id: twinRoute, name: 'Auto Vision' }
     },
     providerRetryPolicy() {
       const original = originalAdapter()
@@ -1190,34 +1520,169 @@ function makeTwinAdapter(ctx, provider) {
   }
 }
 
-// Reconcile twin routes against the live llm registry, gated on the SAME
-// `shouldVlm` flag as analyze_image. VLM off / no valid config → all twins
-// disposed → no image-capable picker entry → upload rejected.
-async function syncTwins(ctx, cfg, shouldVlm) {
-  if (!shouldVlm) {
-    for (const [provider, held] of [...twinHandles.entries()]) {
-      held.handle()
-      twinHandles.delete(provider)
-    }
-    return
+// v1.9: per-provider twin (mirrorAllEnabled mode). Mirrors EVERY model under
+// the source provider, declaring inputModalities:['text','image']. Route id
+// `<provider>-her-eyes` is already filtered by the agent/request + syncTwins
+// self-recursion guards.
+function makePerProviderTwinAdapter(ctx, provider) {
+  const twinRoute = provider + '-her-eyes'
+  const originalAdapter = () => {
+    try { return ctx.llm.registration(provider).adapter } catch { return undefined }
   }
-  // v1.8: only the last agent-used source provider gets a twin. Before any
-  // agent/request has been tracked, pick a default from the live registry
-  // (first non-twin provider + its first model) so the picker still shows
-  // an entry without waiting for the first request.
-  if (lastSourceProvider === null) {
+  const sourceAcceptsImages = async (model) => {
+    const original = originalAdapter()
+    if (original === undefined || typeof original.resolveModel !== 'function') return false
+    try {
+      const info = await original.resolveModel(provider, model)
+      return Array.isArray(info && info.inputModalities) && info.inputModalities.includes('image')
+    } catch { return false }
+  }
+  const rewriteImagesToMarkers = (messages) => messages.map((message) => {
+    if (!message || !Array.isArray(message.content)) return message
+    const result = rewriteImagesDeep(message.content, (block) => {
+      const attachment = block.attachment || {}
+      const id = attachment.attachmentId ?? attachment.id ?? 'unknown'
+      const name = attachment.name ?? '图片'
+      return [{ type: 'text', text: '[图片「' + name + '」已上传，附件 id 为「' + id + '」。当前对话模型无法直接查看图片；需要看图时调用 analyze_image 工具，传入 attachment_id: "' + id + '" 和具体问题。]' }]
+    })
+    return result.changed ? { ...message, content: result.content } : message
+  })
+  return {
+    providerInfo() {
+      const original = originalAdapter()
+      let info
+      try { info = original && typeof original.providerInfo === 'function' ? original.providerInfo(provider) : undefined } catch { info = undefined }
+      return { id: twinRoute, name: (info && info.name ? info.name : provider) + ' + Auto Vision' }
+    },
+    providerRetryPolicy() {
+      const original = originalAdapter()
+      try { return original && typeof original.providerRetryPolicy === 'function' ? original.providerRetryPolicy(provider) : undefined } catch { return undefined }
+    },
+    async listModels() {
+      const original = originalAdapter()
+      if (original === undefined || typeof original.listModels !== 'function') return []
+      try {
+        const listed = await original.listModels(provider)
+        return (Array.isArray(listed) ? listed : []).map((model) => ({ ...model, provider: twinRoute, inputModalities: ['text', 'image'] }))
+      } catch { return [] }
+    },
+    async resolveModel(_provider, model) {
+      const original = originalAdapter()
+      if (original === undefined || typeof original.resolveModel !== 'function') throw new Error('her-eyes: per-provider twin source not registered: ' + provider)
+      const base = await original.resolveModel(provider, model)
+      return { ...base, provider: twinRoute, inputModalities: ['text', 'image'] }
+    },
+    async *stream(options) {
+      const messages = options.messages ?? []
+      const model = typeof options.model === 'string' ? options.model : null
+      let keepOriginalImages = false
+      if (model) { try { keepOriginalImages = (await sourceAcceptsImages(model)) === true } catch { keepOriginalImages = false } }
+      const rewritten = keepOriginalImages ? messages : rewriteImagesToMarkers(messages)
+      yield* ctx.llm.stream({ ...options, provider, model: model || options.model, messages: rewritten })
+    }
+  }
+}
+
+// v1.9: per-mapping twin (custom list mode). ONE model with the mirrorName,
+// declaring image input. stream() delegates to the FIXED
+// originalProvider/originalModel (not lastSource) so the mapping is stable
+// across agent turns. Route id `her-eyes-m-<sanitized>` is filtered by the
+// self-recursion guards.
+function makeMappingTwinAdapter(ctx, mapping) {
+  const routeId = mirrorRouteId(mirrorDisplayName(mapping))
+  const displayName = mirrorDisplayName(mapping)
+  const { originalProvider, originalModel } = mapping
+  const originalAdapter = () => {
+    try { return ctx.llm.registration(originalProvider).adapter } catch { return undefined }
+  }
+  const sourceAcceptsImages = async () => {
+    const original = originalAdapter()
+    if (original === undefined || typeof original.resolveModel !== 'function') return false
+    try {
+      const info = await original.resolveModel(originalProvider, originalModel)
+      return Array.isArray(info && info.inputModalities) && info.inputModalities.includes('image')
+    } catch { return false }
+  }
+  const rewriteImagesToMarkers = (messages) => messages.map((message) => {
+    if (!message || !Array.isArray(message.content)) return message
+    const result = rewriteImagesDeep(message.content, (block) => {
+      const attachment = block.attachment || {}
+      const id = attachment.attachmentId ?? attachment.id ?? 'unknown'
+      const name = attachment.name ?? '图片'
+      return [{ type: 'text', text: '[图片「' + name + '」已上传，附件 id 为「' + id + '」。当前对话模型无法直接查看图片；需要看图时调用 analyze_image 工具，传入 attachment_id: "' + id + '" 和具体问题。]' }]
+    })
+    return result.changed ? { ...message, content: result.content } : message
+  })
+  return {
+    providerInfo() {
+      const original = originalAdapter()
+      let info
+      try { info = original && typeof original.providerInfo === 'function' ? original.providerInfo(originalProvider) : undefined } catch { info = undefined }
+      const base = info && info.name ? info.name : originalProvider
+      return { id: routeId, name: base + ' · ' + displayName }
+    },
+    providerRetryPolicy() {
+      const original = originalAdapter()
+      try { return original && typeof original.providerRetryPolicy === 'function' ? original.providerRetryPolicy(originalProvider) : undefined } catch { return undefined }
+    },
+    async listModels() {
+      return [{ id: displayName, name: displayName, provider: routeId, inputModalities: ['text', 'image'] }]
+    },
+    async resolveModel(_provider, _model) {
+      return { id: displayName, provider: routeId, name: displayName, inputModalities: ['text', 'image'] }
+    },
+    async *stream(options) {
+      const messages = options.messages ?? []
+      let keepOriginalImages = false
+      try { keepOriginalImages = (await sourceAcceptsImages()) === true } catch { keepOriginalImages = false }
+      const rewritten = keepOriginalImages ? messages : rewriteImagesToMarkers(messages)
+      yield* ctx.llm.stream({ ...options, provider: originalProvider, model: originalModel, messages: rewritten })
+    }
+  }
+}
+
+// v1.9: Reconcile twin routes against the live llm registry, gated on the SAME
+// `shouldVlm` flag as analyze_image. Three independent modes:
+//  1. autoVisionEnabled → single `auto-vision` twin (v1.8)
+//  2. mirrorAllEnabled → per-provider `<provider>-her-eyes` twins (v1.7)
+//  3. !mirrorAllEnabled + mappings → per-mapping `her-eyes-m-*` twins
+// Mode 2 masks mode 3 (per-provider twins already cover every model).
+async function syncTwins(ctx, cfg, shouldVlm) {
+  const mc = cfg.mirrorConfig || defaultMirrorConfig()
+  // Build the wanted set: routeId → spec
+  const wanted = new Map()
+  if (shouldVlm) {
+    if (mc.autoVisionEnabled) wanted.set('auto-vision', { type: 'auto-vision' })
+    if (mc.mirrorAllEnabled) {
+      let providers = []
+      try {
+        providers = ctx.llm.listProviders()
+          .map((entry) => (entry && typeof entry.id === 'string' ? entry.id : ''))
+          .filter(Boolean)
+      } catch { providers = [] }
+      for (const provider of providers) {
+        if (provider === 'auto-vision' || provider.endsWith('-her-eyes') || provider.endsWith('-vision') || provider.startsWith('her-eyes-m-')) continue
+        wanted.set(provider + '-her-eyes', { type: 'per-provider', provider })
+      }
+    }
+    if (!mc.mirrorAllEnabled && Array.isArray(mc.mappings)) {
+      for (const mapping of mc.mappings) {
+        if (!mapping.originalModel || mapping.originalModel.length === 0) continue
+        if (!mapping.originalProvider || mapping.originalProvider.length === 0) continue
+        wanted.set(mirrorRouteId(mirrorDisplayName(mapping)), { type: 'mapping', mapping })
+      }
+    }
+  }
+  // v1.8: initialize lastSourceProvider if null (needed for auto-vision)
+  if (mc.autoVisionEnabled && shouldVlm && lastSourceProvider === null) {
     let providers = []
     try {
       providers = ctx.llm.listProviders()
         .map((entry) => (entry && typeof entry.id === 'string' ? entry.id : ''))
         .filter(Boolean)
-    } catch {
-      providers = []
-    }
+    } catch { providers = [] }
     for (const provider of providers) {
-      // `-her-eyes` = self-recursion guard; `-vision` = coexistence guard
-      // with dsh-vision-router (prevents an unbounded mutual-wrap chain).
-      if (provider.endsWith('-her-eyes') || provider.endsWith('-vision')) continue
+      if (provider === 'auto-vision' || provider.endsWith('-her-eyes') || provider.endsWith('-vision') || provider.startsWith('her-eyes-m-')) continue
       lastSourceProvider = provider
       break
     }
@@ -1227,22 +1692,36 @@ async function syncTwins(ctx, cfg, shouldVlm) {
         const models = await adapter.listModels(lastSourceProvider)
         const first = Array.isArray(models) && models.length > 0 ? models[0] : null
         lastSourceModel = first && (first.id || first.name) ? (first.id || first.name) : null
-      } catch {
-        lastSourceModel = null
-      }
+      } catch { lastSourceModel = null }
     }
   }
-  // v1.8: one fixed twin route 'auto-vision'. If already registered, no-op —
-  // the stream reads lastSourceProvider at call time, so the delegation
-  // target updates without re-registration when the agent switches sources.
-  if (twinHandles.has('auto-vision')) return
-  if (lastSourceProvider === null) return
-  try {
-    const handle = ctx.llm.registerAdapter(['auto-vision'], makeTwinAdapter(ctx, lastSourceProvider))
-    ctx.effect(() => handle, 'her-eyes: twin auto-vision')
-    twinHandles.set('auto-vision', { handle })
-  } catch (e) {
-    ctx.logger?.warn('her-eyes: twin auto-vision failed: %s', e && e.message ? e.message : String(e))
+  // Dispose twins no longer wanted
+  for (const [routeId, held] of [...twinHandles.entries()]) {
+    if (!wanted.has(routeId)) {
+      try { held.handle() } catch { /* dispose best-effort */ }
+      twinHandles.delete(routeId)
+    }
+  }
+  // Register wanted twins not yet registered
+  for (const [routeId, spec] of wanted) {
+    if (twinHandles.has(routeId)) continue
+    try {
+      let handle = null
+      if (spec.type === 'auto-vision') {
+        if (lastSourceProvider === null) continue // can't register yet
+        handle = ctx.llm.registerAdapter(['auto-vision'], makeTwinAdapter(ctx, lastSourceProvider))
+      } else if (spec.type === 'per-provider') {
+        handle = ctx.llm.registerAdapter([routeId], makePerProviderTwinAdapter(ctx, spec.provider))
+      } else if (spec.type === 'mapping') {
+        handle = ctx.llm.registerAdapter([routeId], makeMappingTwinAdapter(ctx, spec.mapping))
+      }
+      if (handle) {
+        ctx.effect(() => handle, 'her-eyes: twin ' + routeId)
+        twinHandles.set(routeId, { handle })
+      }
+    } catch (e) {
+      ctx.logger?.warn('her-eyes: twin %s failed: %s', routeId, e && e.message ? e.message : String(e))
+    }
   }
 }
 
@@ -1280,6 +1759,44 @@ async function syncToolRegistration() {
     }
     imggenVisible = false
   }
+  // vision toolkit tools (independent of vlmEnabled: local-only tools work
+  // with no cards; ocr/detect degrade to NO_VLM_CARDS without cards).
+  // v2.2: master switch on → each tool registered only when its individual
+  // toggle is on; changing an individual toggle re-registers immediately.
+  const shouldVisionTools = cfg.visionToolsEnabled !== false
+  if (shouldVisionTools) {
+    const expectedNames = VISION_TOOL_NAMES.filter((n) => (cfg.visionToolToggles || {})[n] !== false)
+    const names = expectedNames.slice().sort().join(',')
+    if (!visionToolsVisible || names !== visionToolDefNames) {
+      for (const dispose of visionToolDisposers) {
+        try { dispose() } catch { /* best-effort */ }
+      }
+      visionToolDisposers = []
+      try {
+        visionToolDisposers = buildVisionToolDefs({
+          getCtx: () => appCtx,
+          loadConfig,
+          resolveImage,
+          askVlm
+        }).filter((def) => (cfg.visionToolToggles || {})[def.name] !== false)
+          .map((def) => appCtx.tools.register(def))
+        visionToolDefNames = names
+        visionToolsVisible = true
+      } catch (e) {
+        appCtx.logger?.warn('her-eyes: vision toolkit registration failed: %s', e && e.message ? e.message : String(e))
+        visionToolDisposers = []
+        visionToolDefNames = ''
+        visionToolsVisible = false
+      }
+    }
+  } else if (visionToolsVisible) {
+    for (const dispose of visionToolDisposers) {
+      try { dispose() } catch { /* best-effort */ }
+    }
+    visionToolDisposers = []
+    visionToolDefNames = ''
+    visionToolsVisible = false
+  }
 }
 
 // ---------- config patching ----------
@@ -1288,8 +1805,12 @@ function applyPatch(cfg, patch) {
   const p = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {}
   if (p.retryCount !== undefined) c.retryCount = Number(p.retryCount)
   if (p.vlmEnabled !== undefined) c.vlmEnabled = p.vlmEnabled === true
-  if (p.autoSelectTwin !== undefined) c.autoSelectTwin = p.autoSelectTwin === true
   if (p.imggenEnabled !== undefined) c.imggenEnabled = p.imggenEnabled === true
+  if (p.visionToolsEnabled !== undefined) c.visionToolsEnabled = p.visionToolsEnabled === true
+    if (p.visionToolToggle && p.visionToolToggle.tool && VISION_TOOL_NAMES.includes(p.visionToolToggle.tool)) {
+      if (!c.visionToolToggles) c.visionToolToggles = {}
+      c.visionToolToggles[p.visionToolToggle.tool] = p.visionToolToggle.value === true
+    }
   if (p.imggenReset === true) c.imggenConfig = defaultImggenConfig()
   if (p.imggenConfig) {
     // reset (full or flag)
@@ -1300,7 +1821,8 @@ function applyPatch(cfg, patch) {
       if (field === 'provider' && PROVIDER_IDS.includes(value)) {
         c.imggenConfig.provider = value
         const meta = PROVIDERS[value]
-        if (meta && meta.fixedUrl) { c.imggenConfig.protocol = 'openai-images'; c.imggenConfig.endpoint = meta.endpoint; c.imggenConfig.apiPath = '' }
+        if (value === 'bailian') { c.imggenConfig.protocol = 'dashscope-image'; c.imggenConfig.apiPath = '' }
+        else if (meta && meta.fixedUrl) { c.imggenConfig.protocol = 'openai-images'; c.imggenConfig.endpoint = meta.endpoint; c.imggenConfig.apiPath = '' }
       } else if (field === 'protocol' && IMGGEN_PROTOCOLS.includes(value)) c.imggenConfig.protocol = value
       else if (field === 'endpoint') c.imggenConfig.endpoint = String(value || '').trim()
       else if (field === 'apiPath') c.imggenConfig.apiPath = String(value || '').trim()
@@ -1309,11 +1831,50 @@ function applyPatch(cfg, patch) {
       else if (field === 'retryCount') c.imggenConfig.retryCount = Math.max(1, Math.min(Math.floor(Number(value) || 2), 10))
       else if (field === 'responseFormat' && ['auto', 'b64_json', 'url'].includes(value)) c.imggenConfig.responseFormat = value
       else if (field === 'filterImageModels') c.imggenConfig.filterImageModels = value === true
-      else if (field === 'apiKey') {
-        if (typeof value === 'string' && value.length > 0) c.imggenConfig.apiKey = value
-        else if (value === null) c.imggenConfig.apiKey = ''
-      }
+     else if (field === 'apiKey') {
+       if (typeof value === 'string' && value.length > 0) c.imggenConfig.apiKey = value
+       else if (value === null) c.imggenConfig.apiKey = ''
+     }
+   }
+ }
+  // sync imggenConfig patches to active preset (preset is source of truth)
+  if (p.imggenConfig || p.imggenReset === true) {
+    const ap = (c.imggenPresets || []).find((pr) => pr.id === c.activeImggenPreset)
+    if (ap) ap.config = Object.assign({}, c.imggenConfig)
+  }
+  // ---- imggen preset management (v2.1) ----
+  if (p.imggenPresetSwitch && typeof p.imggenPresetSwitch === 'string') {
+    const target = (c.imggenPresets || []).find((pr) => pr.id === p.imggenPresetSwitch)
+    if (target) {
+      c.activeImggenPreset = target.id
+      c.imggenConfig = Object.assign({}, target.config)
     }
+  }
+  if (p.imggenPresetAdd === true) {
+    const np = { id: genPresetId(), name: '新预设', config: defaultImggenConfig() }
+    c.imggenPresets = (c.imggenPresets || []).concat([np])
+    c.activeImggenPreset = np.id
+    c.imggenConfig = Object.assign({}, np.config)
+  }
+  if (p.imggenPresetDelete && typeof p.imggenPresetDelete === 'string') {
+    c.imggenPresets = (c.imggenPresets || []).filter((pr) => pr.id !== p.imggenPresetDelete)
+    if (c.imggenPresets.length === 0) {
+      // 清空所有预设 → 自动新建 '默认' 预设（所有配置为初始状态）
+      const dp = { id: genPresetId(), name: '默认', config: defaultImggenConfig() }
+      c.imggenPresets = [dp]
+      c.activeImggenPreset = dp.id
+      c.imggenConfig = Object.assign({}, dp.config)
+    } else {
+      if (c.activeImggenPreset === p.imggenPresetDelete || !c.imggenPresets.some((pr) => pr.id === c.activeImggenPreset)) {
+        c.activeImggenPreset = c.imggenPresets[0].id
+      }
+      const active = c.imggenPresets.find((pr) => pr.id === c.activeImggenPreset)
+      if (active) c.imggenConfig = Object.assign({}, active.config)
+    }
+  }
+  if (p.imggenPresetRename && typeof p.imggenPresetRename === 'string') {
+    const ap = (c.imggenPresets || []).find((pr) => pr.id === c.activeImggenPreset)
+    if (ap) ap.name = String(p.imggenPresetRename).slice(0, 60)
   }
   if (p.fallbackConfig) {
     if (p.fallbackConfig === 'reset' || p.fallbackConfig.reset === true) {
@@ -1328,6 +1889,7 @@ function applyPatch(cfg, patch) {
           c.fallbackConfig.models = [...OVHCLOUD_DEFAULT_MODELS]
         }
       } else if (field === 'timeoutMs') c.fallbackConfig.timeoutMs = clampTimeout(value, 120000)
+      else if (field === 'resetModels') { c.fallbackConfig.models = [...OVHCLOUD_DEFAULT_MODELS] }
       else if (field === 'addModel' && typeof value === 'string' && value.length > 0) {
         if (!c.fallbackConfig.models.includes(value)) c.fallbackConfig.models.push(value)
       } else if (field === 'removeModel' && typeof value === 'string') {
@@ -1351,6 +1913,43 @@ function applyPatch(cfg, patch) {
       else if (field === 'backoff429Max') c.globalConfig.backoff429Max = Math.max(500, Math.floor(Number(value) || 10000))
       else if (field === 'retryStatusCodes') c.globalConfig.retryStatusCodes = String(value || '402,408,429,500,502,503,504,NET')
       else if (field === 'verifyReminder') c.globalConfig.verifyReminder = value === true
+    }
+  }
+  if (p.mirrorConfig) {
+    if (p.mirrorConfig === 'reset' || p.mirrorConfig.reset === true) {
+      c.mirrorConfig = defaultMirrorConfig()
+    } else if (p.mirrorConfig.field && p.mirrorConfig.value !== undefined) {
+      const { field, value } = p.mirrorConfig
+      const mc = c.mirrorConfig
+      if (field === 'autoVisionEnabled') mc.autoVisionEnabled = value === true
+      else if (field === 'mirrorAllEnabled') mc.mirrorAllEnabled = value === true
+      else if (field === 'addMapping' && value && typeof value === 'object') {
+        mc.mappings = (mc.mappings || []).concat([{
+          id: typeof value.id === 'string' && value.id.length > 0 ? value.id : genId(),
+          originalProvider: typeof value.originalProvider === 'string' ? value.originalProvider : '',
+          originalModel: typeof value.originalModel === 'string' ? value.originalModel : '',
+          mirrorName: typeof value.mirrorName === 'string' ? value.mirrorName.trim() : ''
+        }])
+      } else if (field === 'removeMapping' && typeof value === 'string') {
+        mc.mappings = (mc.mappings || []).filter((m) => m.id !== value)
+      } else if (field === 'updateMapping' && value && typeof value === 'object' && typeof value.id === 'string') {
+        mc.mappings = (mc.mappings || []).map((m) => {
+          if (m.id !== value.id) return m
+          const next = { ...m }
+          if (typeof value.originalProvider === 'string') next.originalProvider = value.originalProvider
+          if (typeof value.originalModel === 'string' && value.originalModel.length > 0) next.originalModel = value.originalModel
+          if (typeof value.mirrorName === 'string') next.mirrorName = value.mirrorName.trim()
+          return next
+        })
+      } else if (field === 'reorder' && value && typeof value === 'object' && Number.isInteger(value.from) && Number.isInteger(value.to)) {
+        var mArr = (mc.mappings || []).slice()
+        var mFrom = Math.max(0, Math.min(mArr.length - 1, value.from))
+        var mTo = Math.max(0, Math.min(mArr.length - 1, value.to))
+        if (mFrom !== mTo) { var mMoved = mArr.splice(mFrom, 1)[0]; mArr.splice(mTo, 0, mMoved); mc.mappings = mArr }
+      }
+    } else if (Array.isArray(p.mirrorConfig.mappings)) {
+      // Full mirrorConfig replacement
+      c.mirrorConfig = normalizeMirrorConfig(p.mirrorConfig)
     }
   }
   // 全量 apis 替换（供拖拽重排等）
@@ -1476,7 +2075,7 @@ function apply(ctx) {
     const config = await next()
     if (!config || typeof config.provider !== 'string') return config
     const provider = config.provider
-    if (provider === 'auto-vision' || provider.endsWith('-her-eyes') || provider.endsWith('-vision')) return config
+    if (provider === 'auto-vision' || provider.endsWith('-her-eyes') || provider.endsWith('-vision') || provider.startsWith('her-eyes-m-')) return config
     const model = typeof config.model === 'string' ? config.model : null
     if (provider === lastSourceProvider && model === lastSourceModel) return config
     lastSourceProvider = provider
@@ -1491,6 +2090,44 @@ function apply(ctx) {
       }
     })()
     return config
+  })
+
+  // v2.0: token optimization — keep tool-result image blocks (e.g. show_image
+  // output) out of the model surface. agent/request cannot do this (the
+  // messages are built after the waterfall), so sanitize at agent/pre-step:
+  // (1) shadow historical tool/result events on the session surface so
+  //     deriveMessages() — including compaction — yields text markers, and
+  // (2) sanitize tool-result images in this step's claimed messages. User
+  //     message images are preserved. `agent/pre-step` is a cordis waterfall:
+  //     the listener MUST await next() and return the decision.
+  ctx.on('agent/pre-step', async (payload, next) => {
+    const decision = await next()
+    if (!decision || decision.kind === 'reject') return decision
+    const session = payload && payload.agent && payload.agent.session
+    if (session) {
+      // Layer 1: shadow historical tool/result events on the session surface so
+      // deriveMessages() — including compaction — yields markers instead of images.
+      try {
+        await sanitizeSessionToolResults(session, ctx.logger)
+      } catch (e) {
+        ctx.logger?.warn?.('her-eyes: session-surface sanitization failed (%s)', String(e && e.message || e))
+      }
+    }
+    // Layer 2: sanitize tool-result messages in the claimed messages (works
+    // regardless of session availability).
+    const messages = Array.isArray(decision.messages) ? decision.messages : (Array.isArray(payload.messages) ? payload.messages : [])
+    let anyChanged = false
+    const rewritten = messages.map((message) => {
+      if (!message || !Array.isArray(message.content)) return message
+      const isTool = message.role === 'tool'
+        || message.content.some((b) => b && (b.type === 'tool-result' || b.type === 'toolResult' || b.type === 'tool'))
+      if (!isTool) return message
+      const result = rewriteImagesDeep(message.content, toolImageMarker)
+      if (result.changed) anyChanged = true
+      return result.changed ? { ...message, content: result.content } : message
+    })
+    if (anyChanged) return { ...decision, messages: rewritten }
+    return decision
   })
 
   if (webServer === undefined) return
@@ -1654,6 +2291,47 @@ function apply(ctx) {
       jsonOut(res, 200, { ok: true, visible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)) })
     }
   })
+
+  // v1.9: returns all live models grouped by provider, for the mirror-card
+  // dropdown. Excludes twin routes (auto-vision / *-her-eyes / *-vision /
+  // her-eyes-m-*) so the dropdown only shows original models.
+  webServer.register({
+    kind: 'exact',
+    path: '/vlm/all-models',
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
+      try {
+        const groups = []
+        let providers = []
+        try {
+          providers = ctx.llm.listProviders()
+            .map((e) => (e && typeof e.id === 'string' ? e.id : ''))
+            .filter(Boolean)
+        } catch { providers = [] }
+        for (const provider of providers) {
+          if (provider === 'auto-vision' || provider.endsWith('-her-eyes') || provider.endsWith('-vision') || provider.startsWith('her-eyes-m-')) continue
+          let providerName = provider
+          try {
+            const ai = ctx.llm.registration(provider).adapter
+            const info = ai && typeof ai.providerInfo === 'function' ? ai.providerInfo(provider) : undefined
+            if (info && info.name) providerName = info.name
+          } catch { /* keep id as name */ }
+          let models = []
+          try {
+            const adapter = ctx.llm.registration(provider).adapter
+            const listed = await adapter.listModels(provider)
+            models = (Array.isArray(listed) ? listed : [])
+              .map((m) => ({ id: m.id || m.name || '', name: m.name || m.id || '' }))
+              .filter((m) => m.id.length > 0)
+          } catch { models = [] }
+          if (models.length > 0) groups.push({ provider, providerName, models })
+        }
+        jsonOut(res, 200, { ok: true, groups })
+      } catch (e) {
+        jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
+      }
+    }
+  })
 }
 
-export { Config, apply, inject, name, toolDef, rewriteImagesDeep, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, syncTwins, _resetLastSource, _setLastSource }
+export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, _resetLastSource, _setLastSource, _resetVisionTools }

@@ -15,6 +15,7 @@
 - **供应商预设**:自定义 / Ollama 之外内置 **28 家固定供应商**(OpenAI、Anthropic、Gemini、Groq、MiniMax、Moonshot、Z.AI、xAI 等)。固定供应商端点与协议内置不可改(只读展示),只需填 API Key、模型与超时。
 - **批量操作与删除确认**:"添加模型"右侧为批量按钮(收纳全部/展开全部/删除全部,删除需两次确认);单卡删除同样两次确认;页面底部时模型下拉自动向上展开。
 - **Web 路由**:宿主半提供 `/vlm/config`、`/vlm/models`、`/vlm/key`。
+- **视觉工具箱（Vision Toolkit）**:v2.0 新增 6 个 AI 可调用视觉工具(`zoom_image` / `sample_colors` / `image_diff` / `ocr_image` / `detect_elements` / `show_image`),其中 4 个本地工具零 token 成本;由 `visionToolsEnabled` 开关(默认开启)控制。
 - **i18n**:设置面板跟随界面语言(中文 / English)。
 
 ## 环境要求
@@ -95,6 +96,34 @@ dsh plugin --profile web add ./dsh-her-eyes-1.5.0.tgz
 - 服务端对 JPEG 报 400/415 解码错误时,图片自动重编码为 PNG 并同卡重试一次。
 
 可直接编辑文件,也可用设置面板(所有修改自动保存)。
+
+## 视觉工具箱（Vision Toolkit）
+
+> v2.0 新增。6 个 AI 可调用视觉工具由宿主半 `lib/vision-tools.js`(通过 `buildVisionToolDefs(deps)` 工厂)注册,与 `analyze_image` 共享同一套图片来源解析(`resolveImage`)与视觉模型卡片回退链(`askVlm`)。由设置页「多模态」Module Switches 第三行开关 `visionToolsEnabled`(默认开启)控制,关闭即注销全部 6 工具但保留配置。
+
+### 工具一览
+
+| 工具 | 关键参数 | 功能 | token 成本 |
+|---|---|---|---|
+| `zoom_image` | `image_path`/`attachment_id`、`region`(必填) | 局部裁剪放大,落盘 `.her-eyes/artifacts/zoom_*.png`,返回路径/尺寸 | 纯本地,0 |
+| `sample_colors` | `image_path`/`attachment_id`、`top`(默认 8)、`region` | 主色调采样:64×64 缩放 + 32-bin 量化,返回 `[{hex,count,share}]` | 纯本地,0 |
+| `image_diff` | `original`、`compare`(路径或 `sha256:` 附件 id)、`threshold`(默认 16) | 8×8 网格像素对比:`diffRatio` + `worstRegions`(≤5) + 热力图 `heatmapPath` | 纯本地,0 |
+| `ocr_image` | `image_path`/`attachment_id`、`engine`(`auto`/`local`/`vlm`) | 文字识别;本地 Tesseract 优先,失败/为空自动降级 VLM 转写,返回 `{engine,text}` | local=0;vlm=1 次 |
+| `detect_elements` | `image_path`/`attachment_id`、`target`、`annotate`(默认 true) | VLM 元素检测:严格 JSON 返回编号 `[{number,label,box}]`(原图像素坐标),可选画 2px 标注框落盘 | VLM 1–2 次 |
+| `show_image` | `image_path`/`attachment_id`、`label` | 把图片展示给用户:markdown 内联 + 附件块 + 客户端 toolview 卡片 | 0 |
+
+### 协同工作流示例
+
+- **detect → zoom → analyze**:先 `detect_elements` 拿到元素编号与边界框,对感兴趣区域调 `zoom_image`(把 box 坐标作为 `region`)放大,再 `analyze_image` 细看该区域细节。
+- **show_image 展示**:把本地图片、附件或 `generate_image` 生成的图片传给 `show_image`,用户在对话中直接看到;`generate_image` 产出的图片同样可喂给 `analyze_image` 继续分析。
+- **OCR 中文场景**:`engine=auto` 时优先本地 Tesseract(`chi_sim+eng`,`--psm 6`,20s 超时),未安装或识别为空再降级到视觉模型转写(固定转写 prompt,8000 字符软上限)。
+
+### 配置与依赖
+
+- `visionToolsEnabled`(默认 `true`):设置页 Module Switches 第三行开关;关闭仅注销工具,配置完整保留(与 `vlmEnabled`/`imggenEnabled` 同模式)。
+- **Tesseract(可选,仅本地 OCR 需要)**:系统安装 Tesseract OCR 并含 `chi_sim` 中文数据。探测顺序(进程内缓存一次):环境变量 `HER_EYES_TESSERACT` → `PATH` 中的 `tesseract` → Windows 默认 `C:\Program Files\Tesseract-OCR\tesseract.exe`。未安装时 `auto` 自动降级 VLM;`local` 返回 `LOCAL_OCR_UNAVAILABLE`。
+- **token 优化设计**:所有工具只返回紧凑 JSON + 工件路径,图片字节不返回给模型;工具产出图片(`tool-result` 内嵌 image 块,如 `show_image` 输出)会被改写为一行文本标记,不再每轮重新上传,模型按需再调 `analyze_image` 细看。用户上传的图片不受影响。
+- **命名区隔**:本插件工具命名与参考插件 dsh-vision-router 完全区隔,不照抄 `vision_crop`/`vision_colors`/`vision_present` 等,避免 harness 工具名唯一性冲突。
 
 ## 工作原理
 

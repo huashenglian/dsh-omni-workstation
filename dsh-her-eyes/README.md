@@ -15,6 +15,7 @@ A Vision-Language-Model (VLM) analyzer plugin for **DeepSeek Harness** (`dsh`). 
 - **Provider presets** — custom / Ollama plus **28 built-in fixed providers** (OpenAI, Anthropic, Gemini, Groq, MiniMax, Moonshot, Z.AI, xAI…). Fixed providers have baked-in endpoints & protocol (read-only, shown inline); only the API key, model and timeout are editable.
 - **Batch card actions & confirmations** — collapse/expand all and delete all (two-step confirm) next to “Add Model”; per-card delete also asks for confirmation; the model dropdown flips upward near the bottom of the page.
 - **Web routes** `/vlm/config`, `/vlm/models`, `/vlm/key` served by the host half.
+- **Vision Toolkit** — new in v2.0: 6 AI-callable vision tools (`zoom_image` / `sample_colors` / `image_diff` / `ocr_image` / `detect_elements` / `show_image`), four of which are pure-local and cost zero tokens. Gated by the `visionToolsEnabled` switch (on by default).
 - **i18n** — the settings page follows the harness UI language (English / 中文).
 
 ## Requirements
@@ -95,6 +96,34 @@ All configuration lives in one JSON file: **`vlm-vision.json`** — resolved via
 - JPEG images that a server rejects with a 400/415 decode error are automatically re-encoded as PNG and the same card retried once.
 
 You can edit the file directly, or use the settings page (all edits auto-save).
+
+## Vision Toolkit
+
+> New in v2.0 — 6 AI-callable vision tools registered by the host half (`lib/vision-tools.js`, via the `buildVisionToolDefs(deps)` factory). They share the same image-resolution (`resolveImage`) and card failover chain (`askVlm`) as `analyze_image`. Gated by `visionToolsEnabled` (on by default — the third Module Switch on the Settings → VLM page); toggling it off unregisters all 6 tools while keeping your config.
+
+### Tools
+
+| Tool | Key params | Function | Token cost |
+|---|---|---|---|
+| `zoom_image` | `image_path`/`attachment_id`, `region` (required) | crop & upscale a region, saved to `.her-eyes/artifacts/zoom_*.png`, returns path/size | local, 0 |
+| `sample_colors` | `image_path`/`attachment_id`, `top` (default 8), `region` | dominant color sampling (64×64 + 32-bin quantize) → `[{hex,count,share}]` | local, 0 |
+| `image_diff` | `original`, `compare` (path or `sha256:` attachment id), `threshold` (default 16) | 8×8 grid pixel diff → `diffRatio` + `worstRegions` (≤5) + `heatmapPath` | local, 0 |
+| `ocr_image` | `image_path`/`attachment_id`, `engine` (`auto`/`local`/`vlm`) | OCR; local Tesseract first, falls back to VLM transcription → `{engine,text}` | local=0; vlm=1 |
+| `detect_elements` | `image_path`/`attachment_id`, `target`, `annotate` (default true) | VLM element detection: strict-JSON numbered `[{number,label,box}]` in original pixel coords, optional 2px annotated overlay | VLM 1–2 |
+| `show_image` | `image_path`/`attachment_id`, `label` | show an image to the user: inline markdown + attachment block + client toolview card | 0 |
+
+### Workflows
+
+- **detect → zoom → analyze**: `detect_elements` returns numbered boxes; `zoom_image` a region (pass the box as `region`); then `analyze_image` the cropped path for detail.
+- **show_image**: display a local/attached/generated image to the user; `generate_image` output can also be fed to `analyze_image`.
+- **Chinese OCR**: `engine=auto` prefers local Tesseract (`chi_sim+eng`, `--psm 6`, 20s timeout), falling back to VLM transcription when unavailable or empty (fixed transcription prompt, 8000-char soft cap).
+
+### Config & dependencies
+
+- `visionToolsEnabled` (default `true`) — third Module Switch on the Settings page; off = unregister tools only, config preserved (same pattern as `vlmEnabled`/`imggenEnabled`).
+- **Tesseract (optional, local OCR only)** — system install with `chi_sim` data. Probe order (cached once per process): `HER_EYES_TESSERACT` env → `tesseract` on `PATH` → Windows default `C:\Program Files\Tesseract-OCR\tesseract.exe`. Without it, `auto` degrades to VLM; `local` returns `LOCAL_OCR_UNAVAILABLE`.
+- **Token optimization** — tools return only compact JSON + artifact paths (never image bytes); tool-produced images (image blocks nested under `tool-result`, e.g. `show_image` output) are rewritten to a one-line text marker instead of being re-uploaded every turn — the model calls `analyze_image` on demand. User-uploaded images are untouched.
+- **Naming** — tool names are fully distinct from the reference dsh-vision-router plugin (`vision_crop`/`vision_colors`/`vision_present` are not copied) to avoid harness tool-name collisions.
 
 ## How it works
 

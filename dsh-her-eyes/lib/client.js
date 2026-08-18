@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
 				toolVisible: " · analyze_image 工具已启用",
 				toolHidden: " · analyze_image 工具已隐藏（无有效配置）",
 				aboutTitle: "关于",
-				aboutDesc: "dsh-her-eyes — 应用级多模态视觉分析插件。为 AI 提供 analyze_image（看图）与 generate_image（生图）工具，支持多卡片列表、单次请求内回退、JPEG→PNG 重编码兜底。",
+				aboutDesc: "该插件能够给予纯文本模型全模态的能力。",
 				checkUpdateBtn: "检测更新",
 				versionLabel: "版本 ",
 				helpBtn: "说明",
@@ -39,8 +39,8 @@ window.__ModuleLoader__.load({
 				helpAnalyzeContent: "让 AI 分析本地图片或对话中上传的图片。支持 image_path（本地文件路径）和 attachment_id（上传附件 id）两种图片来源，同时给出时以 attachment_id 为准。结果包含 AI 的文字描述、使用的模型和卡片、尝试次数。",
 				helpFailoverTitle: "卡片与回退",
 				helpFailoverContent: "多卡片列表按顺序从上到下调用。单次请求内，一张卡片连续失败超过重试次数后回退到下一张；超时立即回退不重试。每次新请求重新从顶部卡片开始。支持自定义供应商和 28 个内置固定供应商（OpenAI / Anthropic / Gemini / Groq / MiniMax 等）。",
-				helpMirrorTitle: "镜像模型",
-				helpMirrorContent: "",
+			helpMirrorTitle: "镜像模型",
+			helpMirrorContent: "镜像模型卡片提供三种独立模式控制 /model 中的镜像条目：\n\n1. auto-vision 自动路由（开关1）：注册一条 Auto Vision 条目，自动委派到最近使用的模型。\n2. 镜像全部模型（开关2）：为每个供应商注册镜像 twin，掩盖下方自定义映射列表。\n3. 模型映射列表：自定义原模型 → 镜像名映射，留空则用 <原模型>-vision 命名。\n\n所有配置热更新，对话中途修改下一轮生效。",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
@@ -106,6 +106,16 @@ ddHint: "选择模型",
 			imggenResetHint: "重置所有生图配置为初始状态",
 			imggenNoConfig: "未配置有效的生图 API，generate_image 工具已隐藏。",
 			imggenStatusPrefix: "生图有效配置",
+			presetNamePh: "预设名称",
+			presetNew: "新建",
+			presetDelete: "删除",
+			presetDeleteTitle: "删除预设",
+			presetDeleteConfirm: "确认删除",
+			presetDeleteCancel: "取消",
+			presetDeleteMsg: "确定要删除该预设吗？此操作不可撤销。",
+			presetDeleteDisabled: "至少保留一个预设",
+			presetNewName: "新预设",
+			presetDefaultName: "默认",
 			batchCollapseAll: "收纳全部",
 			batchExpandAll: "展开全部",
 			batchDeleteAll: "删除全部",
@@ -116,6 +126,23 @@ ddHint: "选择模型",
 			fallbackTitle: "兜底模型",
 			fallbackProviderLabel: "供应商",
 			fallbackModelsLabel: "模型列表（从上到下回退）",
+			fallbackEmpty: "暂无模型，点击上方获取并选择模型",
+			fallbackReset: "重置为默认模型列表",
+			mirrorTitle: "镜像模型",
+			mirrorAutoVisionLabel: "auto-vision 自动路由",
+			mirrorAutoVisionHint: "开启后在 /model 显示 Auto Vision 条目，自动路由到最近使用的模型",
+			mirrorAllLabel: "镜像全部模型",
+			mirrorAllHint: "开启后将所有供应商镜像为多模态条目（掩盖下方列表）",
+			mirrorMappingsLabel: "模型映射列表",
+			mirrorAddMapping: "添加映射",
+			mirrorOriginalModelLabel: "原模型",
+			mirrorOriginalModelPh: "点击选择原模型",
+			mirrorMirrorNameLabel: "镜像名",
+			mirrorMirrorNamePh: "留空则用 <原模型>-vision",
+			mirrorMappingEmpty: "暂无映射，点击「添加映射」创建",
+			mirrorMappingsDisabled: "镜像全部已开启，下方列表被掩盖",
+			mirrorSummaryAll: "全部镜像",
+			mirrorSummaryOff: "已关闭",
 			settingsTab: "设置",
 			settingsTitle: "全局配置",
 			settingsModuleSection: "模块开关",
@@ -126,7 +153,29 @@ ddHint: "选择模型",
 			backoff429MaxLabel: "429 退避上限 (ms)",
 			retryStatusCodesLabel: "重试状态码",
 			retryStatusCodesHint: "逗号分隔的 HTTP 状态码，触发重试+回退",
-			verifyReminderLabel: "生图后自动验证提醒"
+			verifyReminderLabel: "生图后自动验证提醒",
+			toolsSwitchLabel: "视觉工具箱",
+			toolsOpen: "已开启",
+			toolsOff: "已关闭",
+			extCardTitle: "开关扩展",
+			extVlmSection: "VLM",
+				extToolSettings: "工具设置",
+				toolZoomImage: "局部放大",
+				toolSampleColors: "采样取色",
+				toolImageDiff: "图像对比",
+				toolOcrImage: "OCR 文字",
+				toolDetectElements: "元素检测",
+				toolShowImage: "图片展示",
+				providerBailian: "阿里云百炼",
+			toolsLocalImage: "本地图像",
+			toolsFile: "文件",
+			toolsCopyPath: "复制路径",
+			toolsCopied: "已复制",
+			toolsNoData: "无附加数据",
+			toolsImageError: "图片读取失败",
+			toolsZoom: "图像放大",
+			toolsImageDiff: "像素对比",
+			toolsElements: "元素检测"
 		},
 			en: {
 				nav: "Multimodal",
@@ -141,7 +190,7 @@ ddHint: "选择模型",
 				toolVisible: " · analyze_image enabled",
 				toolHidden: " · analyze_image hidden (no valid config)",
 				aboutTitle: "About",
-				aboutDesc: "dsh-her-eyes — application-level multimodal vision plugin. Gives the AI analyze_image (vision) and generate_image tools with multi-card failover and JPEG→PNG re-encode fallback.",
+				aboutDesc: "This plugin gives pure text models full multimodal capabilities.",
 				checkUpdateBtn: "Check for Updates",
 				versionLabel: "Version ",
 				helpBtn: "Help",
@@ -158,8 +207,8 @@ ddHint: "选择模型",
 				helpAnalyzeContent: "Lets the AI analyze local or uploaded images. Supports image_path (local file path) and attachment_id (uploaded attachment id); attachment_id wins when both are given. Results include the AI's text description, model used, and attempt count.",
 				helpFailoverTitle: "Cards & Failover",
 				helpFailoverContent: "Multi-card list called top-down. Falls back to next card past retry limit; timeout falls back immediately without retry; new requests restart from the top card. Supports custom providers and 28 built-in fixed providers (OpenAI / Anthropic / Gemini / Groq / MiniMax, etc.).",
-				helpMirrorTitle: "Mirror Model",
-				helpMirrorContent: "",
+			helpMirrorTitle: "Mirror Model",
+			helpMirrorContent: "The Mirror Models card provides three independent modes to control mirror entries in /model:\n\n1. auto-vision auto-routing (Toggle 1): registers a single Auto Vision entry that delegates to the last-used model.\n2. Mirror all models (Toggle 2): registers a mirror twin per provider; masks the custom mapping list below.\n3. Model mappings: custom original→mirror name mappings; empty defaults to <original>-vision.\n\nAll changes hot-update and take effect on the next conversation turn.",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
@@ -225,6 +274,16 @@ ddHint: "Pick a model",
 			imggenResetHint: "Reset all image-generation config to defaults",
 			imggenNoConfig: "No valid image-generation API configured; generate_image is hidden.",
 			imggenStatusPrefix: "Image gen valid config",
+			presetNamePh: "Preset name",
+			presetNew: "New",
+			presetDelete: "Delete",
+			presetDeleteTitle: "Delete Preset",
+			presetDeleteConfirm: "Confirm Delete",
+			presetDeleteCancel: "Cancel",
+			presetDeleteMsg: "Are you sure you want to delete this preset? This cannot be undone.",
+			presetDeleteDisabled: "At least one preset must remain",
+			presetNewName: "New Preset",
+			presetDefaultName: "Default",
 			batchCollapseAll: "Collapse all",
 			batchExpandAll: "Expand all",
 			batchDeleteAll: "Delete all",
@@ -235,6 +294,23 @@ ddHint: "Pick a model",
 			fallbackTitle: "Fallback Models",
 			fallbackProviderLabel: "Provider",
 			fallbackModelsLabel: "Model list (failover top to bottom)",
+			fallbackEmpty: "No models yet. Fetch and pick models above.",
+			fallbackReset: "Reset to default model list",
+			mirrorTitle: "Mirror Models",
+			mirrorAutoVisionLabel: "auto-vision auto-routing",
+			mirrorAutoVisionHint: "Shows an Auto Vision entry in /model that auto-routes to the last-used model",
+			mirrorAllLabel: "Mirror all models",
+			mirrorAllHint: "Mirrors every provider as a multimodal entry (masks the list below)",
+			mirrorMappingsLabel: "Model mappings",
+			mirrorAddMapping: "Add mapping",
+			mirrorOriginalModelLabel: "Original model",
+			mirrorOriginalModelPh: "Click to select original model",
+			mirrorMirrorNameLabel: "Mirror name",
+			mirrorMirrorNamePh: "Empty = <original>-vision",
+			mirrorMappingEmpty: "No mappings yet. Click \"Add mapping\" to create one.",
+			mirrorMappingsDisabled: "Mirror all is on; the list below is masked",
+			mirrorSummaryAll: "Mirror all",
+			mirrorSummaryOff: "Off",
 			settingsTab: "Settings",
 			settingsTitle: "Global Config",
 			settingsModuleSection: "Module Switches",
@@ -245,7 +321,29 @@ ddHint: "Pick a model",
 			backoff429MaxLabel: "429 Backoff Max (ms)",
 			retryStatusCodesLabel: "Retry Status Codes",
 			retryStatusCodesHint: "Comma-separated HTTP status codes that trigger retry+failover",
-			verifyReminderLabel: "Auto-verify reminder after image generation"
+			verifyReminderLabel: "Auto-verify reminder after image generation",
+			toolsSwitchLabel: "Vision Toolbox",
+			toolsOpen: "Enabled",
+			toolsOff: "Disabled",
+			extCardTitle: "Switch Extensions",
+			extVlmSection: "VLM",
+				extToolSettings: "Tool Settings",
+				toolZoomImage: "Zoom Image",
+				toolSampleColors: "Sample Colors",
+				toolImageDiff: "Image Diff",
+				toolOcrImage: "OCR Text",
+				toolDetectElements: "Detect Elements",
+				toolShowImage: "Show Image",
+				providerBailian: "Aliyun Bailian",
+			toolsLocalImage: "Local Image",
+			toolsFile: "File",
+			toolsCopyPath: "Copy Path",
+			toolsCopied: "Copied",
+			toolsNoData: "No extra data",
+			toolsImageError: "Failed to read image",
+			toolsZoom: "Zoom",
+			toolsImageDiff: "Pixel Diff",
+			toolsElements: "Element Detection"
 		}
 		};
 		var tBound = null;
@@ -256,7 +354,7 @@ ddHint: "Pick a model",
 			var init = { headers: { Accept: "application/json" } };
 			if (!(method === "config" && payload === undefined)) {
 				init.method = "POST";
-				init.headers["Content-Type"] = "application/json";
+				init.headers["Content-Type"			] = "application/json";
 				init.body = JSON.stringify(payload || {});
 			}
 			return fetch(url, init).then(function (response) {
@@ -288,6 +386,7 @@ ddHint: "Pick a model",
 			".vlm-list-head { display: flex; align-items: center; justify-content: space-between; }",
 			".vlm-list-title { font-size: 13px; font-weight: 600; }",
 			".vlm-add-btn { font-weight: 500; }",
+			".vlm-reset-btn { flex: 0 0 auto; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; }",
 			// ---- card head ----
 			".vlm-card-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }",
 			".vlm-drag-handle { cursor: grab; color: var(--dsh-fg-muted, #888); padding: 2px 4px; border-radius: 4px; flex: 0 0 auto; -webkit-user-select: none; user-select: none; }",
@@ -304,6 +403,22 @@ ddHint: "Pick a model",
 			".vlm-menu-item:hover { background: var(--dsh-bg, rgba(128,128,128,0.2)); }",
 			".vlm-menu-item.vlm-menu-danger { color: #f85149; }",
 			".vlm-menu-item.vlm-menu-danger:hover { background: rgba(248,81,73,0.12); }",
+			// ---- clickable header (collapse hot zone) ----
+			".vlm-head-clickable { cursor: pointer; }",
+			".vlm-head-clickable:hover { background: light-dark(rgba(0,0,0,0.03), rgba(255,255,255,0.04)); }",
+			// ---- list container (fallback models + mirror mappings) ----
+			".vlm-list-container { border: 1px solid var(--dsh-border, #555); border-radius: 6px; background: light-dark(rgba(0,0,0,0.07), rgba(255,255,255,0.07)); max-height: 280px; overflow-y: auto; padding: 6px; margin-bottom: 8px; }",
+			".vlm-list-container::-webkit-scrollbar { width: 8px; }",
+			".vlm-list-container::-webkit-scrollbar-track { background: transparent; }",
+			".vlm-list-container::-webkit-scrollbar-thumb { background: light-dark(rgba(0,0,0,0.2), rgba(255,255,255,0.2)); border-radius: 4px; }",
+			".vlm-list-container::-webkit-scrollbar-thumb:hover { background: light-dark(rgba(0,0,0,0.35), rgba(255,255,255,0.35)); }",
+			".vlm-list-empty { padding: 12px 8px; text-align: center; font-size: 12px; opacity: 0.5; font-style: italic; }",
+			".vlm-list-container .vlm-fb-model-item:last-child, .vlm-list-container .vlm-mapping-row:last-child { margin-bottom: 0; }",
+			// ---- mirror toggle pair (horizontal) ----
+			".vlm-mirror-toggle-pair { display: flex; flex-direction: row; gap: 24px; }",
+			".vlm-mirror-toggle-pair .vlm-mirror-toggle-row { gap: 8px; }",
+			// ---- mirror mappings header (label + button) ----
+			".vlm-mirror-mappings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }",
 			// ---- card body ----
 			".vlm-card-body { display: flex; flex-direction: column; gap: 10px; }",
 			".vlm-select { appearance: auto; }",
@@ -317,6 +432,8 @@ ddHint: "Pick a model",
 			".vlm-model-wrap { position: relative; }",
 			".vlm-model-input { padding-right: 32px !important; }",
 			".vlm-model-dropdown { position: absolute; left: 0; right: 0; top: calc(100% + 2px); max-height: 180px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 110; padding: 4px; }",
+			// Mirror-mapping dropdown lives inside a scrollable .vlm-list-container; pin it to the viewport so the container scrollbar never clips it. ponytail: fixed doesn't follow page scroll while open; acceptable — it closes on select.
+			".vlm-mapping-dropdown { position: fixed; left: 0; top: 0; }",
 			".vlm-dd-item { padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--dsh-fg, #eee); word-break: break-all; }",
 			".vlm-dd-item:hover { background: var(--dsh-bg, rgba(128,128,128,0.2)); }",
 			".vlm-dd-item.active { color: var(--dsh-accent, #58a6ff); }",
@@ -330,6 +447,13 @@ ddHint: "Pick a model",
 			".vlm-tab-dot { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }",
 			".vlm-tab-dot.on { background: #3fb950; }",
 			".vlm-tab-dot.off { background: #f85149; }",
+			// ---- tool.call.toolview cards ----
+			".vlm-toolview-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--dsh-border, #555); border-radius: 8px; background: var(--dsh-bg-2, rgba(128,128,128,0.07)); font-size: 13px; min-width: 0; max-width: 100%; box-sizing: border-box; }",
+			".vlm-toolview-head { font-weight: 600; font-size: 13px; }",
+			".vlm-toolview-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }",
+			".vlm-toolview-path { font-size: 11px; opacity: 0.85; word-break: break-all; flex: 1; min-width: 0; }",
+			".vlm-toolview-copy { flex: 0 0 auto; padding: 2px 8px; font-size: 11px; }",
+			".vlm-toolview-val { font-size: 12px; opacity: 0.9; word-break: break-all; min-width: 0; }",
 			".vlm-tab-body { display: flex; flex-direction: column; gap: 14px; }",
 			".vlm-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }",
 			".vlm-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
@@ -355,6 +479,33 @@ ddHint: "Pick a model",
 			".vlm-imggen-panel { border: 1px solid var(--dsh-border, #555); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--dsh-bg-2, rgba(128,128,128,0.07)); }",
 			".vlm-imggen-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }",
 			".vlm-imggen-title { flex: 1; font-size: 14px; font-weight: 500; }",
+			// ---- extension card ----
+			".vlm-ext-card { display: flex; flex-direction: column; gap: 10px; }",
+			".vlm-ext-section { display: flex; flex-direction: column; gap: 6px; }",
+			".vlm-ext-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; padding: 4px 0; }",
+			".vlm-ext-section-title { font-size: 13px; font-weight: 600; opacity: 0.8; }",
+			".vlm-ext-toggle-row { display: flex; flex-direction: row; align-items: center; gap: 24px; flex-wrap: wrap; padding: 4px 0; }",
+			// ---- preset management ----
+			".vlm-preset-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; position: relative; }",
+			".vlm-preset-name-input { flex: 1; min-width: 120px; }",
+			".vlm-preset-dd-btn { flex: 0 0 auto; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--dsh-border, #555); border-radius: 6px; background: var(--dsh-bg-2, #1e1e1e); cursor: pointer; color: inherit; }",
+			".vlm-preset-dd-btn:hover { border-color: var(--dsh-accent, #58a6ff); }",
+			".vlm-preset-menu-wrap { position: static; }",
+			".vlm-preset-menu { position: absolute; left: 0; top: calc(100% + 2px); right: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
+			".vlm-preset-menu-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }",
+			".vlm-preset-menu-item:hover { background: rgba(88,166,255,0.12); }",
+			".vlm-preset-menu-item.active { background: rgba(88,166,255,0.18); font-weight: 500; }",
+			".vlm-preset-divider { height: 1px; background: var(--dsh-border, #555); opacity: 0.3; margin: 6px 0; }",
+			".vlm-preset-del-btn:disabled { opacity: 0.35; cursor: not-allowed; }",
+			// ---- confirm modal ----
+			".vlm-confirm-overlay { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
+			".vlm-confirm-modal { position: relative; width: 90vw; max-width: 400px; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }",
+			".vlm-confirm-title { font-size: 16px; font-weight: 600; }",
+			".vlm-confirm-msg { font-size: 14px; opacity: 0.85; line-height: 1.5; }",
+			".vlm-confirm-btns { display: flex; justify-content: flex-end; gap: 8px; }",
+			".vlm-confirm-danger { background: rgba(248,81,73,0.15); color: #f85149; border-color: rgba(248,81,73,0.4); }",
+			".vlm-confirm-danger:hover { background: rgba(248,81,73,0.25); }",
+
 			// ---- light-dark() theme override (respects harness color-scheme on <html>) ----
 			// 浅色主题：输入框/按键背景深灰 + 文字白色；深色主题不变
 			"@supports (color: light-dark(#000, #fff)) {",
@@ -364,10 +515,19 @@ ddHint: "Pick a model",
 			"  .vlm-tab { color: light-dark(#666, #999); }",
 			"  .vlm-tab.active { color: light-dark(#fff, #eee); }",
 			"  .vlm-dd-group { color: light-dark(#666, #888); }",
+			// ---- preset dropdown + confirm/tool modal light theme (white bg + dark text) ----
+			"  .vlm-preset-dd-btn { background-color: light-dark(#3a3a3a, #1e1e1e); color: light-dark(#fff, #eee); }",
+			"  .vlm-preset-menu { background-color: light-dark(#fff, #262626); border-color: light-dark(#ccc, #555); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }",
+			"  .vlm-preset-menu-item { color: light-dark(#222, #eee); }",
+			"  .vlm-preset-menu-item:hover { background-color: light-dark(rgba(0,120,255,0.10), rgba(88,166,255,0.12)); }",
+			"  .vlm-confirm-modal { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); }",
+			"  .vlm-confirm-title { color: light-dark(#111, #eee); }",
+			"  .vlm-confirm-msg { color: light-dark(#333, #eee); }",
+			"  .vlm-module-row .vlm-label { color: light-dark(#222, #eee); }",
 			"}",
 			// ---- retry row (single line) ----
 			".vlm-retry-row { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 8px 14px; }",
-			".vlm-retry-label { flex: 0 0 auto; font-weight: 500; }",
+			".vlm-retry-label { flex: 1; font-weight: 500; }",
 			".vlm-retry-sep { flex: 0 0 auto; opacity: 0.3; }",
 			".vlm-retry-status { flex: 1; opacity: 0.6; }",
 			".vlm-retry-input { width: 60px !important; flex: 0 0 60px; }",
@@ -377,6 +537,17 @@ ddHint: "Pick a model",
 			".vlm-fb-model-id { flex: 1; font-size: 12px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
 			".vlm-fb-model-item.dragging { opacity: 0.45; border-style: dashed; }",
 			".vlm-fb-model-item.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
+			// ---- mirror card ----
+			".vlm-mirror-toggle-row { display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 4px 0; }",
+			".vlm-mirror-toggle-text { display: flex; flex-direction: column; gap: 2px; }",
+			".vlm-mirror-hint { font-size: 11px; opacity: 0.55; }",
+			".vlm-mirror-divider { height: 1px; background: var(--dsh-border, #555); opacity: 0.3; margin: 8px 0; }",
+			".vlm-mapping-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }",
+			".vlm-mapping-input { flex: 0 0 160px; }",
+			".vlm-dd-group-title { font-size: 11px; font-weight: 600; opacity: 0.5; padding: 6px 10px 2px; text-transform: uppercase; letter-spacing: 0.5px; }",
+			".vlm-mirror-disabled { opacity: 0.4; pointer-events: none; }",
+			".vlm-mirror-disabled-msg { font-size: 12px; opacity: 0.6; font-style: italic; }",
+			".vlm-mapping-list { display: flex; flex-direction: column; gap: 0; }",
 			// ---- settings panel ----
 			".vlm-settings-panel { display: flex; flex-direction: column; gap: 14px; }",
 			".vlm-settings-section { display: flex; flex-direction: column; gap: 8px; }",
@@ -445,15 +616,22 @@ ddHint: "Pick a model",
 		// ---------- auto-save helpers (debounced, merging pending patches) ----------
 		function debounce(fn, ms) {
 			var timer = null;
-			return function () {
+			var debounced = function () {
+				if (timer !== null) clearTimeout(timer);
 				var self = this;
 				var args = arguments;
-				if (timer !== null) clearTimeout(timer);
 				timer = setTimeout(function () {
 					timer = null;
 					fn.apply(self, args);
 				}, ms);
 			};
+			debounced.flush = function () {
+				if (timer !== null) { clearTimeout(timer); timer = null; return fn.apply(null, []); }
+			};
+			debounced.cancel = function () {
+				if (timer !== null) { clearTimeout(timer); timer = null; }
+			};
+			return debounced;
 		}
 
 		function mergePatch(a, b) {
@@ -470,7 +648,7 @@ ddHint: "Pick a model",
 			if (pendingPatch === null) return;
 			var patch = pendingPatch;
 			pendingPatch = null;
-			call("config", patch).catch(function () {});
+			return call("config", patch).catch(function () {});
 		}, 600);
 		function queueSave(patch) {
 			pendingPatch = mergePatch(pendingPatch, patch);
@@ -500,7 +678,9 @@ ddHint: "Pick a model",
 		var I_EXPAND = ["M6.5 4l4 4-4 4"];
 		var I_PIN_TOP = ["M8 13V3", "M4 7L8 3l4 4"];
 		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
+		var I_RESET = ["M8 3a5 5 0 1 0 3.54 1.46", "M11.5 1v3.5h3.5"];
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
+		var I_PLUS = ["M8 3v10", "M3 8h10"];
 		var I_EYE = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"];
 		var I_EYE_OFF = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z", "M2 2l12 12"];
 
@@ -536,13 +716,14 @@ ddHint: "Pick a model",
 			"xiaomi-token-plan-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan-cn.xiaomimimo.com/v1", name: "Xiaomi Token Plan CN" },
 			"xiaomi-token-plan-sgp": { fixed: true, protocol: "openai-completions", endpoint: "https://token-plan-sgp.xiaomimimo.com/v1", name: "Xiaomi Token Plan (SGP)" },
 			zai: { fixed: true, protocol: "openai-completions", endpoint: "https://api.z.ai/api/coding/paas/v4", name: "Z.AI" },
-			"zai-coding-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://open.bigmodel.cn/api/coding/paas/v4", name: "Z.AI Coding CN" }
+			"zai-coding-cn": { fixed: true, protocol: "openai-completions", endpoint: "https://open.bigmodel.cn/api/coding/paas/v4", name: "Z.AI Coding CN" },
+			bailian: { fixed: false, keyRequired: true, hideProtocol: true, name: "阿里云百炼" },
 		};
 		var PROVIDER_IDS_UI = Object.keys(PROVIDERS_UI).sort();
 		// 生图面板供应商：仅保留已知提供生图模型的供应商（排除纯文本/编码/不支持的）
 		var IMGGEN_PROVIDER_IDS_UI = PROVIDER_IDS_UI.filter(function (p) {
 			return p === "custom" || p === "ollama" ||
-				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface"].indexOf(p) >= 0;
+				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface", "bailian"].indexOf(p) >= 0;
 		});
 
 		function providerDisplay(id, t) {
@@ -560,6 +741,20 @@ ddHint: "Pick a model",
 			if (!wrap) return;
 			var below = window.innerHeight - wrap.getBoundingClientRect().bottom;
 			if (below < 210) { el.style.top = "auto"; el.style.bottom = "calc(100% + 2px)"; }
+		}
+
+		// Mirror-mapping dropdown: viewport-fixed so the scrollable mapping list never clips it.
+		// Coordinates computed from the trigger wrap; flips up when space below is tight.
+		function mappingDdRef(el) {
+			if (!el) return;
+			var wrap = el.closest(".vlm-model-wrap");
+			if (!wrap) return;
+			var r = wrap.getBoundingClientRect();
+			el.style.left = r.left + "px";
+			el.style.width = String(Math.max(r.width, 220)) + "px";
+			var below = window.innerHeight - r.bottom;
+			if (below < 220) { el.style.top = "auto"; el.style.bottom = (window.innerHeight - r.top + 2) + "px"; }
+			else { el.style.top = (r.bottom + 2) + "px"; el.style.bottom = "auto"; }
 		}
 
 		// Flip the provider dropdown: below insufficient → up; above insufficient → down (default).
@@ -697,13 +892,15 @@ ddHint: "Pick a model",
 				{ value: "google-gemini", label: t("protoGoogleGemini") }
 			];
 
-			var head = React.createElement("div", { className: "vlm-card-head" }, [
+			var toggleCollapse = function () { props.onPatch(id, "collapsed", !card.collapsed); }
+			var head = React.createElement("div", { className: "vlm-card-head vlm-head-clickable", onClick: toggleCollapse }, [
 				React.createElement("div", {
 					className: "vlm-drag-handle",
 					draggable: true,
 					title: t("dragHint"),
 					onDragStart: dragStart,
-					onDragEnd: dragEnd
+					onDragEnd: dragEnd,
+					onClick: function (e) { e.stopPropagation(); }
 				}, React.createElement(SvgIcon, { d: I_DRAG })),
 				React.createElement("div", { className: "vlm-card-name" }, renaming
 					? React.createElement("input", {
@@ -714,13 +911,13 @@ ddHint: "Pick a model",
 						onBlur: blurRename
 					})
 					: [
-						React.createElement("span", { className: "vlm-card-name-text", onDoubleClick: startRename }, card.name || t("cardNamePh")),
+						React.createElement("span", { className: "vlm-card-name-text", onDoubleClick: startRename, onClick: function (e) { e.stopPropagation(); } }, card.name || t("cardNamePh")),
 						summary ? React.createElement("span", { className: "vlm-card-summary" }, summary) : null
 					]),
 				React.createElement("div", { className: "vlm-card-menu-wrap" }, [
 					React.createElement("button", {
 						className: "vlm-icon-btn vlm-card-menu-btn",
-						onClick: function () { props.onToggleMenu(id); }
+						onClick: function (e) { e.stopPropagation(); props.onToggleMenu(id); }
 					}, React.createElement(SvgIcon, { d: I_MENU })),
 					menuOpen ? React.createElement("div", { className: "vlm-card-menu" }, [
 						React.createElement("div", { className: "vlm-menu-item", onClick: function () { props.onMoveTop(id); props.onCloseMenu(); } },
@@ -734,7 +931,7 @@ ddHint: "Pick a model",
 				React.createElement("button", {
 					className: "vlm-icon-btn",
 					title: expanded ? "Collapse" : "Expand",
-					onClick: function () { props.onPatch(id, "collapsed", !card.collapsed); }
+					onClick: function (e) { e.stopPropagation(); toggleCollapse(); }
 				}, React.createElement(SvgIcon, { d: expanded ? I_COLLAPSE : I_EXPAND }))
 			]);
 
@@ -762,7 +959,7 @@ ddHint: "Pick a model",
 								})) : null
 							])
 						]),
-						isFixed ? null : React.createElement(SelectField, {
+						(isFixed || meta.hideProtocol) ? null : React.createElement(SelectField, {
 							label: t("protocolLabel"),
 							value: card.protocol,
 							options: protocolOptions,
@@ -893,6 +1090,19 @@ ddHint: "Pick a model",
 				return function () { document.removeEventListener("click", close); };
 			}, [menuOpen[0]]);
 
+			// close the preset dropdown on outside click (blank-space click closes it)
+			React.useEffect(function () {
+				if (!props.presetDdOpen) return;
+				function close(e) {
+					var tgt = e.target;
+					if (!tgt || !tgt.closest || !tgt.closest(".vlm-preset-bar")) {
+						props.onTogglePresetDd();
+					}
+				}
+				document.addEventListener("click", close);
+				return function () { document.removeEventListener("click", close); };
+			}, [props.presetDdOpen]);
+
 			var providerGroups = [
 				{ label: t("providerGroupGeneral"), options: [
 					{ value: "custom", label: t("providerCustom") },
@@ -904,7 +1114,8 @@ ddHint: "Pick a model",
 			];
 			var protocolOptions = [
 				{ value: "openai-images", label: t("imggenProtocolImages") },
-				{ value: "openai-completions", label: t("imggenProtocolChat") }
+				{ value: "openai-completions", label: t("imggenProtocolChat") },
+				{ value: "dashscope-image", label: "DashScope" }
 			];
 			var formatOptions = [
 				{ value: "auto", label: t("imggenFormatAuto") },
@@ -933,6 +1144,51 @@ ddHint: "Pick a model",
 				])
 			]);
 
+		var presets = Array.isArray(props.presets) ? props.presets : [];
+		var presetBar = React.createElement("div", { className: "vlm-preset-bar" }, [
+			React.createElement("input", {
+				className: "vlm-input vlm-preset-name-input",
+				type: "text",
+				value: props.activePresetName || "",
+				placeholder: t("presetNamePh"),
+				onChange: function (e) { props.onRenamePreset(e.target.value); }
+			}),
+			React.createElement("div", { className: "vlm-preset-menu-wrap" }, [
+				React.createElement("button", {
+					className: "vlm-preset-dd-btn", type: "button",
+					onClick: props.onTogglePresetDd
+				}, React.createElement(SvgIcon, { d: props.presetDdOpen ? I_COLLAPSE : I_EXPAND }))
+			]),
+			props.presetDdOpen ? React.createElement("div", { className: "vlm-preset-menu" },
+				presets.map(function (p) {
+					return React.createElement("div", {
+						key: p.id, className: "vlm-preset-menu-item" + (p.id === props.activePresetId ? " active" : ""),
+						onClick: function () { props.onSwitchPreset(p.id); }
+					}, p.name);
+				})
+			) : null,
+			React.createElement("button", {
+				className: "vlm-btn vlm-preset-new-btn", type: "button",
+				title: t("presetNew"),
+				onClick: props.onAddPreset
+			}, React.createElement(SvgIcon, { d: I_PLUS })),
+			React.createElement("button", {
+				className: "vlm-btn vlm-preset-del-btn", type: "button",
+				title: presets.length <= 1 ? t("presetDeleteDisabled") : t("presetDelete"),
+				disabled: presets.length <= 1,
+				onClick: props.onConfirmDeletePreset
+			}, React.createElement(SvgIcon, { d: I_TRASH }))
+		]);
+		var confirmModal = props.presetDeleteConfirm ? React.createElement("div", { className: "vlm-confirm-overlay", onClick: props.onCancelDeletePreset }, [
+			React.createElement("div", { className: "vlm-confirm-modal", onClick: function (e) { e.stopPropagation(); } }, [
+				React.createElement("span", { className: "vlm-confirm-title" }, t("presetDeleteTitle")),
+				React.createElement("p", { className: "vlm-confirm-msg" }, t("presetDeleteMsg")),
+				React.createElement("div", { className: "vlm-confirm-btns" }, [
+					React.createElement("button", { className: "vlm-btn", onClick: props.onCancelDeletePreset }, t("presetDeleteCancel")),
+					React.createElement("button", { className: "vlm-btn vlm-confirm-danger", onClick: props.onConfirmDelete }, t("presetDeleteConfirm"))
+				])
+			])
+		]) : null;
 			var body = React.createElement("div", { className: "vlm-card-body" }, [
 				React.createElement("div", { className: "vlm-row" }, [
 					React.createElement("div", { className: "vlm-field vlm-grow" }, [
@@ -955,7 +1211,7 @@ ddHint: "Pick a model",
 							})) : null
 						])
 					]),
-					isFixed ? null : React.createElement(SelectField, {
+					isFixed || meta.hideProtocol ? null : React.createElement(SelectField, {
 						label: t("imggenProtocolLabel"),
 						value: cfg.protocol,
 						options: protocolOptions,
@@ -978,7 +1234,7 @@ ddHint: "Pick a model",
 						placeholder: t("endpointPh"),
 						onChange: function (e) { props.onPatch("endpoint", e.target.value); }
 					}),
-				isFixed ? null : React.createElement(Field, {
+				isFixed || meta.hideProtocol ? null : React.createElement(Field, {
 					label: t("imggenApiPathLabel"),
 					value: cfg.apiPath || "",
 					placeholder: cfg.protocol === "openai-completions" ? t("imggenApiPathPh").replace("images/generations", "chat/completions") : t("imggenApiPathPh"),
@@ -1063,7 +1319,7 @@ ddHint: "Pick a model",
 					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
 			]);
 
-			return React.createElement("div", { className: "vlm-imggen-panel" }, [head, body]);
+return React.createElement("div", { className: "vlm-imggen-panel" }, [head, presetBar, React.createElement("div", { className: "vlm-preset-divider" }), body, confirmModal]);
 		}
 
 		// ---------- fallback card ----------
@@ -1076,7 +1332,7 @@ ddHint: "Pick a model",
 			var providerOptions = [
 				{ value: "ovhcloud", label: "OVHcloud" }
 			];
-			var head = React.createElement("div", { className: "vlm-card-head" }, [
+			var head = React.createElement("div", { className: "vlm-card-head vlm-head-clickable", onClick: props.onToggleCollapse }, [
 				React.createElement("div", { className: "vlm-card-name" }, [
 					React.createElement("span", { className: "vlm-card-name-text" }, t("fallbackTitle") || "兜底模型"),
 					collapsed ? React.createElement("span", { className: "vlm-card-summary" }, cfg.provider + " · " + ((cfg.models && cfg.models.length) || 0) + " 个模型") : null
@@ -1084,7 +1340,7 @@ ddHint: "Pick a model",
 				React.createElement("button", {
 					className: "vlm-icon-btn",
 					title: collapsed ? "Expand" : "Collapse",
-					onClick: props.onToggleCollapse
+					onClick: function (e) { e.stopPropagation(); props.onToggleCollapse(); }
 				}, React.createElement(SvgIcon, { d: collapsed ? I_EXPAND : I_COLLAPSE }))
 			]);
 			var body = null;
@@ -1140,29 +1396,169 @@ ddHint: "Pick a model",
 								className: "vlm-btn",
 								disabled: props.busy !== "",
 								onClick: props.onFetchModels
-							}, props.busy === "fb-mdl" ? t("fetching") : t("fetchBtn"))
-						])
-					].concat((cfg.models || []).map(function (m, i) {
-						return React.createElement("div", {
-							key: "fb-" + i, className: "vlm-fb-model-item" + (props.fbDragFrom === i ? " dragging" : "") + (props.fbDropOver === i ? " drop-target" : ""),
-							draggable: true,
-							onDragStart: function (e) { if (e.dataTransfer) { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; } props.onDragStart && props.onDragStart(i); },
-							onDragOver: function (e) { e.preventDefault(); if (props.fbDragFrom !== null && props.fbDragFrom !== i) props.onDropOver && props.onDropOver(i); },
-							onDrop: function (e) { e.preventDefault(); var from = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(from) && from !== i) props.onReorder && props.onReorder(from, i); props.onDragEnd && props.onDragEnd(); },
-							onDragEnd: function () { props.onDragEnd && props.onDragEnd(); }
-						}, [
-							React.createElement("div", { className: "vlm-drag-handle", title: t("dragHint") || "拖动调整顺序" }, React.createElement(SvgIcon, { d: I_DRAG })),
-							React.createElement("span", { className: "vlm-fb-model-id" }, m),
+							}, props.busy === "fb-mdl" ? t("fetching") : t("fetchBtn")),
 							React.createElement("button", {
-								className: "vlm-icon-btn",
-								title: t("menuDelete") || "删除",
-								onClick: function () { props.onRemoveModel(m); }
-							}, React.createElement(SvgIcon, { d: I_TRASH }))
-						]);
-					})))
+								className: "vlm-btn vlm-reset-btn",
+								title: t("fallbackReset") || "重置默认",
+								onClick: props.onResetModels
+							}, React.createElement(SvgIcon, { d: I_RESET }))
+						]),
+						React.createElement("div", { className: "vlm-list-container" },
+							(cfg.models || []).length === 0
+								? React.createElement("div", { className: "vlm-list-empty" }, t("fallbackEmpty"))
+								: (cfg.models || []).map(function (m, i) {
+							return React.createElement("div", {
+								key: "fb-" + i, className: "vlm-fb-model-item" + (props.fbDragFrom === i ? " dragging" : "") + (props.fbDropOver === i ? " drop-target" : ""),
+								draggable: true,
+								onDragStart: function (e) { if (e.dataTransfer) { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; } props.onDragStart && props.onDragStart(i); },
+								onDragOver: function (e) { e.preventDefault(); if (props.fbDragFrom !== null && props.fbDragFrom !== i) props.onDropOver && props.onDropOver(i); },
+								onDrop: function (e) { e.preventDefault(); var from = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(from) && from !== i) props.onReorder && props.onReorder(from, i); props.onDragEnd && props.onDragEnd(); },
+								onDragEnd: function () { props.onDragEnd && props.onDragEnd(); }
+							}, [
+								React.createElement("div", { className: "vlm-drag-handle", title: t("dragHint") || "拖动调整顺序" }, React.createElement(SvgIcon, { d: I_DRAG })),
+								React.createElement("span", { className: "vlm-fb-model-id" }, m),
+								React.createElement("button", {
+									className: "vlm-icon-btn",
+									title: t("menuDelete") || "删除",
+									onClick: function () { props.onRemoveModel(m); }
+								}, React.createElement(SvgIcon, { d: I_TRASH }))
+							]);
+						}))
+					])
 				]);
 			}
 			return React.createElement("div", { className: "vlm-card vlm-fallback-card" }, [head, body]);
+		}
+
+		// ---------- mirror card (v1.9) ----------
+		function MirrorCard(props) {
+			var t = props.t;
+			var cfg = props.cfg || {};
+			var collapsed = props.collapsed !== false;
+			var allModels = (props.allModels && Array.isArray(props.allModels)) ? props.allModels : [];
+			var openDdId = props.openDd; // mapping id or null
+			var mappings = (cfg.mappings && Array.isArray(cfg.mappings)) ? cfg.mappings : [];
+			var mirrorAllOn = cfg.mirrorAllEnabled === true;
+
+			// summary for collapsed head
+			var summary;
+			if (mirrorAllOn) summary = t("mirrorSummaryAll");
+			else if (mappings.length > 0) summary = mappings.length + " " + t("mirrorMappingsLabel");
+			else if (cfg.autoVisionEnabled !== false) summary = "auto-vision";
+			else summary = t("mirrorSummaryOff");
+
+			var head = React.createElement("div", { className: "vlm-card-head vlm-head-clickable", onClick: props.onToggleCollapse }, [
+				React.createElement("div", { className: "vlm-card-name" }, [
+					React.createElement("span", { className: "vlm-card-name-text" }, t("mirrorTitle")),
+					collapsed ? React.createElement("span", { className: "vlm-card-summary" }, summary) : null
+				]),
+				React.createElement("button", {
+					className: "vlm-icon-btn",
+					title: collapsed ? "Expand" : "Collapse",
+					onClick: function (e) { e.stopPropagation(); props.onToggleCollapse(); }
+				}, React.createElement(SvgIcon, { d: collapsed ? I_EXPAND : I_COLLAPSE }))
+			]);
+
+			var body = null;
+			if (!collapsed) {
+				// toggle row factory
+				function toggleRow(label, hint, checked, onChange) {
+					return React.createElement("div", { className: "vlm-mirror-toggle-row" }, [
+						React.createElement("label", { className: "vlm-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: checked, onChange: function (e) { onChange(e.target.checked); } }),
+							React.createElement("span", { className: "vlm-switch-slider" })
+						]),
+						React.createElement("div", { className: "vlm-mirror-toggle-text" }, [
+							React.createElement("span", { className: "vlm-label" }, label),
+							React.createElement("span", { className: "vlm-mirror-hint" }, hint)
+						])
+					]);
+				}
+
+				// mapping rows
+				var mappingRows = mappings.map(function (m) {
+					var isOpen = openDdId === m.id;
+					var displayVal = m.originalModel ? (m.originalProvider ? m.originalProvider + " / " + m.originalModel : m.originalModel) : "";
+					return React.createElement("div", { key: m.id, className: "vlm-mapping-row" }, [
+						React.createElement("div", { className: "vlm-field vlm-grow" }, [
+							React.createElement("div", { className: "vlm-model-wrap" }, [
+								React.createElement("input", {
+									className: "vlm-input vlm-mapping-select",
+									type: "text",
+									value: displayVal,
+									placeholder: t("mirrorOriginalModelPh"),
+									readOnly: true,
+									onClick: function (e) { e.preventDefault(); props.onToggleDd(m.id); }
+								}),
+								isOpen ? React.createElement("div", { className: "vlm-model-dropdown vlm-mapping-dropdown", ref: mappingDdRef },
+									allModels.length === 0
+										? React.createElement("div", { className: "vlm-dd-item vlm-dd-loading" }, props.busy === "mirror-mdl" ? t("fetching") : "—")
+										: allModels.map(function (group) {
+											return React.createElement("div", { key: group.provider, className: "vlm-dd-group" }, [
+												React.createElement("div", { className: "vlm-dd-group-title" }, group.providerName || group.provider),
+												group.models.map(function (model) {
+													return React.createElement("div", {
+														key: group.provider + "/" + model.id,
+														className: "vlm-dd-item" + (m.originalModel === model.id && m.originalProvider === group.provider ? " active" : ""),
+														onClick: function () { props.onSelectModel(m.id, group.provider, model.id); }
+													}, model.name || model.id);
+												})
+											]);
+										})
+								) : null
+							])
+						]),
+						React.createElement("input", {
+							className: "vlm-input vlm-mapping-input",
+							type: "text",
+							value: m.mirrorName || "",
+							placeholder: t("mirrorMirrorNamePh"),
+							onChange: function (e) { props.onUpdateName(m.id, e.target.value); }
+						}),
+						React.createElement("button", {
+							className: "vlm-icon-btn",
+							title: t("menuDelete") || "删除",
+							onClick: function () { props.onRemoveMapping(m.id); }
+						}, React.createElement(SvgIcon, { d: I_TRASH }))
+					]);
+				});
+
+				body = React.createElement("div", { className: "vlm-card-body" }, [
+					React.createElement("div", { className: "vlm-mirror-toggle-pair" }, [
+						React.createElement("div", { className: "vlm-mirror-toggle-row" }, [
+							React.createElement("label", { className: "vlm-switch" }, [
+								React.createElement("input", { type: "checkbox", checked: cfg.autoVisionEnabled !== false, onChange: function (e) { props.onPatch("autoVisionEnabled", e.target.checked); } }),
+								React.createElement("span", { className: "vlm-switch-slider" })
+							]),
+							React.createElement("span", { className: "vlm-label" }, t("mirrorAutoVisionLabel"))
+						]),
+						React.createElement("div", { className: "vlm-mirror-toggle-row" }, [
+							React.createElement("label", { className: "vlm-switch" }, [
+								React.createElement("input", { type: "checkbox", checked: cfg.mirrorAllEnabled === true, onChange: function (e) { props.onPatch("mirrorAllEnabled", e.target.checked); } }),
+								React.createElement("span", { className: "vlm-switch-slider" })
+							]),
+							React.createElement("span", { className: "vlm-label" }, t("mirrorAllLabel"))
+						])
+					]),
+					React.createElement("div", { className: "vlm-mirror-divider" }),
+					React.createElement("div", { className: "vlm-field" + (mirrorAllOn ? " vlm-mirror-disabled" : "") }, [
+						React.createElement("div", { className: "vlm-mirror-mappings-header" }, [
+							React.createElement("span", { className: "vlm-label" }, t("mirrorMappingsLabel")),
+							!mirrorAllOn ? React.createElement("button", {
+								className: "vlm-btn vlm-add-btn",
+								disabled: props.busy !== "",
+								onClick: props.onAddMapping
+							}, t("mirrorAddMapping")) : null
+						]),
+						mirrorAllOn
+							? React.createElement("p", { className: "vlm-mirror-disabled-msg" }, t("mirrorMappingsDisabled"))
+							: React.createElement("div", { className: "vlm-list-container vlm-mapping-list" },
+								mappingRows.length > 0 ? mappingRows : React.createElement("p", { className: "vlm-msg" }, t("mirrorMappingEmpty"))
+							)
+					])
+				]);
+			}
+			return React.createElement("div", { className: "vlm-card vlm-mirror-card" }, [head, body]);
 		}
 
 		// ---------- settings panel (global config) ----------
@@ -1175,7 +1571,7 @@ ddHint: "Pick a model",
 					React.createElement("div", { className: "vlm-row" }, [
 						props.moduleRow("VLM", props.vlmOn, props.onToggleVlm, ""),
 						props.moduleRow(t("tabImggen"), props.imggenOn, props.onToggleImggen, "")
-					])
+					]),
 				]),
 				React.createElement("div", { className: "vlm-settings-section" }, [
 					React.createElement("span", { className: "vlm-settings-section-title" }, t("settingsBackoffSection")),
@@ -1189,15 +1585,69 @@ ddHint: "Pick a model",
 					]),
 					React.createElement(Field, { label: t("retryStatusCodesLabel"), value: gc.retryStatusCodes || "402,408,429,500,502,503,504,NET", placeholder: "402,408,429,500,502,503,504,NET", onChange: function (e) { props.onPatchGlobal("retryStatusCodes", e.target.value); } }),
 					React.createElement("p", { className: "vlm-status" }, t("retryStatusCodesHint")),
+			])
+		]);
+	}
+
+	// ---------- extension card (v2.1) ----------
+	function ExtensionCard(props) {
+		var t = props.t;
+		var gc = props.globalConfig || {};
+		var vlmCollapsed = React.useState(function () { try { return JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}').extVlm !== false; } catch (e) { return false; } });
+		function toggleVlmCollapse() {
+			var v = !vlmCollapsed[0];
+			vlmCollapsed[1](v);
+			try { var s = JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}'); s.extVlm = v; localStorage.setItem('her-eyes-collapse', JSON.stringify(s)); } catch (e) {}
+		}
+		var expanded = !vlmCollapsed[0];
+		var toolSettingsOpen = React.useState(false);
+		var toolToggles = props.visionToolToggles || {};
+		var toolNames = ["zoom_image", "sample_colors", "image_diff", "ocr_image", "detect_elements", "show_image"];
+		var toolLabels = {"zoom_image": t("toolZoomImage"), "sample_colors": t("toolSampleColors"), "image_diff": t("toolImageDiff"), "ocr_image": t("toolOcrImage"), "detect_elements": t("toolDetectElements"), "show_image": t("toolShowImage")};
+		var toolModal = toolSettingsOpen[0] ? React.createElement("div", { className: "vlm-confirm-overlay", onClick: function () { toolSettingsOpen[1](false); } }, [
+			React.createElement("div", { className: "vlm-confirm-modal", onClick: function (e) { e.stopPropagation(); } }, [
+				React.createElement("span", { className: "vlm-confirm-title" }, t("extToolSettings")),
+				toolNames.map(function (tn) {
+					return React.createElement("div", { key: tn, className: "vlm-module-row" }, [
+						React.createElement("label", { className: "vlm-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: toolToggles[tn] !== false, onChange: function () { props.onToggleVisionTool(tn); } }),
+							React.createElement("span", { className: "vlm-switch-slider" })
+						]),
+						React.createElement("span", { className: "vlm-label" }, toolLabels[tn] || tn)
+					]);
+				}),
+				React.createElement("div", { className: "vlm-confirm-btns" }, [
+					React.createElement("button", { className: "vlm-btn", onClick: function () { toolSettingsOpen[1](false); } }, "OK")
+				])
+			])
+		]) : null;
+		return React.createElement("div", { className: "vlm-card vlm-ext-card" }, [
+			React.createElement("span", { className: "vlm-settings-section-title" }, t("extCardTitle")),
+			React.createElement("div", { className: "vlm-ext-section" }, [
+				React.createElement("div", { className: "vlm-ext-section-head vlm-head-clickable", onClick: toggleVlmCollapse }, [
+					React.createElement("span", { className: "vlm-ext-section-title" }, t("extVlmSection")),
+					React.createElement("button", { className: "vlm-icon-btn", title: expanded ? "Collapse" : "Expand", onClick: function (e) { e.stopPropagation(); toggleVlmCollapse(); } }, React.createElement(SvgIcon, { d: expanded ? I_COLLAPSE : I_EXPAND }))
+				]),
+				expanded ? React.createElement("div", { className: "vlm-ext-toggle-row" }, [
+					React.createElement("div", { className: "vlm-module-row" }, [
+						React.createElement("label", { className: "vlm-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: props.toolsOn, onChange: props.onToggleTools }),
+							React.createElement("span", { className: "vlm-switch-slider" })
+						]),
+						React.createElement("span", { className: "vlm-label" }, t("toolsSwitchLabel")),
+							React.createElement("button", { className: "vlm-icon-btn", title: t("extToolSettings"), onClick: function () { toolSettingsOpen[1](true); } }, React.createElement(SvgIcon, { d: I_MENU }))
+
+					]),
 					React.createElement("div", { className: "vlm-module-row" }, [
 						React.createElement("label", { className: "vlm-switch" }, [
 							React.createElement("input", { type: "checkbox", checked: gc.verifyReminder !== false, onChange: function (e) { props.onPatchGlobal("verifyReminder", e.target.checked); } }),
 							React.createElement("span", { className: "vlm-switch-slider" })
 						]),
-					React.createElement("span", { className: "vlm-label" }, t("verifyReminderLabel")),
-					React.createElement("span", { className: "vlm-status" }, gc.verifyReminder !== false ? "已开启" : "已关闭")
-				])
-			])
+						React.createElement("span", { className: "vlm-label" }, t("verifyReminderLabel"))
+					])
+				]) : null
+			]),
+			toolModal
 		]);
 	}
 
@@ -1357,15 +1807,22 @@ ddHint: "Pick a model",
 			var igOpenProv = React.useState(false);
 			var igBusy = React.useState("");
 			var igConfirmReset = React.useState(false);
+		var igPresetDdOpen = React.useState(false);
+		var igPresetDeleteConfirm = React.useState(false);
+		var igPresetNameDraft = React.useState("");
 			var igModelList = React.useState([]);
 			var igModelCount = React.useState(null);
-			var fbCollapsed = React.useState(true);
+			var fbCollapsed = React.useState(function () { try { var s = JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}'); return s.fb !== undefined ? s.fb : true; } catch (e) { return true; } });
 			var fbModels = React.useState([]);
 			var fbOpenDd = React.useState(false);
 			var fbBusy = React.useState("");
 			var fbSearch = React.useState("");
 			var fbDragFrom = React.useState(null);
 			var fbDropOver = React.useState(null);
+			var mirrorCollapsed = React.useState(function () { try { var s = JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}'); return s.mirror !== undefined ? s.mirror : true; } catch (e) { return true; } });
+			var mirrorAllModels = React.useState([]);
+			var mirrorBusy = React.useState("");
+			var mirrorOpenDd = React.useState(null);
 
 			function reorderFallbackModels(fromIndex, toIndex) {
 				updateDraft(function (d) {
@@ -1399,18 +1856,18 @@ ddHint: "Pick a model",
 
 			// close card menu / model dropdown on outside click
 			React.useEffect(function () {
-				if (!menuOpen[0] && !openDd[0] && !batchOpen[0] && !openProv[0] && !igOpenDd[0] && !igOpenProv[0] && !igConfirmReset[0] && !fbOpenDd[0]) return;
+				if (!menuOpen[0] && !openDd[0] && !batchOpen[0] && !openProv[0] && !igOpenDd[0] && !igOpenProv[0] && !igConfirmReset[0] && !fbOpenDd[0] && !mirrorOpenDd[0]) return;
 				function close(e) {
 					var tgt = e.target;
-					if (!tgt || !tgt.closest) { menuOpen[1](null); openDd[1](null); batchOpen[1](false); openProv[1](null); igOpenDd[1](false); igOpenProv[1](false); igConfirmReset[1](false); fbOpenDd[1](false); confirmDel[1](null); confirmDelAll[1](false); return; }
+					if (!tgt || !tgt.closest) { menuOpen[1](null); openDd[1](null); batchOpen[1](false); openProv[1](null); igOpenDd[1](false); igOpenProv[1](false); igConfirmReset[1](false); fbOpenDd[1](false); mirrorOpenDd[1](null); confirmDel[1](null); confirmDelAll[1](false); return; }
 					if (!tgt.closest(".vlm-card-menu-wrap")) { menuOpen[1](null); confirmDel[1](null); igConfirmReset[1](false); }
-					if (!tgt.closest(".vlm-model-wrap")) { openDd[1](null); igOpenDd[1](false); fbOpenDd[1](false); }
+					if (!tgt.closest(".vlm-model-wrap")) { openDd[1](null); igOpenDd[1](false); fbOpenDd[1](false); mirrorOpenDd[1](null); }
 					if (!tgt.closest(".vlm-provider-wrap")) { openProv[1](null); igOpenProv[1](false); }
 					if (!tgt.closest(".vlm-batch-wrap")) { batchOpen[1](false); confirmDelAll[1](false); }
 				}
 				document.addEventListener("click", close);
 				return function () { document.removeEventListener("click", close); };
-			}, [menuOpen[0], openDd[0], batchOpen[0], openProv[0], igOpenDd[0], igOpenProv[0], igConfirmReset[0], fbOpenDd[0]]);
+			}, [menuOpen[0], openDd[0], batchOpen[0], openProv[0], igOpenDd[0], igOpenProv[0], igConfirmReset[0], fbOpenDd[0], mirrorOpenDd[0]]);
 
 			if (!draft[0]) {
 				return React.createElement("div", { className: "vlm-page" }, [
@@ -1436,8 +1893,14 @@ ddHint: "Pick a model",
 				Promise.resolve().then(function () { saveState[1]("recent"); });
 			}
 
-			// ---- structure operations: local update + immediate POST, then sync ----
-			function commitStructure(patch, localFn) {
+		// ---- structure operations: local update + immediate POST, then sync ----
+		function commitStructure(patch, localFn) {
+			// Flush any pending debounced save to prevent race condition:
+			// if a queueSave is pending (600ms debounce), send it NOW and WAIT
+			// for it to complete before this immediate POST, so the backend
+			// sees the cumulative state (no concurrent POST race).
+			var flushPromise = scheduleSave.flush();
+			var proceed = function () {
 				if (localFn) updateDraft(localFn);
 				busy[1]("struct");
 				call("config", patch).then(function (r) {
@@ -1451,7 +1914,13 @@ ddHint: "Pick a model",
 						});
 					}
 				}).catch(function (e) { setMsg(t("saveFail") + et(e), true); }).finally(function () { busy[1](""); });
+			};
+			if (flushPromise && typeof flushPromise.then === 'function') {
+				flushPromise.then(proceed).catch(proceed);
+			} else {
+				proceed();
 			}
+		}
 
 			function addCard() {
 				commitStructure({ addCard: {} });
@@ -1528,6 +1997,14 @@ ddHint: "Pick a model",
 				Promise.resolve().then(function () { saveState[1]("recent"); });
 			}
 
+			function toggleTools() {
+				var v = draft[0].visionToolsEnabled !== false ? false : true;
+				updateDraft(function (d) { d.visionToolsEnabled = v; return d; });
+				saveState[1]("saving");
+				queueSave({ visionToolsEnabled: v });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
 			function patchRetry(value) {
 				updateDraft(function (d) { d.retryCount = Number(value) || 5; return d; });
 				saveState[1]("saving");
@@ -1595,6 +2072,69 @@ ddHint: "Pick a model",
 				queueSave({ fallbackConfig: { field: "removeModel", value: m } });
 				updateDraft(function (d) { if (d.fallbackConfig) d.fallbackConfig.models = (d.fallbackConfig.models || []).filter(function (x) { return x !== m; }); return d; });
 				saveState[1]("saving"); Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
+			// ---------- mirror card handlers ----------
+			// v1.9-fix: use commitStructure (immediate POST + response sync) for
+			// all mirror operations except updateMirrorName (text input, debounced).
+			// This avoids mergePatch swallowing { field, value } patches.
+			function patchMirror(field, value) {
+				commitStructure({ mirrorConfig: { field: field, value: value } }, function (d) {
+					if (!d.mirrorConfig) d.mirrorConfig = { autoVisionEnabled: true, mirrorAllEnabled: false, mappings: [] };
+					d.mirrorConfig[field] = value;
+					return d;
+				});
+			}
+			function fetchAllModels() {
+				mirrorBusy[1]("mirror-mdl");
+				call("all-models", {}).then(function (r) {
+					mirrorAllModels[1](r && r.ok && Array.isArray(r.groups) ? r.groups : []);
+				}).catch(function () { mirrorAllModels[1]([]); }).finally(function () { mirrorBusy[1](""); });
+			}
+			function addMirrorMapping() {
+				commitStructure({ mirrorConfig: { field: "addMapping", value: { originalProvider: "", originalModel: "", mirrorName: "" } } }, function (d) {
+					if (!d.mirrorConfig) d.mirrorConfig = { autoVisionEnabled: true, mirrorAllEnabled: false, mappings: [] };
+					d.mirrorConfig.mappings = d.mirrorConfig.mappings || [];
+					d.mirrorConfig.mappings.push({ id: "m_temp", originalProvider: "", originalModel: "", mirrorName: "" });
+					return d;
+				});
+			}
+			function removeMirrorMapping(id) {
+				commitStructure({ mirrorConfig: { field: "removeMapping", value: id } }, function (d) {
+					if (d.mirrorConfig) d.mirrorConfig.mappings = (d.mirrorConfig.mappings || []).filter(function (m) { return m.id !== id; });
+					return d;
+				});
+			}
+			function selectMirrorModel(id, provider, model) {
+				commitStructure({ mirrorConfig: { field: "updateMapping", value: { id: id, originalProvider: provider, originalModel: model } } }, function (d) {
+					if (d.mirrorConfig && d.mirrorConfig.mappings) {
+						d.mirrorConfig.mappings = d.mirrorConfig.mappings.map(function (m) {
+							return m.id === id ? Object.assign({}, m, { originalProvider: provider, originalModel: model }) : m;
+						});
+					}
+					return d;
+				});
+				mirrorOpenDd[1](null);
+			}
+			function updateMirrorName(id, value) {
+				updateDraft(function (d) {
+					if (d.mirrorConfig && d.mirrorConfig.mappings) {
+						d.mirrorConfig.mappings = d.mirrorConfig.mappings.map(function (m) {
+							return m.id === id ? Object.assign({}, m, { mirrorName: value }) : m;
+						});
+					}
+					return d;
+				});
+				saveState[1]("saving");
+				queueSave({ mirrorConfig: { field: "updateMapping", value: { id: id, mirrorName: value } } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function toggleMirrorDd(id) {
+				var next = mirrorOpenDd[0] === id ? null : id;
+				if (next !== null && mirrorAllModels[0].length === 0 && mirrorBusy[0] === "") {
+					fetchAllModels();
+				}
+				mirrorOpenDd[1](next);
 			}
 
 			function saveKey(id, value) {
@@ -1719,6 +2259,36 @@ ddHint: "Pick a model",
 				igRevealed[1](false);
 				commitStructure({ imggenReset: true }, function (d) { d.imggenConfig = null; return d; });
 			}
+		function switchPreset(id) {
+			igPresetDdOpen[1](false);
+			igKeyDraft[1]("");
+			igRevealed[1](false);
+			igModelList[1]([]);
+			igModelCount[1](null);
+			commitStructure({ imggenPresetSwitch: id });
+		}
+		function addPreset() {
+			igPresetDdOpen[1](false);
+			igKeyDraft[1]("");
+			igRevealed[1](false);
+			igModelList[1]([]);
+			igModelCount[1](null);
+			commitStructure({ imggenPresetAdd: true });
+		}
+		function deletePreset(id) {
+			igPresetDeleteConfirm[1](false);
+			igKeyDraft[1]("");
+			igRevealed[1](false);
+			igModelList[1]([]);
+			igModelCount[1](null);
+			commitStructure({ imggenPresetDelete: id });
+		}
+		function renamePreset(name) {
+			queueSave({ imggenPresetRename: name });
+		}
+		function togglePresetDd() {
+			igPresetDdOpen[1](!igPresetDdOpen[0]);
+		}
 
 			var apis = draft[0].apis || [];
 			var visible = snap[0] ? snap[0].visible : false;
@@ -1731,9 +2301,10 @@ ddHint: "Pick a model",
 			}).length;
 			var vlmOn = draft[0].vlmEnabled !== false;
 			var imggenOn = draft[0].imggenEnabled === true;
+			var toolsOn = draft[0].visionToolsEnabled !== false;
 			var toolStatus = vlmOn ? (validCount > 0 ? t("toolVisible") : t("toolHidden")) : t("toolOff");
 			var igc = draft[0].imggenConfig || {};
-			var igcValid = !!(igc && (PROVIDERS_UI[igc.provider] ? (PROVIDERS_UI[igc.provider].fixed ? true : !!igc.endpoint) : !!igc.endpoint) && igc.model && (PROVIDERS_UI[igc.provider] && !PROVIDERS_UI[igc.provider].keyRequired ? true : !!igc.apiKeySet));
+			var igcValid = !!(draft[0].imggenPresets && draft[0].imggenPresets.length > 0);
 			var imggenVisible = snap[0] ? snap[0].imggenVisible : false;
 
 			var cardProps = {
@@ -1834,9 +2405,10 @@ ddHint: "Pick a model",
 					onPatch: patchFallback,
 					onChangeProvider: changeFallbackProvider,
 					onFetchModels: fetchFallbackModels,
+					onResetModels: function () { commitStructure({ fallbackConfig: { field: "resetModels", value: true } }, function (d) { if (d.fallbackConfig) d.fallbackConfig.models = ["Qwen3.5-397B-A17B", "Qwen2.5-VL-72B-Instruct", "Qwen3.6-27B", "Mistral-Small-3.2-24B-Instruct-2506", "Qwen3.5-9B"]; return d; }); },
 					onRemoveModel: removeFallbackModel,
 					onPickModel: pickFallbackModel,
-					onToggleCollapse: function () { fbCollapsed[1](!fbCollapsed[0]); },
+					onToggleCollapse: function () { var v = !fbCollapsed[0]; fbCollapsed[1](v); try { var s = JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}'); s.fb = v; localStorage.setItem('her-eyes-collapse', JSON.stringify(s)); } catch (e) {} },
 					onToggleDd: function () { fbOpenDd[1](!fbOpenDd[0]); },
 					fbSearch: fbSearch[0],
 					onSearchChange: setFbSearch,
@@ -1846,6 +2418,21 @@ ddHint: "Pick a model",
 					onDropOver: function (i) { fbDropOver[1](i); },
 					onDragEnd: function () { fbDragFrom[1](null); fbDropOver[1](null); },
 					onReorder: reorderFallbackModels
+				}),
+				React.createElement(MirrorCard, {
+					t: t,
+					cfg: draft[0].mirrorConfig || {},
+					collapsed: mirrorCollapsed[0],
+					allModels: mirrorAllModels[0],
+					busy: mirrorBusy[0],
+					openDd: mirrorOpenDd[0],
+					onToggleCollapse: function () { var v = !mirrorCollapsed[0]; mirrorCollapsed[1](v); try { var s = JSON.parse(localStorage.getItem('her-eyes-collapse') || '{}'); s.mirror = v; localStorage.setItem('her-eyes-collapse', JSON.stringify(s)); } catch (e) {} },
+					onPatch: patchMirror,
+					onAddMapping: addMirrorMapping,
+					onRemoveMapping: removeMirrorMapping,
+					onSelectModel: selectMirrorModel,
+					onUpdateName: updateMirrorName,
+					onToggleDd: toggleMirrorDd
 				}),
 				React.createElement("div", { className: "vlm-list" }, [
 					listHead,
@@ -1859,7 +2446,7 @@ ddHint: "Pick a model",
 
 			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
 				igcValid
-					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); } }, props))
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
 				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
 			]);
@@ -1870,11 +2457,14 @@ ddHint: "Pick a model",
 				globalConfig: draft[0].globalConfig || {},
 				vlmOn: vlmOn,
 				imggenOn: imggenOn,
+				toolsOn: toolsOn,
 				moduleRow: moduleRow,
 				onToggleVlm: toggleVlm,
 				onToggleImggen: toggleImggen,
+				onToggleTools: toggleTools,
 				onPatchGlobal: patchGlobal
 			}),
+			React.createElement(ExtensionCard, { t: t, globalConfig: draft[0].globalConfig || {}, toolsOn: toolsOn, onToggleTools: toggleTools, onPatchGlobal: patchGlobal, visionToolToggles: (draft[0].visionToolToggles || {}), onToggleVisionTool: function (tool) { queueSave({ visionToolToggle: { tool: tool, value: !((draft[0].visionToolToggles || {})[tool] !== false) } }); } }),
 			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "", onHelp: function () { helpOpen[1](true); } })
 		]);
 
@@ -1893,6 +2483,265 @@ ddHint: "Pick a model",
 				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : settingsBody),
 				helpOpen[0] ? React.createElement(HelpModal, { t: t, onClose: function () { helpOpen[1](false); } }) : null
 			]);
+		}
+
+		// ---------- tool.call.toolview cards ----------
+		// Walk props tree defensively and collect every array whose items are objects
+		// carrying a string "type" (candidate content-block arrays). Never throws.
+		function toolviewCollectBlocks(props) {
+			var result = [];
+			var seen = [];
+			function walk(v, depth) {
+				if (v == null || depth > 6) return;
+				if (typeof v !== "object") return;
+				if (seen.indexOf(v) >= 0) return;
+				seen.push(v);
+				if (Array.isArray(v)) {
+					var blocks = v.filter(function (b) { return !!b && typeof b === "object"; });
+					if (blocks.length && blocks.every(function (b) { return typeof b.type === "string"; })) {
+						result = result.concat(blocks);
+						blocks.forEach(function (b) { walk(b, depth + 1); });
+						return;
+					}
+					for (var i = 0; i < v.length; i++) walk(v[i], depth + 1);
+				} else {
+					Object.keys(v).forEach(function (k) {
+						// skip host plumbing / React-only props to avoid noise & cycles
+						if (k === "t" || k === "close" || k === "connection" || k === "sessions" || k === "call" || k === "session" || k === "children" || k === "key" || k === "ref") return;
+						walk(v[k], depth + 1);
+					});
+				}
+			}
+			walk(props, 0);
+			return result;
+		}
+
+		// Collect every text string found anywhere in the props tree (used to
+		// recover an attachment id from a sanitized marker when the raw image
+		// block is absent). Never throws, dedupes.
+		function toolviewCollectTexts(props) {
+			var result = [];
+			var seen = [];
+			var texts = [];
+			function walk(v, depth) {
+				if (v == null || depth > 8) return;
+				if (typeof v === "string") { texts.push(v); return; }
+				if (typeof v !== "object") return;
+				if (seen.indexOf(v) >= 0) return;
+				seen.push(v);
+				if (Array.isArray(v)) {
+					for (var i = 0; i < v.length; i++) walk(v[i], depth + 1);
+				} else {
+					Object.keys(v).forEach(function (k) {
+						if (k === "t" || k === "close" || k === "connection" || k === "sessions" || k === "call" || k === "session" || k === "children" || k === "key" || k === "ref") return;
+						walk(v[k], depth + 1);
+					});
+				}
+			}
+			walk(props, 0);
+			for (var i = 0; i < texts.length; i++) {
+				var t0 = texts[i];
+				if (t0 && result.indexOf(t0) < 0 && t0.length <= 2000) result.push(t0);
+			}
+			return result;
+		}
+
+		// Extract the first top-level JSON object found in a text (handles nested braces).
+		function toolviewFirstJson(text) {
+			if (!text) return null;
+			var start = text.indexOf("{");
+			if (start < 0) return null;
+			var depth = 0;
+			var i = start;
+			for (; i < text.length; i++) {
+				var c = text[i];
+				if (c === "{") depth++;
+				else if (c === "}") { depth--; if (depth === 0) break; }
+			}
+			var sub = text.slice(start, i + 1);
+			try { return JSON.parse(sub); } catch (e) { return null; }
+		}
+
+		// ---- show_image: local image preview backed by attachment bytes ----
+		// The harness toolview passes `block` (content array) + `sessionId`.
+		// Attachment bytes are read via sessions.binding(sessionId).session
+		// .readAttachment(attachmentId), which resolves to
+		// { ok, value: { attachment, data } } (dsh-vision-router's VisionPresentCard
+		// contract). Two readiness hazards, both E2E-verified:
+		//  1. the model surface may carry the SANITIZED marker (no image block) —
+		//     recover the attachment id from the marker text;
+		//  2. the session binding / attachment may not be ready the instant a
+		//     freshly-created tool call mounts the card — the effect re-runs when
+		//     props gain a sessionId, and the read is retried with backoff.
+		function ToolImageCard(props) {
+			var t = (props && props.t) || tBound || (function (k) { return k; });
+			var sessions = (props && props.sessions) || null;
+
+			// Resolve attachment id + session id during render (before useEffect)
+			// so the effect can re-run when props later supply a sessionId.
+			var imgBlock = null;
+			var sessionId = null;
+			var outer = props && props.block ? props.block : props;
+			if (outer && outer.sessionId) sessionId = outer.sessionId;
+			if (outer && Array.isArray(outer.content)) {
+				for (var i = 0; i < outer.content.length; i++) {
+					var b = outer.content[i];
+					if (b && b.type === "image" && b.attachment) { imgBlock = b; break; }
+				}
+			}
+			if (!imgBlock) {
+				var blocks = toolviewCollectBlocks(props);
+				for (var j = 0; j < blocks.length; j++) {
+					var bj = blocks[j];
+					if (bj && bj.type === "image" && bj.attachment) { imgBlock = bj; break; }
+				}
+			}
+			var attachment = null;
+			var attachmentId = null;
+			if (imgBlock && imgBlock.attachment) {
+				attachment = imgBlock.attachment;
+				attachmentId = attachment.attachmentId || attachment.id;
+			} else {
+				// Sanitized marker path: [工具结果中包含图片「…」，附件 id「sha256:…」。…]
+				var texts = toolviewCollectTexts(props);
+				for (var k = 0; k < texts.length; k++) {
+					var m = String(texts[k] || "").match(/附件 id「([^」]+)」/);
+					if (m && m[1]) { attachmentId = m[1]; break; }
+				}
+			}
+			var mediaType = (attachment && attachment.mediaType) || "image/png";
+
+			var srcState = React.useState(null);
+			var errState = React.useState(false);
+
+			// Re-run when the attachment id or session id changes (props arrive
+			// asynchronously as the tool result lands in the session).
+			React.useEffect(function () {
+				if (!attachmentId) { errState[1](true); return; }
+				// A previous run may have failed while props were still settling;
+				// clear the error so a successful read isn't masked.
+				errState[1](false);
+				var cancelled = false;
+				var objectUrl = null;
+				var timers = [];
+				function release() {
+					cancelled = true;
+					for (var ti = 0; ti < timers.length; ti++) { try { clearTimeout(timers[ti]); } catch (e) {} }
+					timers = [];
+					if (objectUrl) { try { URL.revokeObjectURL(objectUrl); } catch (e) {} objectUrl = null; }
+				}
+				// Resolve the session binding lazily INSIDE the retry loop: the
+				// binding/.session may not be ready the instant a freshly-created
+				// tool call mounts the card, so every attempt re-resolves it and a
+				// missing readAttachment counts as a retryable failure.
+				var retryCount = 0;
+				var maxAttempts = 8;
+				var delays = [0, 250, 500, 1000, 1500, 2000, 3000, 4000];
+				function resolveSess() {
+					var s = sessions;
+					if (s && typeof s.binding === "function") { var b2 = s.binding(sessionId || null); if (b2) s = b2; }
+					if (s && s.session && typeof s.session.readAttachment === "function") s = s.session;
+					return (s && typeof s.readAttachment === "function") ? s : null;
+				}
+				function tryRead() {
+					if (cancelled) return;
+					var sess2 = resolveSess();
+					if (!sess2) { retryOrFail(); return; }
+					var p;
+					try { p = sess2.readAttachment(attachmentId); } catch (e4) { p = null; }
+					if (!p || typeof p.then !== "function") {
+						retryOrFail();
+						return;
+					}
+					p.then(function (result) {
+						if (cancelled) return;
+						// readAttachment resolves to { ok, value:{ attachment, data } }.
+						var data = null;
+						if (result && result.ok === true && result.value && result.value.data) {
+							data = result.value.data;
+						} else if (result && result.data && result.data.byteLength !== undefined) {
+							data = result.data; // tolerate a raw-bytes return
+						}
+						if (!data) { retryOrFail(); return; }
+						try {
+							var mt = (result && result.value && result.value.attachment && result.value.attachment.mediaType) || mediaType;
+							var blob = new Blob([data], { type: mt });
+							objectUrl = URL.createObjectURL(blob);
+							if (!cancelled) srcState[1](objectUrl);
+						} catch (e2) { retryOrFail(); }
+					}).catch(function () { retryOrFail(); });
+				}
+				function retryOrFail() {
+					if (cancelled) return;
+					retryCount++;
+					if (retryCount < maxAttempts) {
+						timers.push(setTimeout(tryRead, delays[retryCount] != null ? delays[retryCount] : 4000));
+					} else {
+						errState[1](true);
+					}
+				}
+				tryRead();
+				return release;
+			}, [attachmentId, sessionId]);
+
+			return React.createElement("div", { className: "vlm-toolview-card" }, [
+				React.createElement("div", { className: "vlm-toolview-head" }, t("toolsLocalImage")),
+				srcState[0] ? React.createElement("img", { src: srcState[0], alt: "", style: { maxWidth: "100%", maxHeight: 360, borderRadius: 6, alignSelf: "flex-start" } }) : null,
+				errState[0] ? React.createElement("p", { className: "vlm-status vlm-err" }, t("toolsImageError")) : null
+			]);
+		}
+
+		// ---- zoom_image / image_diff / detect_elements: artifact metadata card ----
+		function ToolMetaCard(props) {
+			var t = (props && props.t) || tBound || (function (k) { return k; });
+			var toolKey = (props && props.toolKey) || "";
+			var copied = React.useState(null);
+
+			var label = toolKey === "zoom_image" ? t("toolsZoom")
+				: (toolKey === "image_diff" ? t("toolsImageDiff")
+					: (toolKey === "detect_elements" ? t("toolsElements") : t("toolsFile")));
+
+			var blocks = toolviewCollectBlocks(props);
+			var text = "";
+			for (var i = 0; i < blocks.length; i++) {
+				if (blocks[i] && typeof blocks[i].text === "string") text += (text ? "\n" : "") + blocks[i].text;
+			}
+			var json = toolviewFirstJson(text);
+			var paths = ["path", "annotatedPath", "heatmapPath"];
+			var numerics = ["width", "height", "diffRatio", "scale"];
+			var rows = [];
+
+			paths.forEach(function (k) {
+				var v = json ? json[k] : undefined;
+				if (typeof v !== "string" || !v) return;
+				rows.push(React.createElement("div", { key: k, className: "vlm-toolview-row" }, [
+					React.createElement("span", { className: "vlm-label" }, (k === "path" ? t("toolsFile") : k) + ":"),
+					React.createElement("code", { className: "vlm-toolview-path" }, v),
+					React.createElement("button", {
+						className: "vlm-btn vlm-toolview-copy",
+						onClick: function () {
+							try { if (navigator.clipboard) navigator.clipboard.writeText(v); } catch (e) {}
+							copied[1](k);
+							setTimeout(function () { copied[1](null); }, 1500);
+						}
+					}, copied[0] === k ? t("toolsCopied") : t("toolsCopyPath"))
+				]));
+			});
+			numerics.forEach(function (k) {
+				var v = json ? json[k] : undefined;
+				if (typeof v === "undefined" || v === null || v === "") return;
+				rows.push(React.createElement("div", { key: k, className: "vlm-toolview-row vlm-toolview-fact" }, [
+					React.createElement("span", { className: "vlm-label" }, k + ":"),
+					React.createElement("span", { className: "vlm-toolview-val" }, String(v))
+				]));
+			});
+			if (!rows.length) {
+				rows.push(React.createElement("p", { key: "empty", className: "vlm-status" }, text ? text : t("toolsNoData")));
+			}
+
+			return React.createElement("div", { className: "vlm-toolview-card" }, [
+				React.createElement("div", { className: "vlm-toolview-head" }, label)
+			].concat(rows));
 		}
 
 		// ---------- plugin entry ----------
@@ -1917,6 +2766,34 @@ ddHint: "Pick a model",
 						function (props) { return React.createElement(VlmSettingsPage, { close: props && props.close, t: (props && props.t) || tBound, connection: connection, sessions: sessions }); }
 					);
 				});
+			});
+
+			// ---- tool.call.toolview cards (best-effort; silently skip if the host lacks the slot) ----
+			effect(function () {
+				try {
+					return slots.inject("tool.call.toolview", function () {
+						return [
+							slots.register(
+								{ name: "tool.call.toolview", id: "vlm-view-show_image", key: "show_image", order: 40 },
+								function (props) { return React.createElement(ToolImageCard, { t: (props && props.t) || tBound, sessions: sessions, block: props, sessionId: props && props.sessionId }); }
+							),
+							slots.register(
+								{ name: "tool.call.toolview", id: "vlm-view-zoom", key: "zoom_image", order: 41 },
+								function (props) { return React.createElement(ToolMetaCard, { t: (props && props.t) || tBound, toolKey: "zoom_image", block: props }); }
+							),
+							slots.register(
+								{ name: "tool.call.toolview", id: "vlm-view-diff", key: "image_diff", order: 42 },
+								function (props) { return React.createElement(ToolMetaCard, { t: (props && props.t) || tBound, toolKey: "image_diff", block: props }); }
+							),
+							slots.register(
+								{ name: "tool.call.toolview", id: "vlm-view-detect", key: "detect_elements", order: 43 },
+								function (props) { return React.createElement(ToolMetaCard, { t: (props && props.t) || tBound, toolKey: "detect_elements", block: props }); }
+							)
+						];
+					});
+				} catch (e) {
+					return null;
+				}
 			});
 		}
 

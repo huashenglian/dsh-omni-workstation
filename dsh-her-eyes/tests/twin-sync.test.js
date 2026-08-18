@@ -139,8 +139,8 @@ test('twin adapter falls back to provider name when source providerInfo missing'
   ctx.llm.registration = () => ({ adapter: {} })
   const adapter = makeTwinAdapter(ctx, 'alpha')
   assert.equal(adapter.providerInfo().id, 'auto-vision')
-  assert.ok(adapter.providerInfo().name.includes('alpha'))
-  assert.ok(adapter.providerInfo().name.includes('Auto Vision'))
+  // v1.9: auto-vision name is generic 'Auto Vision' (no provider/model suffix)
+  assert.equal(adapter.providerInfo().name, 'Auto Vision')
   // v1.8: listModels always returns 1 model (does NOT call source listModels).
   const models = await adapter.listModels()
   assert.equal(models.length, 1)
