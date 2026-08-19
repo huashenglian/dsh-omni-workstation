@@ -1050,7 +1050,7 @@ ddHint: "Pick a model",
 								})) : null
 							])
 						]),
-						(isFixed || meta.hideProtocol) ? null : React.createElement(SelectField, {
+						(isFixed || prov.hideProtocol) ? null : React.createElement(SelectField, {
 							label: t("protocolLabel"),
 							value: card.protocol,
 							options: protocolOptions,
