@@ -5,7 +5,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const dshHome = mkdtempSync(join(tmpdir(), 'her-eyes-tmp-'))
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'her-eyes-mirror-'))
+process.env.DSH_HER_EYES_CONFIG_DIR = dshHome
 
 const {
   syncTwins, _resetLastSource,

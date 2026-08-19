@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // Isolate config reads from the real user home (configDir caches per process).
+const dshHome = mkdtempSync(join(tmpdir(), 'her-eyes-tmp-'))
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'her-eyes-sync-'))
+process.env.DSH_HER_EYES_CONFIG_DIR = dshHome
 
 const { syncTwins, makeTwinAdapter, _resetLastSource } = await import('../lib/index.js')
 

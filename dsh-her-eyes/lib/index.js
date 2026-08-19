@@ -11,9 +11,10 @@
 // card is configured).
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import jpegJs from './vendor/jpeg-js/index.cjs'
 import { encodePng } from './vendor/png.js'
 import { buildVisionToolDefs } from './vision-tools.js'
@@ -40,6 +41,7 @@ const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages
 const PROVIDERS = {
   custom:            { protocol: 'openai-completions', endpoint: '', keyRequired: true, fixedUrl: false },
   ollama:            { protocol: 'openai-completions', endpoint: '', keyRequired: false, fixedUrl: false },
+  comfyui:           { protocol: 'comfyui-image', endpoint: '', keyRequired: false, fixedUrl: false },
   // ---- built-in fixed providers (pi-ai catalog; multi-protocol entries use their primary protocol) ----
   agnes:             { protocol: 'anthropic-messages', endpoint: 'https://apihub.agnes-ai.com', keyRequired: true, fixedUrl: true },
   'agnes-cn':          { protocol: 'anthropic-messages', endpoint: 'https://api.agnes-ai.cn', keyRequired: true, fixedUrl: true },
@@ -98,7 +100,7 @@ const clampTimeout = (v, def = 120000) => {
 }
 
 // ---------- imggen (image generation) config model ----------
-const IMGGEN_PROTOCOLS = ['openai-images', 'openai-completions', 'dashscope-image']
+const IMGGEN_PROTOCOLS = ['openai-images', 'openai-completions', 'dashscope-image', 'comfyui-image']
 const VISION_TOOL_NAMES = ['zoom_image', 'sample_colors', 'image_diff', 'ocr_image', 'detect_elements', 'show_image']
 
 const defaultImggenConfig = () => ({
@@ -117,8 +119,8 @@ const defaultImggenConfig = () => ({
 function normalizeImggenConfig(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultImggenConfig()
   const provider = PROVIDER_IDS.includes(raw.provider) ? raw.provider : 'custom'
-  // bailian（阿里云百炼）始终走 DashScope 原生协议（UI 隐藏 protocol 字段）
-  const protocol = provider === 'bailian' ? 'dashscope-image' : (IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images')
+  // bailian（阿里云百炼）始终走 DashScope 原生协议；comfyui 固定走 ComfyUI 协议（UI 隐藏 protocol 字段）
+  const protocol = provider === 'bailian' ? 'dashscope-image' : provider === 'comfyui' ? 'comfyui-image' : (IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images')
   const retryRaw = Math.floor(Number(raw.retryCount))
   return {
     provider,
@@ -361,37 +363,56 @@ function effectiveCard(c) {
   return c
 }
 
-let configDirCache
-async function configDir(ctx) {
-  if (configDirCache) return configDirCache
+// v2.5: config lives INSIDE the plugin install dir (never in the user home root).
+// Plugin dir is derived from import.meta.url — installed copy
+// ~/.dsh/profiles/web/node_modules/dsh-her-eyes/lib/index.js -> <...>/dsh-her-eyes.
+// The old $DSH_HOME/homedir location is probed only once for first-run migration.
+const PLUGIN_DIR = dirname(dirname(fileURLToPath(import.meta.url)))
+function configFile() {
+  // Test override: unit tests that import this file directly (not via a copied
+  // plugin dir) point the config at their own temp DSH_HOME via this env.
+  const override = process.env.DSH_HER_EYES_CONFIG_DIR
+  if (override && override.length > 0) return join(override, 'vlm-vision.json')
+  return join(PLUGIN_DIR, 'vlm-vision.json')
+}
+
+async function legacyConfigDir(ctx) {
+  // old chain: settings doc dirname -> DSH_HOME -> homedir (migration probe only)
   const settings = ctx.get('settings')
   if (settings !== undefined) {
     try {
       const doc = await settings.prepareDocument()
-      if (typeof doc === 'string' && doc.length > 0) {
-        configDirCache = dirname(doc)
-        return configDirCache
-      }
+      if (typeof doc === 'string' && doc.length > 0) return dirname(doc)
     } catch {
       // not file-backed; fall through
     }
   }
   const envHome = process.env.DSH_HOME
-  if (envHome && envHome.length > 0) {
-    configDirCache = envHome
-    return configDirCache
-  }
-  configDirCache = homedir()
-  return configDirCache
+  if (envHome && envHome.length > 0) return envHome
+  return homedir()
 }
 
-async function configFile(ctx) {
-  return join(await configDir(ctx), 'vlm-vision.json')
+async function legacyConfigFile(ctx) {
+  const dir = await legacyConfigDir(ctx)
+  return join(dir, 'vlm-vision.json')
 }
 
 async function loadConfig(ctx) {
   try {
-    const file = await configFile(ctx)
+    const file = configFile()
+    if (!existsSync(file)) {
+      // first-run migration: move an existing legacy config into the plugin dir
+      try {
+        const legacy = await legacyConfigFile(ctx)
+        if (legacy !== file && existsSync(legacy)) {
+          copyFileSync(legacy, file)
+          unlinkSync(legacy)
+          console.error('[dsh-her-eyes] config migrated: ' + legacy + ' -> ' + file)
+        }
+      } catch (e) {
+        console.error('[dsh-her-eyes] config migration skipped:', String(e && e.message || e))
+      }
+    }
     if (!existsSync(file)) return defaultConfig()
     return normalizeConfig(JSON.parse(readFileSync(file, 'utf8')))
   } catch (e) {
@@ -401,11 +422,22 @@ async function loadConfig(ctx) {
 }
 
 async function storeConfig(ctx, cfg) {
-  const file = await configFile(ctx)
+  const file = configFile()
   writeFileSync(file, JSON.stringify(normalizeConfig(cfg), null, 2), 'utf8')
 }
 
 // ---------- HTTP (native fetch, UTF-8 throughout) ----------
+// v2.5: normalize any WxH / W*H / W×H size string to {width,height} so each
+// protocol can re-emit its own required separator (DashScope wants W*H, OpenAI
+// family WxH, ComfyUI split width/height). Returns null when unparseable.
+function parseSizePair(s) {
+  const m = /^(\d{2,5})\s*[xX*×]\s*(\d{2,5})$/.exec(String(s || '').trim())
+  if (!m) return null
+  const w = Number(m[1])
+  const h = Number(m[2])
+  return (w >= 64 && w <= 8192 && h >= 64 && h <= 8192) ? { width: w, height: h } : null
+}
+
 async function httpJson(url, method, headers, body, timeoutMs) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -1248,6 +1280,125 @@ async function fetchImageBuffer(url, timeoutMs) {
   }
 }
 
+// ---------- ComfyUI (v2.5) : default workflow + helpers ----------
+// Built-in ComfyUI default workflow in API format (node ids match the webui
+// template: 3 KSampler, 4 CheckpointLoaderSimple, 5 EmptyLatentImage,
+// 6/7 CLIPTextEncode positive/negative, 8 VAEDecode, 9 SaveImage).
+// Custom "API-format graph" import / node-mapping editing = future version.
+const comfyDefaultWorkflow = () => ({
+  '3': { class_type: 'KSampler', inputs: { seed: Math.floor(Math.random() * 1125899906842624), steps: 20, cfg: 8, sampler_name: 'euler', scheduler: 'normal', denoise: 1, model: ['4', 0], positive: ['6', 0], negative: ['7', 0], latent_image: ['5', 0] } },
+  '4': { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: '' } },
+  '5': { class_type: 'EmptyLatentImage', inputs: { width: 1024, height: 1024, batch_size: 1 } },
+  '6': { class_type: 'CLIPTextEncode', inputs: { text: '', clip: ['4', 1] } },
+  '7': { class_type: 'CLIPTextEncode', inputs: { text: 'text, watermark', clip: ['4', 1] } },
+  '8': { class_type: 'VAEDecode', inputs: { samples: ['3', 0], vae: ['4', 2] } },
+  '9': { class_type: 'SaveImage', inputs: { filename_prefix: 'ComfyUI', images: ['8', 0] } }
+})
+
+function comfyWsUrl(base) {
+  const b = String(base || '').trim()
+  if (!/^https?:\/\//i.test(b)) return ''
+  const ws = /^https:/i.test(b) ? 'wss' : 'ws'
+  return ws + '://' + b.replace(/^https?:\/\//i, '')
+}
+
+// Read one history entry: { ok:true, images:[{filename,subfolder,type}] } when
+// done; { ok:false, status:'PENDING' } while still queued/running; or
+// { ok:false, status:'COMFY_ERROR', message } on execution_error.
+async function comfyHistoryImages(base, headers, promptId, timeoutMs) {
+  const res = await httpJson(base + '/history/' + encodeURIComponent(promptId), 'GET', headers, undefined, timeoutMs)
+  if (!res.ok || !res.body || typeof res.body !== 'object') {
+    return { ok: false, status: 'PENDING', message: res.message }
+  }
+  const entry = res.body[promptId]
+  if (!entry || !entry.outputs) return { ok: false, status: 'PENDING' }
+  if (entry.status && entry.status.status_str === 'error') {
+    const msgs = Array.isArray(entry.status.messages) ? entry.status.messages : []
+    const err = msgs.find((m) => Array.isArray(m) && m[0] === 'execution_error')
+    const emsg = err && err[1] ? (err[1].exception_message || err[1].message || '') : ''
+    return { ok: false, status: 'COMFY_ERROR', message: emsg || 'ComfyUI 执行错误' }
+  }
+  const images = []
+  for (const out of Object.values(entry.outputs)) {
+    if (out && Array.isArray(out.images)) {
+      for (const img of out.images) {
+        if (img && typeof img.filename === 'string') {
+          images.push({ filename: img.filename, subfolder: img.subfolder || '', type: img.type || 'output' })
+        }
+      }
+    }
+  }
+  // entry exists but produced no images yet → still queued/running
+  if (images.length === 0) return { ok: false, status: 'PENDING' }
+  return { ok: true, images }
+}
+
+// Wait for a prompt to finish: WebSocket acts only as a "wake up" signal (the
+// single source of truth is always /history), so any WS failure silently
+// degrades to pure HTTP polling. On timeout, fire-and-forget POST /interrupt.
+async function comfyWaitResult(base, headers, promptId, clientId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  let ws = null
+  let wake = false
+  let wsOk = false
+  if (typeof WebSocket !== 'undefined') {
+    try {
+      ws = new WebSocket(comfyWsUrl(base) + '/ws?clientId=' + encodeURIComponent(clientId))
+      wsOk = await new Promise((resolve) => {
+        const t = setTimeout(() => { try { ws.close() } catch { /* ignore */ }; resolve(false) }, 2500)
+        ws.onopen = () => { clearTimeout(t); resolve(true) }
+        ws.onerror = () => { clearTimeout(t); resolve(false) }
+        ws.onmessage = (ev) => {
+          let msg = null
+          try { msg = JSON.parse(typeof ev.data === 'string' ? ev.data : '') } catch { return } // binary frame
+          if (!msg || typeof msg !== 'object') return
+          if (msg.type === 'execution_complete' || msg.type === 'execution_error' || msg.type === 'execution_interrupted') wake = true
+          if (msg.type === 'executing' && msg.data && msg.data.node === null) wake = true
+        }
+      })
+    } catch {
+      wsOk = false
+    }
+  }
+  try {
+    const interval = 1500
+    let nextPoll = Date.now()
+    for (;;) {
+      if (wake || Date.now() >= nextPoll) {
+        const r = await comfyHistoryImages(base, headers, promptId, 15000)
+        if (r.ok) return r
+        if (r.status === 'COMFY_ERROR') return r
+        wake = false
+        nextPoll = Date.now() + interval
+      }
+      if (Date.now() >= deadline) {
+        // fire-and-forget interrupt so the server doesn't keep rendering
+        try { await httpJson(base + '/interrupt', 'POST', headers, {}, 5000) } catch { /* best-effort */ }
+        return { ok: false, status: 'COMFY_TIMEOUT', message: 'ComfyUI 队列+渲染超时（' + Math.round(timeoutMs / 1000) + 's，已发送 /interrupt）' }
+      }
+      await sleep(200)
+    }
+  } finally {
+    try { if (ws) ws.close() } catch { /* ignore */ }
+  }
+}
+
+// Compose a readable submit error from the /prompt 4xx body (error + node_errors).
+function comfySubmitError(res) {
+  const body = res && res.body && typeof res.body === 'object' ? res.body : {}
+  const parts = []
+  if (body.error) {
+    parts.push(body.error.message || body.error.type || 'ComfyUI 工作流验证失败')
+  }
+  if (body.node_errors && typeof body.node_errors === 'object') {
+    for (const [nodeId, ne] of Object.entries(body.node_errors)) {
+      const details = Array.isArray(ne && ne.errors) ? ne.errors.map((e) => e.details || e.message).filter(Boolean).join('; ') : ''
+      parts.push('节点 ' + nodeId + ' (' + (ne.class_type || '') + '): ' + details)
+    }
+  }
+  return parts.join('；') || String(res.message || '').slice(0, 300)
+}
+
 const imggenToolDef = defineTool({
   name: 'generate_image',
   description: '生成图片并保存到指定目录，返回文件路径。prompt 描述图片内容，output_dir 指定保存目录（不指定则保存到工作区根目录）。生成后必须立即调用 analyze_image 验证图片质量。',
@@ -1256,7 +1407,7 @@ const imggenToolDef = defineTool({
     size: { type: 'string', description: '图片尺寸，如 1024x1024 / 1792x1024；留空用模型默认' },
     n: { type: 'number', description: '生成图片数量，默认 1' },
       reference_image: { type: 'string', description: '参考图路径（可选）。传入后以图生图模式生成。' },
-    output_dir: { type: 'string', description: '保存目录绝对路径。不指定则保存到工作区根目录。根据项目情况选择合适位置，如游戏引擎资产目录、项目素材目录等。' }
+    output_dir: { type: 'string', description: '保存目录，绝对路径或相对当前工作区的相对路径。不指定则保存到当前工作区根目录。根据项目情况选择合适位置，如游戏引擎资产目录、项目素材目录等。' }
   },
   output: {
     schema: {
@@ -1296,8 +1447,22 @@ const imggenToolDef = defineTool({
     if (!isImggenConfigValid(igc)) {
       throw new Error('generate_image: 生图配置无效。请在设置页「生图」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
     }
+    // v2.5: resolve output dir BEFORE any API call — never fall back to
+    // process.cwd(); output must land in the program's opened workspace.
+    const agentCwd = exec && exec.agent && exec.agent.meta && exec.agent.meta.cwd ? exec.agent.meta.cwd : ''
+    const rawOut = args && args.output_dir && String(args.output_dir).trim() ? String(args.output_dir).trim() : ''
+    let imgDir
+    if (rawOut) {
+      imgDir = /^[A-Za-z]:[\\/]/.test(rawOut) || rawOut.startsWith('\\\\') || rawOut.startsWith('/') ? rawOut : (agentCwd ? join(agentCwd, rawOut) : rawOut)
+    } else if (agentCwd) {
+      imgDir = agentCwd
+    } else {
+      throw new Error('generate_image: 无法确定输出目录（未提供 output_dir 且当前会话无工作区路径）。请显式传入 output_dir。')
+    }
     const meta = PROVIDERS[igc.provider]
     let endpoint = meta && meta.fixedUrl ? meta.endpoint : igc.endpoint
+    // ComfyUI base (also used by the /view download step below); empty for other protocols
+    let cfBase = ''
     const protocol = igc.protocol
     // openai 族协议要求 /v1 前缀（如 agnes-ai.cn 无 /v1 路径会被 Cloudflare 403）
     if ((protocol === 'openai-images' || protocol === 'openai-completions') && !/\/v[0-9]+$/.test(String(endpoint || ''))) {
@@ -1344,7 +1509,9 @@ const imggenToolDef = defineTool({
       }
       contentParts.push({ text: prompt })
       const isWan = String(igc.model || '').toLowerCase().startsWith('wan2.')
-      const dsBody = { model: igc.model, input: { messages: [{ role: 'user', content: contentParts }] }, parameters: { n: n, size: size || '1280*1280' } }
+      // DashScope requires W*H separator; normalize any WxH/W*H/W×H from the AI
+      const dsSize = parseSizePair(size)
+      const dsBody = { model: igc.model, input: { messages: [{ role: 'user', content: contentParts }] }, parameters: { n: n, size: dsSize ? dsSize.width + '*' + dsSize.height : '1280*1280' } }
       // wan2.x 文生图需 enable_interleave；参考图模式亦无条件开启（与百炼参考协议一致）
       if (isWan || refImage) dsBody.parameters.enable_interleave = true
       // async task: submit, then poll /api/v1/tasks/{task_id} — budget follows user timeoutMs (default 300s≈100 polls; 600s→200 polls)
@@ -1398,6 +1565,60 @@ const imggenToolDef = defineTool({
         }
         break
       }
+    } else if (protocol === 'comfyui-image') {
+      // ComfyUI: submit API-format workflow -> WebSocket-wake / HTTP-poll /history -> /view bytes.
+      // Auth MVP: empty key = no auth; non-empty key = Bearer (proxy-level). Custom headers later.
+      // A prompt is submitted at most once: retry only waits again on the SAME
+      // prompt (de-dup), so a slow-but-finished task is never re-queued.
+      cfBase = String(igc.endpoint || '').trim().replace(/\/+$/, '')
+      const cfHeaders = { 'Content-Type': 'application/json', Accept: 'application/json', ...(igc.apiKey ? { Authorization: 'Bearer ' + igc.apiKey } : {}) }
+      const cfSize = parseSizePair(size) || { width: 1024, height: 1024 }
+      let lastPromptId = null
+      let lastClientId = null
+      let cfDetail = ''
+      for (let attempt = 1; attempt <= attempts0; attempt++) {
+        if (lastPromptId) {
+          // already submitted: wait again on the SAME prompt, never re-POST
+          const result = await comfyWaitResult(cfBase, cfHeaders, lastPromptId, lastClientId, clampTimeout(igc.timeoutMs, 600000))
+          if (result.ok) {
+            last = { data: result.images.map((i) => ({ comfy: i })), bodyModel: igc.model }
+            cfDetail = refImage ? '（ComfyUI 默认工作流暂不支持参考图，已忽略）' : ''
+          } else {
+            last = { data: [], status: result.status, message: result.message }
+          }
+          break // wait outcome is final — do not re-submit the same prompt
+        }
+        const wf = comfyDefaultWorkflow()
+        wf['4'].inputs.ckpt_name = igc.model
+        wf['5'].inputs.width = cfSize.width
+        wf['5'].inputs.height = cfSize.height
+        wf['5'].inputs.batch_size = n
+        wf['6'].inputs.text = prompt
+        const clientId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'dsh-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+        const submitRes = await httpJson(cfBase + '/prompt', 'POST', cfHeaders, Object.assign({}, wf, { client_id: clientId }), clampTimeout(igc.timeoutMs, 300000))
+        const promptId = submitRes.ok && submitRes.body && submitRes.body.prompt_id ? submitRes.body.prompt_id : null
+        if (!promptId) {
+          last = { data: [], status: submitRes.status, message: comfySubmitError(submitRes) }
+          if (submitRes.status === 'TIMEOUT') break
+          // retry only transient submit failures (network / 5xx); 4xx (validation,
+          // auth, missing workflow node) is permanent — fail fast without re-submitting
+          const transient = submitRes.status === 'NET' || (typeof submitRes.status === 'number' && submitRes.status >= 500)
+          if (!transient) break
+          if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+          continue
+        }
+        lastPromptId = promptId
+        lastClientId = clientId
+        const result = await comfyWaitResult(cfBase, cfHeaders, promptId, clientId, clampTimeout(igc.timeoutMs, 600000))
+        if (result.ok) {
+          last = { data: result.images.map((i) => ({ comfy: i })), bodyModel: igc.model }
+          cfDetail = refImage ? '（ComfyUI 默认工作流暂不支持参考图，已忽略）' : ''
+        } else {
+          last = { data: [], status: result.status, message: result.message }
+        }
+        break
+      }
+      if (cfDetail) last = Object.assign({}, last, { message: (last.message || '') + cfDetail })
     } else if (protocol === 'openai-completions') {
       body = { model: igc.model, messages: [{ role: 'user', content: prompt }], modalities: ['text', 'image'], stream: false }
       for (let attempt = 1; attempt <= attempts0; attempt++) {
@@ -1409,7 +1630,8 @@ const imggenToolDef = defineTool({
       }
     } else {
       body = { model: igc.model, prompt, n }
-      if (size) body.size = size
+      // OpenAI family wants WxH separator; normalize any WxH/W*H/W×H from the AI
+      if (size) { const osz = parseSizePair(size); body.size = osz ? osz.width + 'x' + osz.height : size }
       if (igc.responseFormat === 'b64_json' || igc.responseFormat === 'url') body.response_format = igc.responseFormat
       for (let attempt = 1; attempt <= attempts0; attempt++) {
         const res = await httpJson(url, 'POST', headers, body, clampTimeout(igc.timeoutMs, 300000))
@@ -1422,15 +1644,27 @@ const imggenToolDef = defineTool({
     if (!last || !last.data || last.data.length === 0) {
       throw new Error('generate_image: 生图请求失败' + (last && last.status ? '（HTTP ' + last.status + ': ' + String(last.message).slice(0, 200) + '）' : ''))
     }
-    // resolve raw image buffers: b64_json → base64; url → download
-    const imgDir = args && args.output_dir && String(args.output_dir).trim() ? String(args.output_dir).trim() : (exec && exec.agent && exec.agent.meta && exec.agent.meta.cwd ? exec.agent.meta.cwd : process.cwd())
+    // resolve raw image buffers: b64_json → base64; url → download; comfy → /view
+    // imgDir was resolved before the API call (v2.5: workspace enforcement).
     mkdirSync(imgDir, { recursive: true })
     const paths = []
     for (let i = 0; i < last.data.length; i++) {
       const item = last.data[i]
-      const buf = item.b64_json ? Buffer.from(item.b64_json, 'base64') : (item.url ? await fetchImageBuffer(item.url, clampTimeout(igc.timeoutMs, 300000)) : null)
+      let buf = null
+      let fileName = 'img_' + Date.now().toString(36) + '_' + i + '.png'
+      if (item.b64_json) {
+        buf = Buffer.from(item.b64_json, 'base64')
+      } else if (item.url) {
+        buf = await fetchImageBuffer(item.url, clampTimeout(igc.timeoutMs, 300000))
+      } else if (item.comfy) {
+        // ComfyUI: fetch bytes via /view?filename=&subfolder=&type=
+        const c = item.comfy
+        const vurl = cfBase + '/view?filename=' + encodeURIComponent(c.filename) + '&subfolder=' + encodeURIComponent(c.subfolder || '') + '&type=' + encodeURIComponent(c.type || 'output')
+        buf = await fetchImageBuffer(vurl, clampTimeout(igc.timeoutMs, 300000))
+        const dot = String(c.filename || '').lastIndexOf('.')
+        fileName = 'img_' + Date.now().toString(36) + '_' + i + (dot >= 0 ? String(c.filename).slice(dot) : '.png')
+      }
       if (!buf || buf.length === 0) continue
-      const fileName = 'img_' + Date.now().toString(36) + '_' + i + '.png'
       writeFileSync(join(imgDir, fileName), buf)
       paths.push(join(imgDir, fileName))
     }
@@ -1849,6 +2083,7 @@ function applyPatch(cfg, patch) {
         c.imggenConfig.provider = value
         const meta = PROVIDERS[value]
         if (value === 'bailian') { c.imggenConfig.protocol = 'dashscope-image'; c.imggenConfig.apiPath = '' }
+        else if (value === 'comfyui') { c.imggenConfig.protocol = 'comfyui-image'; c.imggenConfig.apiPath = '' }
         else if (meta && meta.fixedUrl) { c.imggenConfig.protocol = 'openai-images'; c.imggenConfig.endpoint = meta.endpoint; c.imggenConfig.apiPath = '' }
       } else if (field === 'protocol' && IMGGEN_PROTOCOLS.includes(value)) c.imggenConfig.protocol = value
       else if (field === 'endpoint') c.imggenConfig.endpoint = String(value || '').trim()
@@ -2211,6 +2446,21 @@ function apply(ctx) {
           const meta = PROVIDERS[igc.provider]
           let endpoint = (meta && meta.fixedUrl) ? meta.endpoint : (args.endpoint && typeof args.endpoint === 'string' && args.endpoint.trim() ? args.endpoint.trim() : igc.endpoint)
           const protocol = (meta && meta.fixedUrl) ? 'openai-images' : (args.protocol || igc.protocol || 'openai-images')
+          // ComfyUI: model list comes from /object_info/CheckpointLoaderSimple (checkpoint filenames,
+          // which never contain the literal "image" — so the /image/i filter below must be skipped).
+          if (protocol === 'comfyui-image') {
+            if (!endpoint) return jsonOut(res, 400, { ok: false, error: '未配置 endpoint，请先在上方填入端点 URL' })
+            const base = String(endpoint).trim().replace(/\/+$/, '')
+            const h = { Accept: 'application/json', ...(igc.apiKey ? { Authorization: 'Bearer ' + igc.apiKey } : {}) }
+            const r = await httpJson(base + '/object_info/CheckpointLoaderSimple', 'GET', h, undefined, 30000)
+            if (!r.ok) return jsonOut(res, 200, { ok: false, error: 'HTTP ' + r.status + ': ' + r.message })
+            const oi = r.body && typeof r.body === 'object' ? r.body : {}
+            const def = oi.CheckpointLoaderSimple
+            const req = def && def.input && def.input.required
+            const list = req && Array.isArray(req.ckpt_name) && Array.isArray(req.ckpt_name[0]) ? req.ckpt_name[0] : []
+            const ids = list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((s) => typeof s === 'string' && s.length > 0)
+            return jsonOut(res, 200, { ok: true, models: ids.slice(0, 200) })
+          }
           // openai 族协议要求 /v1 前缀（如 agnes-ai.cn 无 /v1 路径会被 Cloudflare 403）
           if ((protocol === 'openai-images' || protocol === 'openai-completions') && !/\/v[0-9]+$/.test(String(endpoint || ''))) {
             endpoint = endpoint + '/v1'

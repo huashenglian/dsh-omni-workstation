@@ -6,8 +6,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const dshHome = mkdtempSync(join(tmpdir(), 'her-eyes-vtools-'))
+
 process.env.DSH_HOME = dshHome
 
+process.env.DSH_HER_EYES_CONFIG_DIR = dshHome
 const { apply, _resetVisionTools } = await import('../lib/index.js')
 
 const VISION_TOOL_NAMES = ['zoom_image', 'sample_colors', 'image_diff', 'ocr_image', 'detect_elements', 'show_image']

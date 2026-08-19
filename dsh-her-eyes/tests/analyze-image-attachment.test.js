@@ -7,8 +7,10 @@ import { join } from 'node:path'
 import { createServer } from 'node:http'
 
 const dshHome = mkdtempSync(join(tmpdir(), 'her-eyes-attach-'))
+
 process.env.DSH_HOME = dshHome
 
+process.env.DSH_HER_EYES_CONFIG_DIR = dshHome
 const { apply, toolDef, sniffMediaType } = await import('../lib/index.js')
 
 const PNG_BYTES = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 1)])

@@ -6,8 +6,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const dshHome = mkdtempSync(join(tmpdir(), 'her-eyes-gate-'))
+
 process.env.DSH_HOME = dshHome
 
+process.env.DSH_HER_EYES_CONFIG_DIR = dshHome
 const { apply, syncTwins, _resetLastSource } = await import('../lib/index.js')
 
 function makeFakeCtx(providers) {

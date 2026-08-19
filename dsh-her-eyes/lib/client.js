@@ -57,6 +57,9 @@ window.__ModuleLoader__.load({
 				protoGoogleGemini: "google-gemini",
 				endpointLabel: "端点 URL",
 				endpointPh: "如 https://api.openai.com/v1 或 http://127.0.0.1:8080（Ollama）",
+				comfyEndpointPh: "http://127.0.0.1:8188",
+				comfyKeyPh: "可选，反代 Bearer Token（本地默认留空）",
+				comfyHint: "ComfyUI：使用内置默认工作流，模型列表来自服务器 checkpoints 目录。",
 				ollamaHint: "Ollama 为本地模型服务器：只需填写 URL，无需 API Key。",
 				apiKeyLabel: "API Key（输入后自动保存；留空保持不变）",
 				apiKeySet: "已设置（输入新值以替换）",
@@ -231,6 +234,9 @@ ddHint: "选择模型",
 				protoGoogleGemini: "google-gemini",
 				endpointLabel: "Endpoint URL",
 				endpointPh: "e.g. https://api.openai.com/v1 or http://127.0.0.1:8080 (Ollama)",
+				comfyEndpointPh: "http://127.0.0.1:8188",
+				comfyKeyPh: "Optional, proxy Bearer Token (leave blank for local)",
+				comfyHint: "ComfyUI: uses the built-in default workflow; model list comes from the server checkpoints dir.",
 				ollamaHint: "Ollama is a local model server: just fill in the URL, no API Key needed.",
 				apiKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
 				apiKeySet: "Set (enter new value to replace)",
@@ -453,7 +459,7 @@ ddHint: "Pick a model",
 			".vlm-card.dragging { opacity: 0.45; border-style: dashed; }",
 			".vlm-card.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
 			// ---- tabs & module switches ----
-			".vlm-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 60; padding: 6px 0; margin: -6px 0 -2px; }",
+		".vlm-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 60; padding: 6px 0; margin: -6px 0 -2px; background: var(--dsw-alias-bg-base, light-dark(#ffffff, rgb(21, 21, 23))); }",
 			".vlm-tab { position: relative; padding: 6px 28px 6px 14px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: transparent; color: var(--dsh-fg-muted, #888); cursor: pointer; font-size: 13px; flex: 0 1 auto; white-space: nowrap; }",
 			".vlm-tab.active { background: var(--dsh-bg-2, #333); border-color: var(--dsh-accent, #58a6ff); color: var(--dsh-fg, #eee); }",
 			".vlm-tab-dot { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }",
@@ -719,6 +725,7 @@ ddHint: "Pick a model",
 		var PROVIDERS_UI = {
 			custom: { fixed: false, keyRequired: true },
 			ollama: { fixed: false, keyRequired: false },
+			comfyui: { fixed: false, keyRequired: false, hideProtocol: true, name: "ComfyUI" },
 			agnes: { fixed: true, protocol: "anthropic-messages", endpoint: "https://apihub.agnes-ai.com", name: "Agnes AI" },
 			"agnes-cn": { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.agnes-ai.cn", name: "Agnes AI CN" },
 			anthropic: { fixed: true, protocol: "anthropic-messages", endpoint: "https://api.anthropic.com", name: "Anthropic" },
@@ -752,7 +759,7 @@ ddHint: "Pick a model",
 		var PROVIDER_IDS_UI = Object.keys(PROVIDERS_UI).sort();
 		// 生图面板供应商：仅保留已知提供生图模型的供应商（排除纯文本/编码/不支持的）
 		var IMGGEN_PROVIDER_IDS_UI = PROVIDER_IDS_UI.filter(function (p) {
-			return p === "custom" || p === "ollama" ||
+			return p === "custom" || p === "comfyui" ||
 				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface", "bailian"].indexOf(p) >= 0;
 		});
 
@@ -761,6 +768,7 @@ ddHint: "Pick a model",
 			if (!m) return id;
 			if (id === "custom") return t("providerCustom");
 			if (id === "ollama") return t("providerOllama");
+			if (id === "comfyui") return "ComfyUI";
 			return m.name;
 		}
 
@@ -1107,6 +1115,7 @@ ddHint: "Pick a model",
 			var meta = PROVIDERS_UI[cfg.provider] || {};
 			var isFixed = !!meta.fixed;
 			var isOllama = cfg.provider === "ollama";
+			var isComfy = cfg.provider === "comfyui";
 			var defaultPath = cfg.protocol === "openai-completions" ? "/chat/completions" : "/images/generations";
 			var keyDraftValue = props.keyDraft || "";
 			var isRevealed = !!props.revealed;
@@ -1146,9 +1155,9 @@ ddHint: "Pick a model",
 			var providerGroups = [
 				{ label: t("providerGroupGeneral"), options: [
 					{ value: "custom", label: t("providerCustom") },
-					{ value: "ollama", label: t("providerOllama") }
+					{ value: "comfyui", label: "ComfyUI" }
 				] },
-				{ label: t("providerGroupBuiltin"), options: IMGGEN_PROVIDER_IDS_UI.filter(function (p) { return p !== "custom" && p !== "ollama"; }).map(function (p) {
+				{ label: t("providerGroupBuiltin"), options: IMGGEN_PROVIDER_IDS_UI.filter(function (p) { return p !== "custom" && p !== "comfyui"; }).map(function (p) {
 					return { value: p, label: providerDisplay(p, t) };
 				}) }
 			];
@@ -1271,7 +1280,7 @@ ddHint: "Pick a model",
 					: React.createElement(Field, {
 						label: t("imggenEndpointLabel"),
 						value: cfg.endpoint || "",
-						placeholder: t("endpointPh"),
+						placeholder: isComfy ? t("comfyEndpointPh") : t("endpointPh"),
 						onChange: function (e) { props.onPatch("endpoint", e.target.value); }
 					}),
 				isFixed || meta.hideProtocol ? null : React.createElement(Field, {
@@ -1293,7 +1302,7 @@ ddHint: "Pick a model",
 								className: "vlm-input vlm-key-input",
 								type: isRevealed ? "text" : "password",
 								value: keyDraftValue,
-								placeholder: cfg.apiKeySet ? t("apiKeySet") : "sk-...",
+								placeholder: cfg.apiKeySet ? t("apiKeySet") : (isComfy ? t("comfyKeyPh") : "sk-..."),
 								onChange: function (e) { props.onSaveKey(e.target.value); }
 							}),
 							React.createElement("button", {
@@ -1334,7 +1343,7 @@ ddHint: "Pick a model",
 						onClick: function () { props.onFetchModels(); }
 					}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn"))
 				]),
-				React.createElement("div", { className: "vlm-module-row" }, [
+				isComfy ? null : React.createElement("div", { className: "vlm-module-row" }, [
 					React.createElement("label", { className: "vlm-switch" }, [
 						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
 						React.createElement("span", { className: "vlm-switch-slider" })
@@ -1351,13 +1360,14 @@ ddHint: "Pick a model",
 						placeholder: "2",
 						onChange: function (e) { props.onPatch("retryCount", e.target.value); }
 					}),
-					React.createElement(SelectField, {
+					isComfy ? null : React.createElement(SelectField, {
 						label: t("imggenResponseFormatLabel"),
 						value: cfg.responseFormat || "auto",
 						options: formatOptions,
 						onChange: function (e) { props.onPatch("responseFormat", e.target.value); }
 					})
 				]),
+				isComfy ? React.createElement("p", { className: "vlm-status" }, t("comfyHint")) : null,
 				React.createElement("p", { className: "vlm-status" },
 					t("imggenStatusPrefix") + (props.visible ? t("toolVisible") : t("toolHidden")) +
 					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
@@ -2294,6 +2304,11 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			}
 			function changeIgProvider(v) {
 				if (!PROVIDERS_UI[v]) return;
+				// ComfyUI render can take minutes (queue + render): bump the default
+				// timeout to 600000ms unless the user already changed it from the global 300000.
+				if (v === "comfyui" && (igc.timeoutMs == null || igc.timeoutMs === 300000)) {
+					patchImggen("timeoutMs", 600000);
+				}
 				patchImggen("provider", v);
 			}
 			function resetImggen() {
