@@ -124,11 +124,27 @@ function nearestResize(data, srcW, srcH, dstW, dstH) {
 }
 
 /**
- * 写工件到 `<cwd>/.her-eyes/artifacts/<name>`。cwd 来自 exec.agent.meta.cwd，
- * 取不到用 process.cwd()。返回绝对路径。
+ * 解析会话工作目录。harness 不填充 exec.agent.meta.cwd（web 会话实测为空），
+ * 打开的工作区路径在会话 durable header 上（exec.agent.session.header.cwd）。
+ * 二者都取不到返回 ''，由调用方决定兜底（saveArtifact 才回退 process.cwd()）。
+ */
+function sessionCwd(exec) {
+  const meta = exec && exec.agent && exec.agent.meta && exec.agent.meta.cwd ? exec.agent.meta.cwd : ''
+  if (meta) return meta
+  const s = exec && exec.agent && exec.agent.session
+  if (s) {
+    if (s.header && s.header.cwd) return s.header.cwd
+    if (s.cwd) return s.cwd
+  }
+  return ''
+}
+
+/**
+ * 写工件到 `<cwd>/.her-eyes/artifacts/<name>`。cwd 来自 exec.agent.meta.cwd 或
+ * 会话 header cwd，取不到用 process.cwd()。返回绝对路径。
  */
 export function saveArtifact(exec, name, buffer) {
-  const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+  const cwd = sessionCwd(exec)
   const base = cwd || process.cwd()
   const dir = join(base, '.her-eyes', 'artifacts')
   mkdirSync(dir, { recursive: true })
@@ -755,7 +771,7 @@ export function buildVisionToolDefs(deps) {
         path = saveArtifact(exec, tsName('show_', ext), buffer)
       } else {
         const rawPath = String(args && args.image_path || '').trim()
-        const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+        const cwd = sessionCwd(exec) || undefined
         path = rawPath
         if (cwd && !/^[A-Za-z]:[\\/]/.test(rawPath) && !rawPath.startsWith('/') && !rawPath.startsWith('\\\\')) {
           path = join(cwd, rawPath)

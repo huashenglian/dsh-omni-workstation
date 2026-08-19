@@ -1,6 +1,6 @@
 {
     "name":  "dsh-her-eyes",
-    "version":  "1.7.0",
+    "version":  "1.8.0",
     "description":  "Application-level Vision-Language-Model (VLM) analyzer for DeepSeek Harness: analyze_image tool with a multi-card list (OpenAI/Anthropic/Gemini protocols; Custom/Ollama plus 28 built-in fixed providers with baked-in URLs), Tabbed settings (VLM / Image Gen module switches), batch card actions, stock-take delete confirm, per-card timeout, JPEG->PNG re-encode fallback, single-request failover, and an auto-saving web settings page.",
     "type":  "module",
     "main":  "./lib/index.js",

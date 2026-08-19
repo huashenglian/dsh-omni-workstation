@@ -2,7 +2,13 @@
 
 > [Back to root AGENTS.md](..)
 
-## v2.0 (当前) — 视觉工具箱（Vision Toolkit）
+## v2.6.1 — 会话工作目录解析修复（generate_image 首调即成功）
+- harness **不填充 `exec.agent.meta.cwd`**（web 会话实测为空）→ 新增 `sessionCwd(exec)` 回退链 `agent.meta.cwd → agent.session.header.cwd → agent.session.cwd`
+- `generate_image` / `resolveImage` / dashscope refImage / vision-tools `saveArtifact` / `show_image` 全部改用；不回退 process.cwd()（输出必须落已打开工作区）
+- 修复后云端 E2E（bailian-LLM）首次调用无需 output_dir 即成功，`output-dir-errors=0`
+- 详见 [docs/decisions.md](../docs/decisions.md) v2.6.1 条目
+
+## v2.0 (历史) — 视觉工具箱（Vision Toolkit）
 - 新增 6 个 AI 可调用视觉工具（`lib/vision-tools.js`，`buildVisionToolDefs(deps)` 工厂，与 analyze_image 共享 resolveImage/askVlm 回退链）：
   - `zoom_image`：局部裁剪放大落盘 `zoom_*.png`（region 分数/像素两语义）— 纯本地 0 token
   - `sample_colors`：主色调采样（64×64 + 32-bin 量化，可选 region）— 纯本地 0 token

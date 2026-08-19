@@ -113,8 +113,12 @@ const defaultImggenConfig = () => ({
   timeoutMs: 300000,
   retryCount: 2,
   responseFormat: 'auto', // 'auto' | 'b64_json' | 'url'
-  filterImageModels: true
+  filterImageModels: true,
+  comfyWorkflow: '', // v2.6: custom ComfyUI workflow (API format JSON string; '' = built-in default)
+  comfyMapping: null // v2.6: { sampler, checkpoint, latent, positive, negative } node-id overrides
 })
+
+const COMFY_MAPPING_KEYS = ['sampler', 'checkpoint', 'latent', 'positive', 'negative']
 
 function normalizeImggenConfig(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultImggenConfig()
@@ -122,6 +126,15 @@ function normalizeImggenConfig(raw) {
   // bailian（阿里云百炼）始终走 DashScope 原生协议；comfyui 固定走 ComfyUI 协议（UI 隐藏 protocol 字段）
   const protocol = provider === 'bailian' ? 'dashscope-image' : provider === 'comfyui' ? 'comfyui-image' : (IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images')
   const retryRaw = Math.floor(Number(raw.retryCount))
+  let comfyMapping = null
+  if (raw.comfyMapping && typeof raw.comfyMapping === 'object') {
+    const out = {}
+    for (const k of COMFY_MAPPING_KEYS) {
+      const v = raw.comfyMapping[k]
+      if (typeof v === 'string' && v.trim() !== '') out[k] = String(v).trim()
+    }
+    if (Object.keys(out).length > 0) comfyMapping = out
+  }
   return {
     provider,
     protocol,
@@ -132,7 +145,9 @@ function normalizeImggenConfig(raw) {
     timeoutMs: clampTimeout(raw.timeoutMs, 300000),
     retryCount: Number.isFinite(retryRaw) && retryRaw > 0 ? Math.min(retryRaw, 10) : 2,
     responseFormat: ['auto', 'b64_json', 'url'].includes(raw.responseFormat) ? raw.responseFormat : 'auto',
-    filterImageModels: raw.filterImageModels !== false
+    filterImageModels: raw.filterImageModels !== false,
+    comfyWorkflow: typeof raw.comfyWorkflow === 'string' ? raw.comfyWorkflow : '',
+    comfyMapping
   }
 }
 
@@ -146,6 +161,8 @@ const maskedImggen = (c) => ({
   retryCount: c.retryCount,
   responseFormat: c.responseFormat,
   filterImageModels: c.filterImageModels,
+  comfyWorkflow: c.comfyWorkflow,
+  comfyMapping: c.comfyMapping,
   apiKeySet: c.apiKey !== ''
 })
 
@@ -577,6 +594,22 @@ function collectAttachmentRefs(events) {
   return refs
 }
 
+// ---------- session cwd resolution ----------
+// The harness does NOT populate `exec.agent.meta.cwd` (verified empty in web
+// sessions); the opened workspace path lives on the session's durable header
+// (`exec.agent.session.header.cwd`). Fall back across both so generated images
+// and artifacts land in the program's opened workspace, not process.cwd().
+function sessionCwd(exec) {
+  const meta = exec && exec.agent && exec.agent.meta && exec.agent.meta.cwd ? exec.agent.meta.cwd : ''
+  if (meta) return meta
+  const s = exec && exec.agent && exec.agent.session
+  if (s) {
+    if (s.header && s.header.cwd) return s.header.cwd
+    if (s.cwd) return s.cwd
+  }
+  return ''
+}
+
 // ---------- shared image resolution (analyze_image + vision toolkit) ----------
 // Resolve `image_path` / `attachment_id` from tool args into image bytes + mime.
 // Shared by analyze_image and the vision toolkit tools. Error messages are
@@ -607,7 +640,7 @@ async function resolveImage(exec, args) {
     mime = sniffMediaType(new Uint8Array(buffer)) || 'image/png'
   } else {
     let resolved = imagePath
-    const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+    const cwd = sessionCwd(exec) || undefined
     if (cwd && !/^[A-Za-z]:[\\/]/.test(imagePath) && !imagePath.startsWith('/') && !imagePath.startsWith('\\\\')) {
       resolved = join(cwd, imagePath)
     }
@@ -1143,6 +1176,7 @@ let toolDisposer = null
 let toolVisible = false
 let imggenDisposer = null
 let imggenVisible = false
+let imggenComfyMode = false
 // vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show).
 // Registered via buildVisionToolDefs when visionToolsEnabled is on; gated
 // independently of vlmEnabled because the local-only tools need no cards.
@@ -1284,7 +1318,8 @@ async function fetchImageBuffer(url, timeoutMs) {
 // Built-in ComfyUI default workflow in API format (node ids match the webui
 // template: 3 KSampler, 4 CheckpointLoaderSimple, 5 EmptyLatentImage,
 // 6/7 CLIPTextEncode positive/negative, 8 VAEDecode, 9 SaveImage).
-// Custom "API-format graph" import / node-mapping editing = future version.
+// v2.6: custom workflows are also supported — API format (paste) or standard
+// UI format (file import, converted via the server's /object_info).
 const comfyDefaultWorkflow = () => ({
   '3': { class_type: 'KSampler', inputs: { seed: Math.floor(Math.random() * 1125899906842624), steps: 20, cfg: 8, sampler_name: 'euler', scheduler: 'normal', denoise: 1, model: ['4', 0], positive: ['6', 0], negative: ['7', 0], latent_image: ['5', 0] } },
   '4': { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: '' } },
@@ -1294,6 +1329,111 @@ const comfyDefaultWorkflow = () => ({
   '8': { class_type: 'VAEDecode', inputs: { samples: ['3', 0], vae: ['4', 2] } },
   '9': { class_type: 'SaveImage', inputs: { filename_prefix: 'ComfyUI', images: ['8', 0] } }
 })
+
+// Convert a standard ComfyUI UI-format workflow ({nodes, links}) into API
+// format using the server's /object_info for widget name ordering. Ported from
+// the reference ComfyUI_Web_App comfyToApiFormat core (MVP: no combo coercion,
+// no UI-only-node set — objectInfo existence covers custom UI-only nodes).
+function comfyUiToApi(ui, objectInfo) {
+  const links = Array.isArray(ui.links) ? ui.links : []
+  const prompt = {}
+  const findLink = (id) => links.find((l) => l && l[0] === id)
+  for (const node of Array.isArray(ui.nodes) ? ui.nodes : []) {
+    if (!node || typeof node !== 'object' || node.mode === 4 || node.mode === 2) continue
+    if (objectInfo && !objectInfo[node.type]) continue
+    const inputs = {}
+    if (Array.isArray(node.inputs)) {
+      for (let i = 0; i < node.inputs.length; i++) {
+        const input = node.inputs[i]
+        if (!input) continue
+        let link = null
+        if (typeof input.link === 'number') link = findLink(input.link)
+        if (!link && node.id != null) link = links.find((l) => String(l[3]) === String(node.id) && l[4] === i)
+        if (link && link[1] != null && link[2] != null) {
+          inputs[input.name] = [String(link[1]), link[2]]
+        }
+      }
+    }
+    // Map widgets_values onto input names using object_info order.
+    if (Array.isArray(node.widgets_values) && node.widgets_values.length > 0) {
+      let names = []
+      const def = objectInfo && objectInfo[node.type]
+      if (def && def.input) {
+        const all = Object.assign({}, def.input.required || {}, def.input.optional || {})
+        names = Object.keys(all)
+      } else {
+        // fallback: names carried on the input entries (input.widget.name)
+        for (const input of Array.isArray(node.inputs) ? node.inputs : []) {
+          if (input && input.widget && typeof input.widget.name === 'string') {
+            names.push(input.widget.name)
+            if (input.widget.name === 'seed' || input.widget.name === 'noise_seed') names.push(null)
+          }
+        }
+      }
+      let wi = 0
+      for (const name of names) {
+        if (wi >= node.widgets_values.length) break
+        if (name === null) { wi++; continue } // control_after_generate placeholder
+        // linked inputs are NOT widgets: they don't consume a widgets_values slot
+        if (name in inputs) continue
+        let value = node.widgets_values[wi]
+        // normalize 'randomize' seed placeholder to a numeric seed
+        if (name === 'seed' && value === 'randomize') value = Math.floor(Math.random() * 1125899906842624)
+        inputs[name] = value
+        wi++
+        // seed/noise_seed are immediately followed by a frontend-only
+        // control_after_generate widget value that is NOT in object_info
+        if (name === 'seed' || name === 'noise_seed') wi++
+      }
+    }
+    prompt[String(node.id)] = { class_type: node.type, inputs }
+  }
+  const hasImageOutput = Object.values(prompt).some((n) => n && (n.class_type === 'SaveImage' || n.class_type === 'PreviewImage'))
+  if (!hasImageOutput) throw new Error('工作流缺少 SaveImage / PreviewImage 输出节点，无法取回图像')
+  return prompt
+}
+
+// Detect the standard node mapping from an API-format prompt.
+function detectComfyMapping(api) {
+  const sampler = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'KSampler' || api[k].class_type === 'KSamplerAdvanced'))
+  const checkpoint = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'CheckpointLoaderSimple' || api[k].class_type === 'CheckpointLoader'))
+  const latent = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'EmptyLatentImage' || api[k].class_type === 'EmptySD3LatentImage'))
+  const missing = []
+  if (!sampler) missing.push('采样器(KSampler)')
+  if (!checkpoint) missing.push('Checkpoint加载器')
+  if (!latent) missing.push('空Latent(EmptyLatentImage)')
+  if (missing.length > 0) throw new Error('工作流缺少必需节点：' + missing.join('、'))
+  let positive = sampler
+  let negative = sampler
+  if (api[sampler] && api[sampler].inputs) {
+    if (Array.isArray(api[sampler].inputs.positive)) positive = String(api[sampler].inputs.positive[0])
+    if (Array.isArray(api[sampler].inputs.negative)) negative = String(api[sampler].inputs.negative[0])
+  }
+  return { sampler, checkpoint, latent, positive, negative }
+}
+
+// Parse raw pasted/imported workflow text -> { api, mapping, format }.
+async function prepareComfyWorkflow(raw, endpoint) {
+  let obj = null
+  try { obj = JSON.parse(raw) } catch (e) { throw new Error('工作流不是合法 JSON：' + String(e && e.message || e).slice(0, 120)) }
+  if (!obj || typeof obj !== 'object') throw new Error('工作流 JSON 必须是对象')
+  if (Array.isArray(obj.nodes)) {
+    // standard UI format: needs /object_info from the server
+    const base = String(endpoint || '').trim().replace(/\/+$/, '')
+    if (!base) throw new Error('标准格式工作流需要先填写 ComfyUI 端点 URL（用于获取节点定义）')
+    const r = await httpJson(base + '/object_info', 'GET', { Accept: 'application/json' }, undefined, 30000)
+    if (!r.ok || !r.body || typeof r.body !== 'object') throw new Error('获取 /object_info 失败（HTTP ' + r.status + '），无法解析标准工作流')
+    const api = comfyUiToApi(obj, r.body)
+    return { api, mapping: detectComfyMapping(api), format: 'ui' }
+  }
+  // API format: { nodeId: { class_type, inputs } }
+  const api = {}
+  for (const [id, n] of Object.entries(obj)) {
+    if (n && typeof n === 'object' && typeof n.class_type === 'string') api[id] = n
+  }
+  if (Object.keys(api).length === 0) throw new Error('既不是 API 格式（缺少 class_type），也不是标准格式（缺少 nodes 数组）')
+  return { api, mapping: detectComfyMapping(api), format: 'api' }
+}
 
 function comfyWsUrl(base) {
   const b = String(base || '').trim()
@@ -1399,9 +1539,12 @@ function comfySubmitError(res) {
   return parts.join('；') || String(res.message || '').slice(0, 300)
 }
 
-const imggenToolDef = defineTool({
+// v2.6: the generate_image tool description is built dynamically — ComfyUI gets
+// backend-specific guidance only when it is the active provider.
+const COMFY_TOOL_HINT = '\n\n【ComfyUI 专用指引】当前生图后端为 ComfyUI：① prompt 必须用英文关键词短语、逗号分隔（SD 风格），如 "a orange cat, sitting on windowsill, sunny, detailed"，不要写长句；② size 用 8 的倍数，SDXL 推荐 1024x1024（竖图 832x1216，横图 1216x832）；③ 参数 n 映射为 batch_size；④ 模型已在配置面板选定（服务器 checkpoint），无需也不能在 prompt 中指定模型。'
+const buildImggenToolDef = (comfy) => defineTool({
   name: 'generate_image',
-  description: '生成图片并保存到指定目录，返回文件路径。prompt 描述图片内容，output_dir 指定保存目录（不指定则保存到工作区根目录）。生成后必须立即调用 analyze_image 验证图片质量。',
+  description: '生成图片并保存到指定目录，返回文件路径。prompt 描述图片内容，output_dir 指定保存目录（不指定则保存到工作区根目录）。生成后必须立即调用 analyze_image 验证图片质量。' + (comfy ? COMFY_TOOL_HINT : ''),
   parameters: {
     prompt: { type: 'string', required: true, description: '图像生成提示词：详细描述想生成的图片内容、风格、构图、色调等' },
     size: { type: 'string', description: '图片尺寸，如 1024x1024 / 1792x1024；留空用模型默认' },
@@ -1449,7 +1592,8 @@ const imggenToolDef = defineTool({
     }
     // v2.5: resolve output dir BEFORE any API call — never fall back to
     // process.cwd(); output must land in the program's opened workspace.
-    const agentCwd = exec && exec.agent && exec.agent.meta && exec.agent.meta.cwd ? exec.agent.meta.cwd : ''
+    // v2.6.1: harness leaves agent.meta.cwd empty; read the session header cwd.
+    const agentCwd = sessionCwd(exec)
     const rawOut = args && args.output_dir && String(args.output_dir).trim() ? String(args.output_dir).trim() : ''
     let imgDir
     if (rawOut) {
@@ -1499,7 +1643,7 @@ const imggenToolDef = defineTool({
       if (refImage) {
         try {
           let refPath = refImage
-          const cwd = exec && exec.agent && exec.agent.meta ? exec.agent.meta.cwd : undefined
+          const cwd = sessionCwd(exec) || undefined
           if (cwd && !/^[A-Za-z]:[\\/]/.test(refPath) && !refPath.startsWith('/') && !refPath.startsWith('\\\\')) {
             refPath = join(cwd, refPath)
           }
@@ -1588,14 +1732,25 @@ const imggenToolDef = defineTool({
           }
           break // wait outcome is final — do not re-submit the same prompt
         }
-        const wf = comfyDefaultWorkflow()
-        wf['4'].inputs.ckpt_name = igc.model
-        wf['5'].inputs.width = cfSize.width
-        wf['5'].inputs.height = cfSize.height
-        wf['5'].inputs.batch_size = n
-        wf['6'].inputs.text = prompt
+        // v2.6: use the configured workflow (custom API format) or the built-in default,
+        // then inject prompt/size/seed via the (possibly custom) node mapping.
+        let wf = comfyDefaultWorkflow()
+        const rawWf = typeof igc.comfyWorkflow === 'string' && igc.comfyWorkflow.trim() ? igc.comfyWorkflow.trim() : ''
+        if (rawWf) {
+          try { wf = JSON.parse(rawWf) } catch { wf = comfyDefaultWorkflow(); cfDetail = '（自定义工作流 JSON 解析失败，已回退默认工作流）' }
+        }
+        const mp = (igc.comfyMapping && typeof igc.comfyMapping === 'object')
+          ? igc.comfyMapping
+          : { sampler: '3', checkpoint: '4', latent: '5', positive: '6', negative: '7' }
+        const inj = (id) => wf[id] && wf[id].inputs ? wf[id].inputs : null
+        let injected = false
+        if (mp.checkpoint && inj(mp.checkpoint)) { inj(mp.checkpoint).ckpt_name = igc.model; injected = true }
+        if (mp.latent && inj(mp.latent)) { inj(mp.latent).width = cfSize.width; inj(mp.latent).height = cfSize.height; inj(mp.latent).batch_size = n; injected = true }
+        if (mp.positive && inj(mp.positive)) { inj(mp.positive).text = prompt; injected = true }
+        if (mp.sampler && inj(mp.sampler)) { inj(mp.sampler).seed = Math.floor(Math.random() * 1125899906842624) }
+        if (!injected && !cfDetail) cfDetail = '（映射节点未命中，使用工作流原样参数）'
         const clientId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'dsh-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
-        const submitRes = await httpJson(cfBase + '/prompt', 'POST', cfHeaders, Object.assign({}, wf, { client_id: clientId }), clampTimeout(igc.timeoutMs, 300000))
+        const submitRes = await httpJson(cfBase + '/prompt', 'POST', cfHeaders, { prompt: wf, client_id: clientId }, clampTimeout(igc.timeoutMs, 300000))
         const promptId = submitRes.ok && submitRes.body && submitRes.body.prompt_id ? submitRes.body.prompt_id : null
         if (!promptId) {
           last = { data: [], status: submitRes.status, message: comfySubmitError(submitRes) }
@@ -2008,17 +2163,22 @@ async function syncToolRegistration() {
     }
     toolVisible = false
   }
-  // imggen tool
+  // imggen tool (v2.6: description is provider-dependent — re-register when
+  // the comfy mode flips so the ComfyUI-only guidance is injected only for it)
   const shouldImggen = cfg.imggenEnabled !== false && isImggenConfigValid(cfg.imggenConfig)
-  if (shouldImggen && !imggenVisible) {
-    imggenDisposer = appCtx.tools.register(imggenToolDef)
+  const comfyMode = shouldImggen && (cfg.imggenConfig || {}).provider === 'comfyui'
+  if (shouldImggen && (!imggenVisible || imggenComfyMode !== comfyMode)) {
+    if (imggenDisposer) { try { imggenDisposer() } catch { /* best-effort */ } }
+    imggenDisposer = appCtx.tools.register(buildImggenToolDef(comfyMode))
     imggenVisible = true
+    imggenComfyMode = comfyMode
   } else if (!shouldImggen && imggenVisible) {
     if (imggenDisposer) {
       imggenDisposer()
       imggenDisposer = null
     }
     imggenVisible = false
+    imggenComfyMode = false
   }
   // vision toolkit tools (independent of vlmEnabled: local-only tools work
   // with no cards; ocr/detect degrade to NO_VLM_CARDS without cards).
@@ -2083,7 +2243,12 @@ function applyPatch(cfg, patch) {
         c.imggenConfig.provider = value
         const meta = PROVIDERS[value]
         if (value === 'bailian') { c.imggenConfig.protocol = 'dashscope-image'; c.imggenConfig.apiPath = '' }
-        else if (value === 'comfyui') { c.imggenConfig.protocol = 'comfyui-image'; c.imggenConfig.apiPath = '' }
+        else if (value === 'comfyui') {
+          c.imggenConfig.protocol = 'comfyui-image'; c.imggenConfig.apiPath = ''
+          // ComfyUI render can take minutes (queue + render): bump the default
+          // timeout to 600000 unless the user already changed it from 300000.
+          if (c.imggenConfig.timeoutMs == null || c.imggenConfig.timeoutMs === 300000) c.imggenConfig.timeoutMs = 600000
+        }
         else if (meta && meta.fixedUrl) { c.imggenConfig.protocol = 'openai-images'; c.imggenConfig.endpoint = meta.endpoint; c.imggenConfig.apiPath = '' }
       } else if (field === 'protocol' && IMGGEN_PROTOCOLS.includes(value)) c.imggenConfig.protocol = value
       else if (field === 'endpoint') c.imggenConfig.endpoint = String(value || '').trim()
@@ -2093,6 +2258,16 @@ function applyPatch(cfg, patch) {
       else if (field === 'retryCount') c.imggenConfig.retryCount = Math.max(1, Math.min(Math.floor(Number(value) || 2), 10))
       else if (field === 'responseFormat' && ['auto', 'b64_json', 'url'].includes(value)) c.imggenConfig.responseFormat = value
       else if (field === 'filterImageModels') c.imggenConfig.filterImageModels = value === true
+      else if (field === 'comfyWorkflow') c.imggenConfig.comfyWorkflow = typeof value === 'string' ? value : ''
+      else if (field === 'comfyWorkflowPrepared') {
+        // { workflow, mapping } validated server-side before applyPatch
+        if (value && typeof value === 'object') {
+          if (typeof value.workflow === 'string') c.imggenConfig.comfyWorkflow = value.workflow
+          if (value.mapping && typeof value.mapping === 'object') c.imggenConfig.comfyMapping = value.mapping
+          else c.imggenConfig.comfyMapping = null
+        }
+      }
+      else if (field === 'comfyMapping' && value && typeof value === 'object') c.imggenConfig.comfyMapping = value
      else if (field === 'apiKey') {
        if (typeof value === 'string' && value.length > 0) c.imggenConfig.apiKey = value
        else if (value === null) c.imggenConfig.apiKey = ''
@@ -2113,7 +2288,13 @@ function applyPatch(cfg, patch) {
     }
   }
   if (p.imggenPresetAdd === true) {
-    const np = { id: genPresetId(), name: '新预设', config: defaultImggenConfig() }
+    // v2.6: new presets are numbered so multiple unnamed presets are distinguishable
+    let max = 0
+    for (const pr of (c.imggenPresets || [])) {
+      const m = /^新预设(?:\s(\d+))?$/.exec(pr.name || '')
+      if (m) max = Math.max(max, m[1] ? Number(m[1]) : 1)
+    }
+    const np = { id: genPresetId(), name: '新预设 ' + (max + 1), config: defaultImggenConfig() }
     c.imggenPresets = (c.imggenPresets || []).concat([np])
     c.activeImggenPreset = np.id
     c.imggenConfig = Object.assign({}, np.config)
@@ -2418,6 +2599,15 @@ function apply(ctx) {
         try {
           const raw = await readBody(req)
           const patch = raw ? JSON.parse(raw) : {}
+          // v2.6: raw workflow paste/import is parsed here (UI format needs the
+          // server's /object_info) BEFORE applyPatch stores the final API format.
+          const wfField = patch && patch.imggenConfig && patch.imggenConfig.field === 'comfyWorkflow'
+          if (wfField && typeof patch.imggenConfig.value === 'string' && patch.imggenConfig.value.trim() !== '') {
+            const cfg0 = await loadConfig(ctx)
+            const endpoint = (cfg0.imggenConfig && cfg0.imggenConfig.endpoint) || ''
+            const prep = await prepareComfyWorkflow(patch.imggenConfig.value, endpoint)
+            patch.imggenConfig = { field: 'comfyWorkflowPrepared', value: { workflow: JSON.stringify(prep.api), mapping: prep.mapping } }
+          }
           const cfg = await loadConfig(ctx)
           const next = applyPatch(cfg, patch)
           await storeConfig(ctx, next)

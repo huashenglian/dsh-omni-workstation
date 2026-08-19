@@ -60,6 +60,23 @@ window.__ModuleLoader__.load({
 				comfyEndpointPh: "http://127.0.0.1:8188",
 				comfyKeyPh: "可选，反代 Bearer Token（本地默认留空）",
 				comfyHint: "ComfyUI：使用内置默认工作流，模型列表来自服务器 checkpoints 目录。",
+				comfyModelPh: "点击右侧获取可用模型，选择服务器 checkpoint（如 sd_xl_base_1.0.safetensors）",
+				imggenToolHidden: " · generate_image 工具已隐藏（生图配置无效）",
+				imggenToolVisible: " · generate_image 工具已启用",
+				comfyWfLabel: "ComfyUI 工作流",
+				comfyWfPh: "粘贴工作流 JSON（API 格式，或 WebUI 保存的标准格式；留空用内置默认工作流）",
+				comfyWfImport: "导入文件",
+				comfyWfParse: "解析工作流",
+				comfyWfReset: "恢复默认",
+				comfyWfError: "工作流解析失败",
+				comfyWfMappingLabel: "节点映射（采样器/Checkpoint/空Latent/正向/负向）",
+				comfyWfDefaultTag: "内置默认工作流",
+				comfyWfImportPh: "选择 .json 工作流文件…",
+				comfyMapSampler: "采样器",
+				comfyMapCheckpoint: "Checkpoint",
+				comfyMapLatent: "空Latent",
+				comfyMapPositive: "正向",
+				comfyMapNegative: "负向",
 				ollamaHint: "Ollama 为本地模型服务器：只需填写 URL，无需 API Key。",
 				apiKeyLabel: "API Key（输入后自动保存；留空保持不变）",
 				apiKeySet: "已设置（输入新值以替换）",
@@ -237,6 +254,23 @@ ddHint: "选择模型",
 				comfyEndpointPh: "http://127.0.0.1:8188",
 				comfyKeyPh: "Optional, proxy Bearer Token (leave blank for local)",
 				comfyHint: "ComfyUI: uses the built-in default workflow; model list comes from the server checkpoints dir.",
+				comfyModelPh: "Click Fetch to pick a server checkpoint (e.g. sd_xl_base_1.0.safetensors)",
+				imggenToolHidden: " · generate_image tool hidden (no valid image-gen config)",
+				imggenToolVisible: " · generate_image tool enabled",
+				comfyWfLabel: "ComfyUI Workflow",
+				comfyWfPh: "Paste workflow JSON (API format, or standard WebUI format; blank = built-in default)",
+				comfyWfImport: "Import file",
+				comfyWfParse: "Parse workflow",
+				comfyWfReset: "Reset default",
+				comfyWfError: "Workflow parse failed",
+				comfyWfMappingLabel: "Node mapping (sampler/checkpoint/latent/positive/negative)",
+				comfyWfDefaultTag: "Built-in default workflow",
+				comfyWfImportPh: "Choose a .json workflow file…",
+				comfyMapSampler: "Sampler",
+				comfyMapCheckpoint: "Checkpoint",
+				comfyMapLatent: "Latent",
+				comfyMapPositive: "Positive",
+				comfyMapNegative: "Negative",
 				ollamaHint: "Ollama is a local model server: just fill in the URL, no API Key needed.",
 				apiKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
 				apiKeySet: "Set (enter new value to replace)",
@@ -459,7 +493,7 @@ ddHint: "Pick a model",
 			".vlm-card.dragging { opacity: 0.45; border-style: dashed; }",
 			".vlm-card.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
 			// ---- tabs & module switches ----
-		".vlm-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 60; padding: 6px 0; margin: -6px 0 -2px; background: var(--dsw-alias-bg-base, light-dark(#ffffff, rgb(21, 21, 23))); }",
+		".vlm-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 60; padding: 6px 0; margin: -6px 0 -2px; background: var(--dsw-alias-bg-layer-2, light-dark(#ffffff, rgb(44, 44, 46))); }",
 			".vlm-tab { position: relative; padding: 6px 28px 6px 14px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: transparent; color: var(--dsh-fg-muted, #888); cursor: pointer; font-size: 13px; flex: 0 1 auto; white-space: nowrap; }",
 			".vlm-tab.active { background: var(--dsh-bg-2, #333); border-color: var(--dsh-accent, #58a6ff); color: var(--dsh-fg, #eee); }",
 			".vlm-tab-dot { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }",
@@ -516,6 +550,14 @@ ddHint: "Pick a model",
 			".vlm-preset-menu-item.active { background: rgba(88,166,255,0.18); font-weight: 500; }",
 			".vlm-preset-divider { height: 1px; background: var(--dsh-border, #555); opacity: 0.3; margin: 6px 0; }",
 			".vlm-preset-del-btn:disabled { opacity: 0.35; cursor: not-allowed; }",
+		// ---- comfy workflow editor ----
+		".vlm-comfy-wf { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }",
+		".vlm-comfy-wf-input { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; min-height: 88px; resize: vertical; }",
+		".vlm-comfy-wf-actions { gap: 8px; }",
+		".vlm-comfy-wf-import { cursor: pointer; display: inline-flex; align-items: center; }",
+		".vlm-comfy-wf-mapping { display: flex; flex-direction: column; gap: 6px; }",
+		".vlm-label-sm { font-size: 11px; opacity: 0.8; }",
+		".vlm-msg-err { color: #f85149; font-size: 12px; word-break: break-all; }",
 			// ---- delete buttons (trash icons are always red) ----
 			".vlm-icon-btn.vlm-del-btn { color: #f85149; }",
 			".vlm-icon-btn.vlm-del-btn:hover { color: #ff6b63; background: rgba(248,81,73,0.12); }",
@@ -540,7 +582,8 @@ ddHint: "Pick a model",
 			"  .vlm-tab.active { color: light-dark(#fff, #eee); }",
 			"  .vlm-dd-group { color: light-dark(#666, #888); }",
 			// ---- preset dropdown + confirm/tool modal light theme (white bg + dark text) ----
-			"  .vlm-preset-dd-btn { color: light-dark(#555, #999); }",
+			"  .vlm-preset-dd-btn { color: light-dark(#666, #ccc); }",
+			"  .vlm-preset-dd-btn:hover { color: light-dark(#333, #fff); }",
 			"  .vlm-preset-menu { background-color: light-dark(#fff, #262626); border-color: light-dark(#ccc, #555); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }",
 			"  .vlm-preset-menu-item { color: light-dark(#222, #eee); }",
 			"  .vlm-preset-menu-item:hover { background-color: light-dark(rgba(0,120,255,0.10), rgba(88,166,255,0.12)); }",
@@ -1109,6 +1152,13 @@ ddHint: "Pick a model",
 		}
 
 		// ---------- image generation panel ----------
+		var COMFY_MAP_LABELS = [
+			{ key: "sampler", def: "3", labelKey: "comfyMapSampler" },
+			{ key: "checkpoint", def: "4", labelKey: "comfyMapCheckpoint" },
+			{ key: "latent", def: "5", labelKey: "comfyMapLatent" },
+			{ key: "positive", def: "6", labelKey: "comfyMapPositive" },
+			{ key: "negative", def: "7", labelKey: "comfyMapNegative" }
+		];
 		function ImggenPanel(props) {
 			var t = props.t;
 			var cfg = props.cfg || {};
@@ -1124,6 +1174,9 @@ ddHint: "Pick a model",
 			var modelList = Array.isArray(props.modelList) ? props.modelList : [];
 			var busy = props.busy;
 			var menuOpen = React.useState(false);
+			// v2.6: comfy workflow editor local state (draft text + error)
+			var wfText = React.useState(cfg.comfyWorkflow || "");
+			var wfErr = React.useState("");
 
 			// close the reset menu on outside click (also clears the armed confirm state)
 			React.useEffect(function () {
@@ -1320,7 +1373,7 @@ ddHint: "Pick a model",
 								className: "vlm-input vlm-model-input",
 								type: "text",
 								value: cfg.model || "",
-								placeholder: t("modelPh"),
+								placeholder: isComfy ? t("comfyModelPh") : t("modelPh"),
 								onChange: function (e) { props.onPatch("model", e.target.value); }
 							}),
 							modelList.length > 0 ? React.createElement("button", {
@@ -1368,8 +1421,59 @@ ddHint: "Pick a model",
 					})
 				]),
 				isComfy ? React.createElement("p", { className: "vlm-status" }, t("comfyHint")) : null,
+				isComfy ? React.createElement("div", { className: "vlm-comfy-wf" }, [
+					React.createElement("span", { className: "vlm-label" }, t("comfyWfLabel")),
+					React.createElement("textarea", {
+						className: "vlm-input vlm-comfy-wf-input",
+						value: wfText[0],
+						placeholder: t("comfyWfPh"),
+						onChange: function (e) { wfText[1](e.target.value); wfErr[1](""); }
+					}),
+					wfErr[0] ? React.createElement("p", { className: "vlm-msg vlm-msg-err" }, t("comfyWfError") + ": " + wfErr[0]) : null,
+					React.createElement("div", { className: "vlm-row vlm-comfy-wf-actions" }, [
+						React.createElement("label", { className: "vlm-btn vlm-comfy-wf-import" }, [
+							t("comfyWfImport"),
+							React.createElement("input", {
+								type: "file", accept: ".json,application/json", style: { display: "none" },
+								onChange: function (e) {
+									var f = e.target.files && e.target.files[0];
+									if (!f) return;
+									var reader = new FileReader();
+									reader.onload = function () { wfText[1](String(reader.result || "")); wfErr[1](""); };
+									reader.readAsText(f);
+									e.target.value = "";
+								}
+							})
+						]),
+						React.createElement("button", {
+							className: "vlm-btn", type: "button", disabled: busy !== "" || !wfText[0].trim(),
+							onClick: function () { props.onParseWorkflow(wfText[0], function (err) { wfErr[1](err || ""); }); }
+						}, t("comfyWfParse")),
+						React.createElement("button", {
+							className: "vlm-btn", type: "button", disabled: busy !== "",
+							onClick: function () { props.onParseWorkflow("", function () {}); }
+						}, t("comfyWfReset"))
+					]),
+					React.createElement("div", { className: "vlm-comfy-wf-mapping" }, [
+						React.createElement("span", { className: "vlm-label" }, t("comfyWfMappingLabel")),
+						React.createElement("div", { className: "vlm-row" }, COMFY_MAP_LABELS.map(function (mk) {
+							return React.createElement("div", { key: mk.key, className: "vlm-field vlm-grow" }, [
+								React.createElement("span", { className: "vlm-label vlm-label-sm" }, t(mk.labelKey)),
+								React.createElement("input", {
+									className: "vlm-input", type: "text",
+									value: (cfg.comfyMapping && cfg.comfyMapping[mk.key]) || mk.def,
+									onChange: function (e) {
+										var m = Object.assign({}, cfg.comfyMapping || {});
+										m[mk.key] = e.target.value.trim();
+										props.onPatch("comfyMapping", m);
+									}
+								})
+							]);
+						}))
+					])
+				]) : null,
 				React.createElement("p", { className: "vlm-status" },
-					t("imggenStatusPrefix") + (props.visible ? t("toolVisible") : t("toolHidden")) +
+					t("imggenStatusPrefix") + (props.visible ? t("imggenToolVisible") : (isComfy ? t("imggenToolHidden") : t("toolHidden"))) +
 					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
 			]);
 
@@ -2299,16 +2403,24 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				patchImggen("model", m);
 				igOpenDd[1](false);
 			}
+			function parseImggenWorkflow(text, onErr) {
+				// '' = reset to default workflow
+				igBusy[1]("ig-wf");
+				call("config", { imggenConfig: { field: "comfyWorkflow", value: text } }).then(function (r) {
+					if (r && r.ok) {
+						onErr && onErr("");
+					} else {
+						onErr && onErr((r && r.error) || t("unknown"));
+					}
+				}).catch(function (e) { onErr && onErr(et(e)); }).finally(function () { igBusy[1](""); });
+			}
 			function toggleIgFilter() {
 				patchImggen("filterImageModels", !igc.filterImageModels);
 			}
 			function changeIgProvider(v) {
 				if (!PROVIDERS_UI[v]) return;
-				// ComfyUI render can take minutes (queue + render): bump the default
-				// timeout to 600000ms unless the user already changed it from the global 300000.
-				if (v === "comfyui" && (igc.timeoutMs == null || igc.timeoutMs === 300000)) {
-					patchImggen("timeoutMs", 600000);
-				}
+				// Timeout bump to 600000 for ComfyUI is done server-side in applyPatch
+				// (single source of truth; avoids queueSave mergePatch overwriting it).
 				patchImggen("provider", v);
 			}
 			function resetImggen() {
@@ -2507,7 +2619,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 
 			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
 				igcValid
-					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onParseWorkflow: parseImggenWorkflow, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
 				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
 			]);
