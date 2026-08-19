@@ -419,7 +419,7 @@ async function httpJson(url, method, headers, body, timeoutMs) {
       res = await fetch(url, {
         method,
         headers: h,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: (body !== undefined && method !== 'GET' && method !== 'HEAD') ? JSON.stringify(body) : undefined,
         signal: controller.signal
       })
     } catch (e) {
@@ -1315,9 +1315,18 @@ const imggenToolDef = defineTool({
     if (protocol === 'dashscope-image') {
       // DashScope native API: convert URL from /compatible-mode/v1 to /api/v1/services/aigc/image-generation/generation
       const dsBaseRaw = String(endpoint || '').trim().replace(/\/+$/, '')
-      const dsBase = /\/compatible-mode\/v[0-9]+$/.test(dsBaseRaw)
-        ? dsBaseRaw.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
-        : dsBaseRaw.replace(/\/v[0-9]+$/, '/api/v1')
+      // ws-*.maas.aliyuncs.com workspace 专属端点拒绝所有 /api/v1/* 原生路径（403 Endpoint.AccessDenied "Workspace endpoint access denied."）；
+      // 同一 workspace key 在标准域名 dashscope.aliyuncs.com 上可用，故将 host 重写为标准域名（2026-08 实测验证）。
+      const dsWsHost = /^(https?:\/\/)[^/]+\.maas\.aliyuncs\.com(?:[/?#]|$)/i.exec(dsBaseRaw)
+      let dsBase = dsWsHost
+        ? dsWsHost[1] + 'dashscope.aliyuncs.com/api/v1'
+        : /\/compatible-mode\/v[0-9]+$/.test(dsBaseRaw)
+          ? dsBaseRaw.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
+          : /\/api\/v[0-9]+$/.test(dsBaseRaw)
+            ? dsBaseRaw
+            : /\/v[0-9]+$/.test(dsBaseRaw)
+              ? dsBaseRaw.replace(/\/v[0-9]+$/, '/api/v1')
+              : dsBaseRaw + '/api/v1'
       const dsUrl = dsBase + '/services/aigc/image-generation/generation'
       const dsHeaders = Object.assign({}, headers, { 'X-DashScope-Async': 'enable' })
       const contentParts = []
@@ -1338,7 +1347,11 @@ const imggenToolDef = defineTool({
       const dsBody = { model: igc.model, input: { messages: [{ role: 'user', content: contentParts }] }, parameters: { n: n, size: size || '1280*1280' } }
       // wan2.x 文生图需 enable_interleave；参考图模式亦无条件开启（与百炼参考协议一致）
       if (isWan || refImage) dsBody.parameters.enable_interleave = true
-      // async task: submit, then poll /api/v1/tasks/{task_id} every 3s (max 100 = ~5min)
+      // async task: submit, then poll /api/v1/tasks/{task_id} — budget follows user timeoutMs (default 300s≈100 polls; 600s→200 polls)
+      const pollIntervalMs = 3000
+      const pollBudgetMs = clampTimeout(igc.timeoutMs, 300000)
+      const maxPolls = Math.max(1, Math.ceil(pollBudgetMs / pollIntervalMs))
+      const pollReqTimeout = Math.min(pollBudgetMs, 60000)
       for (let attempt = 1; attempt <= attempts0; attempt++) {
         const submitRes = await httpJson(dsUrl, 'POST', dsHeaders, dsBody, clampTimeout(igc.timeoutMs, 300000))
         const taskId = submitRes.ok && submitRes.body && submitRes.body.output && submitRes.body.output.task_id
@@ -1351,24 +1364,38 @@ const imggenToolDef = defineTool({
           continue
         }
         const taskUrl = dsBase + '/tasks/' + taskId
-        let pollSuccess = false
-        for (let poll = 0; poll < 100; poll++) {
-          await sleep(3000)
-          const pollRes = await httpJson(taskUrl, 'GET', { Accept: 'application/json', Authorization: 'Bearer ' + (igc.apiKey || '') }, null, clampTimeout(igc.timeoutMs, 300000))
-          const pollOutput = pollRes.ok && pollRes.body && pollRes.body.output ? pollRes.body.output : null
-          if (pollOutput && pollOutput.task_status === 'SUCCEEDED') {
+        let pollSuccess = false, lastStatus = 'PENDING', lastErr = null, consecErr = 0
+        for (let poll = 0; poll < maxPolls; poll++) {
+          await sleep(pollIntervalMs)
+          const pollRes = await httpJson(taskUrl, 'GET', { Accept: 'application/json', Authorization: 'Bearer ' + (igc.apiKey || '') }, null, pollReqTimeout)
+          const pollBody = pollRes.body
+          if (!pollRes.ok || !pollBody || typeof pollBody !== 'object') {
+            // poll channel failure (HTTP error / 200 + non-JSON anti-bot page): record and fail fast after 5 consecutive
+            lastErr = 'HTTP ' + pollRes.status + ': ' + String(pollRes.message || '').slice(0, 200)
+            if (++consecErr >= 5) break
+            continue
+          }
+          consecErr = 0
+          const pollOutput = pollBody.output || null
+          const st = pollOutput && pollOutput.task_status ? pollOutput.task_status : 'UNKNOWN'
+          lastStatus = st
+          if (st === 'SUCCEEDED') {
             last = { data: extractImggenImages('dashscope-image', pollRes.body), bodyModel: (pollOutput.model || igc.model) }
             pollSuccess = true
             break
           }
-          if (pollOutput && (pollOutput.task_status === 'FAILED' || pollOutput.task_status === 'CANCELED')) {
-            last = { data: [], status: 200, message: 'DashScope 任务 ' + pollOutput.task_status + ': ' + (pollOutput.message || '') }
+          if (st === 'FAILED' || st === 'CANCELED') {
+            last = { data: [], status: 200, message: 'DashScope 任务 ' + st + ': ' + (pollOutput.message || '') }
             pollSuccess = true
             break
           }
         }
         if (pollSuccess) break
-        last = { data: [], status: 'POLL_TIMEOUT', message: 'DashScope 任务轮询超时（约 5 分钟未完成）' }
+        if (lastErr && consecErr >= 5) {
+          last = { data: [], status: 'POLL_ERROR', message: 'DashScope 任务轮询连续失败（' + consecErr + ' 次）: ' + lastErr }
+        } else {
+          last = { data: [], status: 'POLL_TIMEOUT', message: 'DashScope 任务轮询超时（' + Math.round(maxPolls * pollIntervalMs / 1000) + ' 秒未完成，最后状态: ' + lastStatus + '）' }
+        }
         break
       }
     } else if (protocol === 'openai-completions') {

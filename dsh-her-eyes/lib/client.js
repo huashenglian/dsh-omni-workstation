@@ -166,6 +166,12 @@ ddHint: "选择模型",
 				toolOcrImage: "OCR 文字",
 				toolDetectElements: "元素检测",
 				toolShowImage: "图片展示",
+				toolZoomImageDesc: "放大图片关键区域以看清细节",
+				toolSampleColorsDesc: "提取图片主要颜色",
+				toolImageDiffDesc: "对比两张图片的差异",
+				toolOcrImageDesc: "识别提取图中文字",
+				toolDetectElementsDesc: "检测图中 UI 元素与位置",
+				toolShowImageDesc: "在会话中展示本地图片",
 				providerBailian: "阿里云百炼",
 			toolsLocalImage: "本地图像",
 			toolsFile: "文件",
@@ -334,6 +340,12 @@ ddHint: "Pick a model",
 				toolOcrImage: "OCR Text",
 				toolDetectElements: "Detect Elements",
 				toolShowImage: "Show Image",
+				toolZoomImageDesc: "Zoom into key regions for detail",
+				toolSampleColorsDesc: "Extract dominant colors",
+				toolImageDiffDesc: "Compare two images for diffs",
+				toolOcrImageDesc: "Recognize text in images",
+				toolDetectElementsDesc: "Detect UI elements and positions",
+				toolShowImageDesc: "Display local images in chat",
 				providerBailian: "Aliyun Bailian",
 			toolsLocalImage: "Local Image",
 			toolsFile: "File",
@@ -441,7 +453,7 @@ ddHint: "Pick a model",
 			".vlm-card.dragging { opacity: 0.45; border-style: dashed; }",
 			".vlm-card.drop-target { outline: 2px dashed var(--dsh-accent, #58a6ff); outline-offset: -2px; }",
 			// ---- tabs & module switches ----
-			".vlm-tabs { display: flex; gap: 6px; }",
+			".vlm-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 60; padding: 6px 0; margin: -6px 0 -2px; }",
 			".vlm-tab { position: relative; padding: 6px 28px 6px 14px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: transparent; color: var(--dsh-fg-muted, #888); cursor: pointer; font-size: 13px; flex: 0 1 auto; white-space: nowrap; }",
 			".vlm-tab.active { background: var(--dsh-bg-2, #333); border-color: var(--dsh-accent, #58a6ff); color: var(--dsh-fg, #eee); }",
 			".vlm-tab-dot { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }",
@@ -456,6 +468,7 @@ ddHint: "Pick a model",
 			".vlm-toolview-val { font-size: 12px; opacity: 0.9; word-break: break-all; min-width: 0; }",
 			".vlm-tab-body { display: flex; flex-direction: column; gap: 14px; }",
 			".vlm-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }",
+			".vlm-tool-desc { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
 			".vlm-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
 			".vlm-switch input { opacity: 0; width: 0; height: 0; }",
 			".vlm-switch-slider { position: absolute; inset: 0; border-radius: 9px; background: var(--dsh-bg, #333); border: 1px solid var(--dsh-border, #555); cursor: pointer; transition: background 0.15s; }",
@@ -487,16 +500,21 @@ ddHint: "Pick a model",
 			".vlm-ext-toggle-row { display: flex; flex-direction: row; align-items: center; gap: 24px; flex-wrap: wrap; padding: 4px 0; }",
 			// ---- preset management ----
 			".vlm-preset-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; position: relative; }",
-			".vlm-preset-name-input { flex: 1; min-width: 120px; }",
-			".vlm-preset-dd-btn { flex: 0 0 auto; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--dsh-border, #555); border-radius: 6px; background: var(--dsh-bg-2, #1e1e1e); cursor: pointer; color: inherit; }",
-			".vlm-preset-dd-btn:hover { border-color: var(--dsh-accent, #58a6ff); }",
-			".vlm-preset-menu-wrap { position: static; }",
-			".vlm-preset-menu { position: absolute; left: 0; top: calc(100% + 2px); right: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
+		".vlm-preset-input-wrap { position: relative; flex: 1; min-width: 120px; }",
+		".vlm-preset-name-input { width: 100%; padding-right: 36px !important; box-sizing: border-box; }",
+		".vlm-preset-dd-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; color: var(--dsh-fg-muted, #888); padding: 0; flex: 0 0 auto; }",
+		".vlm-preset-dd-btn:hover { color: var(--dsh-fg, #eee); }",
+		".vlm-preset-menu { position: absolute; left: 0; top: calc(100% + 2px); right: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
 			".vlm-preset-menu-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }",
 			".vlm-preset-menu-item:hover { background: rgba(88,166,255,0.12); }",
 			".vlm-preset-menu-item.active { background: rgba(88,166,255,0.18); font-weight: 500; }",
 			".vlm-preset-divider { height: 1px; background: var(--dsh-border, #555); opacity: 0.3; margin: 6px 0; }",
 			".vlm-preset-del-btn:disabled { opacity: 0.35; cursor: not-allowed; }",
+			// ---- delete buttons (trash icons are always red) ----
+			".vlm-icon-btn.vlm-del-btn { color: #f85149; }",
+			".vlm-icon-btn.vlm-del-btn:hover { color: #ff6b63; background: rgba(248,81,73,0.12); }",
+			".vlm-btn.vlm-del-btn { color: #f85149; }",
+			".vlm-btn.vlm-del-btn:hover:not(:disabled) { color: #ff6b63; }",
 			// ---- confirm modal ----
 			".vlm-confirm-overlay { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
 			".vlm-confirm-modal { position: relative; width: 90vw; max-width: 400px; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }",
@@ -516,7 +534,7 @@ ddHint: "Pick a model",
 			"  .vlm-tab.active { color: light-dark(#fff, #eee); }",
 			"  .vlm-dd-group { color: light-dark(#666, #888); }",
 			// ---- preset dropdown + confirm/tool modal light theme (white bg + dark text) ----
-			"  .vlm-preset-dd-btn { background-color: light-dark(#3a3a3a, #1e1e1e); color: light-dark(#fff, #eee); }",
+			"  .vlm-preset-dd-btn { color: light-dark(#555, #999); }",
 			"  .vlm-preset-menu { background-color: light-dark(#fff, #262626); border-color: light-dark(#ccc, #555); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }",
 			"  .vlm-preset-menu-item { color: light-dark(#222, #eee); }",
 			"  .vlm-preset-menu-item:hover { background-color: light-dark(rgba(0,120,255,0.10), rgba(88,166,255,0.12)); }",
@@ -672,15 +690,27 @@ ddHint: "Pick a model",
 				strokeLinejoin: "round"
 			}, paths.map(function (p, i) { return React.createElement("path", { key: i, d: p }); }));
 		}
+			// Fill-style SVG icon: inherits color via currentColor (theme-aware, no external assets).
+		function SvgFillIcon(props) {
+			var d = props && props.d;
+			var paths = Array.isArray(d) ? d : [];
+			return React.createElement("svg", {
+				width: (props && props.width) || 14,
+				height: (props && props.height) || 14,
+				viewBox: (props && props.viewBox) || "0 0 1024 1024",
+				fill: "currentColor"
+			}, paths.map(function (p, i) { return React.createElement("path", { key: i, d: p }); }));
+		}
 		var I_DRAG = ["M3.5 2.5v0", "M8 2.5v0", "M12.5 2.5v0", "M3.5 8v0", "M8 8v0", "M12.5 8v0", "M3.5 13.5v0", "M8 13.5v0", "M12.5 13.5v0"];
 		var I_MENU = ["M3 8v0", "M8 8v0", "M13 8v0"];
 		var I_COLLAPSE = ["M4 6.5l4 4 4-4"];
 		var I_EXPAND = ["M6.5 4l4 4-4 4"];
 		var I_PIN_TOP = ["M8 13V3", "M4 7L8 3l4 4"];
 		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
-		var I_RESET = ["M8 3a5 5 0 1 0 3.54 1.46", "M11.5 1v3.5h3.5"];
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
 		var I_PLUS = ["M8 3v10", "M3 8h10"];
+		var I_RESET_SVG = ["M434.816 140.16c179.264-37.312 361.408 57.28 430.08 229.568a38.4 38.4 0 0 1-71.424 28.48c-56.32-141.312-208.96-217.6-356.928-179.648a302.976 302.976 0 1 0 181.632 577.216 303.04 303.04 0 0 0 194.24-244.416 38.4 38.4 0 0 1 76.16 9.984 379.84 379.84 0 0 1-243.52 306.368A379.776 379.776 0 1 1 417.472 144.192l17.344-4.032z", "M814.912 170.752a38.4 38.4 0 0 1 76.8 0v213.312c0 21.184-17.216 38.4-38.4 38.4H640a38.4 38.4 0 0 1 0-76.8h174.912V170.752z"];
+		var I_GEAR_SVG = ["M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"];
 		var I_EYE = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"];
 		var I_EYE_OFF = ["M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z", "M2 2l12 12"];
 
@@ -765,6 +795,16 @@ ddHint: "Pick a model",
 			var rect = wrap.getBoundingClientRect();
 			var below = window.innerHeight - rect.bottom;
 			if (below < 340) { el.style.top = "auto"; el.style.bottom = "calc(100% + 2px)"; }
+		}
+
+		// Flip the card / batch / preset menus up when space below is tight (mirrors provDdRef).
+		function menuDdRef(el) {
+			if (!el) return;
+			var wrap = el.closest(".vlm-card-menu-wrap, .vlm-batch-wrap, .vlm-preset-bar");
+			if (!wrap) return;
+			var below = window.innerHeight - wrap.getBoundingClientRect().bottom;
+			var need = Math.min(el.offsetHeight || 140, 280) + 8;
+			if (below < need) { el.style.top = "auto"; el.style.bottom = "calc(100% + 2px)"; }
 		}
 
 		// ---------- shared UI atoms ----------
@@ -919,7 +959,7 @@ ddHint: "Pick a model",
 						className: "vlm-icon-btn vlm-card-menu-btn",
 						onClick: function (e) { e.stopPropagation(); props.onToggleMenu(id); }
 					}, React.createElement(SvgIcon, { d: I_MENU })),
-					menuOpen ? React.createElement("div", { className: "vlm-card-menu" }, [
+					menuOpen ? React.createElement("div", { className: "vlm-card-menu", ref: menuDdRef }, [
 						React.createElement("div", { className: "vlm-menu-item", onClick: function () { props.onMoveTop(id); props.onCloseMenu(); } },
 							React.createElement(SvgIcon, { d: I_PIN_TOP }), React.createElement("span", null, t("menuPinTop"))),
 						React.createElement("div", { className: "vlm-menu-item", onClick: function () { props.onMoveBottom(id); props.onCloseMenu(); } },
@@ -1130,7 +1170,7 @@ ddHint: "Pick a model",
 						className: "vlm-icon-btn vlm-card-menu-btn",
 						onClick: function () { menuOpen[1](!menuOpen[0]); }
 					}, React.createElement(SvgIcon, { d: I_MENU })),
-					menuOpen[0] ? React.createElement("div", { className: "vlm-card-menu" }, [
+					menuOpen[0] ? React.createElement("div", { className: "vlm-card-menu", ref: menuDdRef }, [
 						React.createElement("div", {
 							className: "vlm-menu-item vlm-menu-danger" + (props.confirmReset ? " vlm-menu-confirm" : ""),
 							title: t("imggenResetHint"),
@@ -1146,34 +1186,34 @@ ddHint: "Pick a model",
 
 		var presets = Array.isArray(props.presets) ? props.presets : [];
 		var presetBar = React.createElement("div", { className: "vlm-preset-bar" }, [
-			React.createElement("input", {
-				className: "vlm-input vlm-preset-name-input",
-				type: "text",
-				value: props.activePresetName || "",
-				placeholder: t("presetNamePh"),
-				onChange: function (e) { props.onRenamePreset(e.target.value); }
-			}),
-			React.createElement("div", { className: "vlm-preset-menu-wrap" }, [
+			React.createElement("div", { className: "vlm-preset-input-wrap" }, [
+				React.createElement("input", {
+					className: "vlm-input vlm-preset-name-input",
+					type: "text",
+					value: props.activePresetName || "",
+					placeholder: t("presetNamePh"),
+					onChange: function (e) { props.onRenamePreset(e.target.value); }
+				}),
 				React.createElement("button", {
 					className: "vlm-preset-dd-btn", type: "button",
 					onClick: props.onTogglePresetDd
-				}, React.createElement(SvgIcon, { d: props.presetDdOpen ? I_COLLAPSE : I_EXPAND }))
+				}, React.createElement(SvgIcon, { d: props.presetDdOpen ? I_COLLAPSE : I_EXPAND })),
+				props.presetDdOpen ? React.createElement("div", { className: "vlm-preset-menu", ref: menuDdRef },
+					presets.map(function (p) {
+						return React.createElement("div", {
+							key: p.id, className: "vlm-preset-menu-item" + (p.id === props.activePresetId ? " active" : ""),
+							onClick: function () { props.onSwitchPreset(p.id); }
+						}, p.name);
+					})
+				) : null
 			]),
-			props.presetDdOpen ? React.createElement("div", { className: "vlm-preset-menu" },
-				presets.map(function (p) {
-					return React.createElement("div", {
-						key: p.id, className: "vlm-preset-menu-item" + (p.id === props.activePresetId ? " active" : ""),
-						onClick: function () { props.onSwitchPreset(p.id); }
-					}, p.name);
-				})
-			) : null,
 			React.createElement("button", {
 				className: "vlm-btn vlm-preset-new-btn", type: "button",
 				title: t("presetNew"),
 				onClick: props.onAddPreset
 			}, React.createElement(SvgIcon, { d: I_PLUS })),
 			React.createElement("button", {
-				className: "vlm-btn vlm-preset-del-btn", type: "button",
+				className: "vlm-btn vlm-preset-del-btn vlm-del-btn", type: "button",
 				title: presets.length <= 1 ? t("presetDeleteDisabled") : t("presetDelete"),
 				disabled: presets.length <= 1,
 				onClick: props.onConfirmDeletePreset
@@ -1237,7 +1277,11 @@ ddHint: "Pick a model",
 				isFixed || meta.hideProtocol ? null : React.createElement(Field, {
 					label: t("imggenApiPathLabel"),
 					value: cfg.apiPath || "",
-					placeholder: cfg.protocol === "openai-completions" ? t("imggenApiPathPh").replace("images/generations", "chat/completions") : t("imggenApiPathPh"),
+					placeholder: cfg.protocol === "openai-completions"
+						? t("imggenApiPathPh").replace("images/generations", "chat/completions")
+						: cfg.protocol === "dashscope-image"
+							? t("imggenApiPathPh").replace("images/generations", "services/aigc/image-generation/generation")
+							: t("imggenApiPathPh"),
 					onChange: function (e) { props.onPatch("apiPath", e.target.value); }
 				}),
 				isOllama
@@ -1401,7 +1445,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 								className: "vlm-btn vlm-reset-btn",
 								title: t("fallbackReset") || "重置默认",
 								onClick: props.onResetModels
-							}, React.createElement(SvgIcon, { d: I_RESET }))
+							}, React.createElement(SvgFillIcon, { d: I_RESET_SVG }))
 						]),
 						React.createElement("div", { className: "vlm-list-container" },
 							(cfg.models || []).length === 0
@@ -1418,7 +1462,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 								React.createElement("div", { className: "vlm-drag-handle", title: t("dragHint") || "拖动调整顺序" }, React.createElement(SvgIcon, { d: I_DRAG })),
 								React.createElement("span", { className: "vlm-fb-model-id" }, m),
 								React.createElement("button", {
-									className: "vlm-icon-btn",
+									className: "vlm-icon-btn vlm-del-btn",
 									title: t("menuDelete") || "删除",
 									onClick: function () { props.onRemoveModel(m); }
 								}, React.createElement(SvgIcon, { d: I_TRASH }))
@@ -1516,7 +1560,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 							onChange: function (e) { props.onUpdateName(m.id, e.target.value); }
 						}),
 						React.createElement("button", {
-							className: "vlm-icon-btn",
+							className: "vlm-icon-btn vlm-del-btn",
 							title: t("menuDelete") || "删除",
 							onClick: function () { props.onRemoveMapping(m.id); }
 						}, React.createElement(SvgIcon, { d: I_TRASH }))
@@ -1604,6 +1648,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 		var toolToggles = props.visionToolToggles || {};
 		var toolNames = ["zoom_image", "sample_colors", "image_diff", "ocr_image", "detect_elements", "show_image"];
 		var toolLabels = {"zoom_image": t("toolZoomImage"), "sample_colors": t("toolSampleColors"), "image_diff": t("toolImageDiff"), "ocr_image": t("toolOcrImage"), "detect_elements": t("toolDetectElements"), "show_image": t("toolShowImage")};
+		var toolDescs = {"zoom_image": t("toolZoomImageDesc"), "sample_colors": t("toolSampleColorsDesc"), "image_diff": t("toolImageDiffDesc"), "ocr_image": t("toolOcrImageDesc"), "detect_elements": t("toolDetectElementsDesc"), "show_image": t("toolShowImageDesc")};
 		var toolModal = toolSettingsOpen[0] ? React.createElement("div", { className: "vlm-confirm-overlay", onClick: function () { toolSettingsOpen[1](false); } }, [
 			React.createElement("div", { className: "vlm-confirm-modal", onClick: function (e) { e.stopPropagation(); } }, [
 				React.createElement("span", { className: "vlm-confirm-title" }, t("extToolSettings")),
@@ -1613,7 +1658,8 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 							React.createElement("input", { type: "checkbox", checked: toolToggles[tn] !== false, onChange: function () { props.onToggleVisionTool(tn); } }),
 							React.createElement("span", { className: "vlm-switch-slider" })
 						]),
-						React.createElement("span", { className: "vlm-label" }, toolLabels[tn] || tn)
+						React.createElement("span", { className: "vlm-label" }, toolLabels[tn] || tn),
+						React.createElement("span", { className: "vlm-tool-desc", title: toolDescs[tn] || "" }, toolDescs[tn] || "")
 					]);
 				}),
 				React.createElement("div", { className: "vlm-confirm-btns" }, [
@@ -1635,7 +1681,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 							React.createElement("span", { className: "vlm-switch-slider" })
 						]),
 						React.createElement("span", { className: "vlm-label" }, t("toolsSwitchLabel")),
-							React.createElement("button", { className: "vlm-icon-btn", title: t("extToolSettings"), onClick: function () { toolSettingsOpen[1](true); } }, React.createElement(SvgIcon, { d: I_MENU }))
+							React.createElement("button", { className: "vlm-icon-btn", title: t("extToolSettings"), onClick: function () { toolSettingsOpen[1](true); } }, React.createElement(SvgFillIcon, { d: I_GEAR_SVG, viewBox: "0 0 24 24" }))
 
 					]),
 					React.createElement("div", { className: "vlm-module-row" }, [
@@ -2381,7 +2427,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 							disabled: busy[0] !== "",
 							onClick: function () { batchOpen[1](!batchOpen[0]); confirmDelAll[1](false); }
 						}, React.createElement(SvgIcon, { d: I_COLLAPSE })),
-						batchOpen[0] ? React.createElement("div", { className: "vlm-batch-menu" }, [
+						batchOpen[0] ? React.createElement("div", { className: "vlm-batch-menu", ref: menuDdRef }, [
 							React.createElement("div", { className: "vlm-menu-item", onClick: function () { batchCollapse(true); } },
 								React.createElement(SvgIcon, { d: I_COLLAPSE }), React.createElement("span", null, t("batchCollapseAll"))),
 							React.createElement("div", { className: "vlm-menu-item", onClick: function () { batchCollapse(false); } },
