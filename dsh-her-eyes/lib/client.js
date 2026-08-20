@@ -1213,20 +1213,20 @@ ddHint: "Pick a model",
 
 		// ---------- toast notification system (v2.7) ----------
 		var TOAST_ICONS = { info: I_TOAST_INFO, success: I_TOAST_SUCCESS, warning: I_TOAST_WARNING, error: I_TOAST_ERROR };
-		var TOAST_DUR = { info: 4000, success: 4000, warning: 7000, error: 0 };
+		var TOAST_DUR = { info: 3000, success: 3000, warning: 3000, error: 3000 };
 		function ToastCard(props) {
 			var t = props.toast || {};
 			var icon = TOAST_ICONS[t.type] || TOAST_ICONS.info;
 			return React.createElement("div", {
 				className: "vlm-toast-card vlm-toast-" + (t.type || "info"),
-				onMouseEnter: props.onPause, onMouseLeave: props.onResume
+				onClick: function () { if (props.onExtend) props.onExtend(t.id); }
 			}, [
 				React.createElement(SvgIcon, { d: icon, width: 18, height: 18 }),
 				React.createElement("div", { className: "vlm-toast-body" }, [
 					t.title ? React.createElement("div", { className: "vlm-toast-title" }, t.title) : null,
 					t.desc ? React.createElement("div", { className: "vlm-toast-desc" }, t.desc) : null
 				]),
-				React.createElement("button", { className: "vlm-toast-close", onClick: props.onClose }, "\u00d7")
+				React.createElement("button", { className: "vlm-toast-close", onClick: function (e) { e.stopPropagation(); if (props.onClose) props.onClose(); } }, "\u00d7")
 			]);
 		}
 		function ToastContainer(props) {
@@ -1236,8 +1236,7 @@ ddHint: "Pick a model",
 					return React.createElement(ToastCard, {
 						key: t.id, toast: t,
 						onClose: function () { props.onClose(t.id); },
-						onPause: function () { props.onPause(t.id); },
-						onResume: function () { props.onResume(t.id); }
+						onExtend: function () { props.onExtend(t.id); }
 					});
 				})
 			);
@@ -2187,20 +2186,24 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			var mirrorOpenDd = React.useState(null);
 			toastSeq = 0;
 			var toasts = React.useState([]);
+			var toastTimers = {};
 			function showToast(type, title, desc) {
 				var id = 't_' + (++toastSeq);
 				toasts[1](function (prev) {
 					var next = [{ id: id, type: type, title: title, desc: desc }].concat(prev || []);
 					return next.length > 5 ? next.slice(0, 5) : next;
 				});
-				var dur = TOAST_DUR[type] || 4000;
-				if (dur > 0) { setTimeout(function () { closeToast(id); }, dur); }
+				var dur = TOAST_DUR[type] || 3000;
+				toastTimers[id] = setTimeout(function () { closeToast(id); }, dur);
 			}
 			function closeToast(id) {
+				if (toastTimers[id]) { clearTimeout(toastTimers[id]); delete toastTimers[id]; }
 				toasts[1](function (prev) { return (prev || []).filter(function (t) { return t.id !== id; }); });
 			}
-			function pauseToast(id) {}
-			function resumeToast(id) {}
+			function extendToast(id) {
+				if (toastTimers[id]) clearTimeout(toastTimers[id]);
+				toastTimers[id] = setTimeout(function () { closeToast(id); }, 10000);
+			}
 
 			function reorderFallbackModels(fromIndex, toIndex) {
 				updateDraft(function (d) {
@@ -2873,7 +2876,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 		]);
 
 			return React.createElement("div", { className: "vlm-page" }, [
-				React.createElement(ToastContainer, { toasts: toasts[0], onClose: closeToast, onPause: pauseToast, onResume: resumeToast }),
+				React.createElement(ToastContainer, { toasts: toasts[0], onClose: closeToast, onExtend: extendToast }),
 				React.createElement("div", { className: "vlm-tabs" }, [
 					React.createElement("button", { className: "vlm-tab" + (tab[0] === "vlm" ? " active" : ""), onClick: function () { tab[1]("vlm"); } }, [
 					"VLM",
