@@ -613,7 +613,6 @@ ddHint: "Pick a model",
 		".vlm-toast-close { background: none; border: none; color: inherit; opacity: 0.5; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; } .vlm-toast-close:hover { opacity: 1; }",
 		"@keyframes vlm-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }",
 		".vlm-label-sm { font-size: 11px; opacity: 0.8; }",
-		".vlm-msg-err { color: #f85149; font-size: 12px; word-break: break-all; }",
 			// ---- delete buttons (trash icons are always red) ----
 			".vlm-icon-btn.vlm-del-btn { color: #f85149; }",
 			".vlm-icon-btn.vlm-del-btn:hover { color: #ff6b63; background: rgba(248,81,73,0.12); }",
@@ -2251,7 +2250,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			if (!draft[0]) {
 				return React.createElement("div", { className: "vlm-page" }, [
 					React.createElement("p", { className: "vlm-desc" }, t("loading")),
-					msg[0] ? React.createElement("p", { className: "vlm-msg vlm-err" }, msg[0]) : null
+					null
 				]);
 			}
 
@@ -2843,14 +2842,14 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						return React.createElement(ApiCard, Object.assign({ key: card.id, card: card, index: index }, cardProps));
 					})
 				]),
-				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
+				null
 			]);
 
 			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
 				igcValid
 					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, onUpdateMapping: updateWfMapping, workflows: (draft[0].comfyWorkflows || []), activeWfId: (draft[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
-				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
+				null
 			]);
 
 			var settingsBody = React.createElement("div", { className: "vlm-tab-body" }, [
