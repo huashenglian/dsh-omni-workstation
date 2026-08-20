@@ -2687,14 +2687,34 @@ function apply(ctx) {
         try {
           const raw = await readBody(req)
           const patch = raw ? JSON.parse(raw) : {}
-          // v2.6: raw workflow paste/import is parsed here (UI format needs the
-          // server's /object_info) BEFORE applyPatch stores the final API format.
-          const wfField = patch && patch.imggenConfig && patch.imggenConfig.field === 'comfyWorkflow'
-          if (wfField && typeof patch.imggenConfig.value === 'string' && patch.imggenConfig.value.trim() !== '') {
+          // v2.7: pre-parse comfy workflow CRUD patches (async work needing
+          // /object_info from the endpoint, or config lookups) BEFORE applyPatch.
+          if (patch.comfyWfImport && typeof patch.comfyWfImport === 'object' && typeof patch.comfyWfImport.workflow === 'string') {
             const cfg0 = await loadConfig(ctx)
             const endpoint = (cfg0.imggenConfig && cfg0.imggenConfig.endpoint) || ''
-            const prep = await prepareComfyWorkflow(patch.imggenConfig.value, endpoint)
-            patch.imggenConfig = { field: 'comfyWorkflowPrepared', value: { workflow: JSON.stringify(prep.api), mapping: prep.mapping } }
+            const prep = await prepareComfyWorkflow(patch.comfyWfImport.workflow, endpoint)
+            const basic = extractComfyBasicConfig(prep.api, prep.mapping)
+            patch.comfyWfImport.id = 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
+            patch.comfyWfImport.workflow = JSON.stringify(prep.api)
+            patch.comfyWfImport.mapping = prep.mapping
+            patch.comfyWfImport.steps = basic.steps
+            patch.comfyWfImport.cfg = basic.cfg
+            patch.comfyWfImport.scheduler = basic.scheduler
+            patch.comfyWfImport.seed = basic.seed
+          }
+          if (patch.comfyWfAutoMap && typeof patch.comfyWfAutoMap === 'object' && typeof patch.comfyWfAutoMap.id === 'string') {
+            const cfg0 = await loadConfig(ctx)
+            const wf = (cfg0.comfyWorkflows || []).find(w => w.id === patch.comfyWfAutoMap.id)
+            if (wf && typeof wf.workflow === 'string' && wf.workflow !== '') {
+              const api = JSON.parse(wf.workflow)
+              patch.comfyWfAutoMap.mapping = detectComfyMapping(api)
+            }
+          }
+          if (patch.comfyWfUpdateJson && typeof patch.comfyWfUpdateJson === 'object' && typeof patch.comfyWfUpdateJson.id === 'string' && typeof patch.comfyWfUpdateJson.workflow === 'string') {
+            const cfg0 = await loadConfig(ctx)
+            const endpoint = (cfg0.imggenConfig && cfg0.imggenConfig.endpoint) || ''
+            const prep = await prepareComfyWorkflow(patch.comfyWfUpdateJson.workflow, endpoint)
+            patch.comfyWfUpdateJson.workflow = JSON.stringify(prep.api)
           }
           const cfg = await loadConfig(ctx)
           const next = applyPatch(cfg, patch)
