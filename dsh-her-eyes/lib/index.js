@@ -420,6 +420,11 @@ function configFile() {
   return join(PLUGIN_DIR, 'vlm-vision.json')
 }
 
+function backupFile() {
+  const dir = process.env.DSH_HOME || homedir()
+  return join(dir, 'vlm-vision.json.bak')
+}
+
 async function legacyConfigDir(ctx) {
   // old chain: settings doc dirname -> DSH_HOME -> homedir (migration probe only)
   const settings = ctx.get('settings')
@@ -457,17 +462,40 @@ async function loadConfig(ctx) {
         console.error('[dsh-her-eyes] config migration skipped:', String(e && e.message || e))
       }
     }
-    if (!existsSync(file)) return defaultConfig()
+    if (!existsSync(file)) {
+      const bak = backupFile()
+      if (existsSync(bak)) {
+        copyFileSync(bak, file)
+        return normalizeConfig(JSON.parse(readFileSync(file, 'utf8')))
+      }
+      return defaultConfig()
+    }
     return normalizeConfig(JSON.parse(readFileSync(file, 'utf8')))
   } catch (e) {
     console.error('[dsh-her-eyes] config read failed:', String(e && e.message || e))
+    const bak = backupFile()
+    if (existsSync(bak)) {
+      try {
+        const file = configFile()
+        copyFileSync(bak, file)
+        return normalizeConfig(JSON.parse(readFileSync(file, 'utf8')))
+      } catch (e2) {
+        console.error('[dsh-her-eyes] backup fallback also failed:', String(e2 && e2.message || e2))
+      }
+    }
     return defaultConfig()
   }
 }
 
 async function storeConfig(ctx, cfg) {
   const file = configFile()
-  writeFileSync(file, JSON.stringify(normalizeConfig(cfg), null, 2), 'utf8')
+  const data = JSON.stringify(normalizeConfig(cfg), null, 2)
+  writeFileSync(file, data, 'utf8')
+  try {
+    writeFileSync(backupFile(), data, 'utf8')
+  } catch (e) {
+    console.error('[dsh-her-eyes] backup write failed:', String(e && e.message || e))
+  }
 }
 
 // ---------- HTTP (native fetch, UTF-8 throughout) ----------
@@ -2927,4 +2955,4 @@ function apply(ctx) {
   })
 }
 
-export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, _resetLastSource, _setLastSource, _resetVisionTools }
+export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig }
