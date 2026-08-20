@@ -43,6 +43,11 @@ window.__ModuleLoader__.load({
 			helpMirrorContent: "镜像模型卡片提供三种独立模式控制 /model 中的镜像条目：\n\n1. auto-vision 自动路由（开关1）：注册一条 Auto Vision 条目，自动委派到最近使用的模型。\n2. 镜像全部模型（开关2）：为每个供应商注册镜像 twin，掩盖下方自定义映射列表。\n3. 模型映射列表：自定义原模型 → 镜像名映射，留空则用 <原模型>-vision 命名。\n\n所有配置热更新，对话中途修改下一轮生效。",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
+				cardAdded: "已添加模型卡片",
+				cardDeleted: "已删除卡片",
+				cardsCollapsedAll: "已全部折叠",
+				cardsExpandedAll: "已全部展开",
+				cardsDeletedAll: "已删除全部卡片",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
 				cardNamePh: "VLM API",
 				nameHint: "双击重命名",
@@ -250,6 +255,11 @@ ddHint: "选择模型",
 			helpMirrorContent: "The Mirror Models card provides three independent modes to control mirror entries in /model:\n\n1. auto-vision auto-routing (Toggle 1): registers a single Auto Vision entry that delegates to the last-used model.\n2. Mirror all models (Toggle 2): registers a mirror twin per provider; masks the custom mapping list below.\n3. Model mappings: custom original→mirror name mappings; empty defaults to <original>-vision.\n\nAll changes hot-update and take effect on the next conversation turn.",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
+				cardAdded: "Card added",
+				cardDeleted: "Card deleted",
+				cardsCollapsedAll: "All collapsed",
+				cardsExpandedAll: "All expanded",
+				cardsDeletedAll: "All cards deleted",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
 				cardNamePh: "VLM API",
 				nameHint: "Double-click to rename",
@@ -2293,7 +2303,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			}
 
 		// ---- structure operations: local update + immediate POST, then sync ----
-		function commitStructure(patch, localFn) {
+		function commitStructure(patch, localFn, onSuccess) {
 			// Flush any pending debounced save to prevent race condition:
 			// if a queueSave is pending (600ms debounce), send it NOW and WAIT
 			// for it to complete before this immediate POST, so the backend
@@ -2306,6 +2316,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					if (r && r.config) {
 						draft[1](r.config);
 						snap[1](r);
+						if (onSuccess) onSuccess();
 					} else {
 						setMsg(t("saveFail") + (r && r.error ? r.error : t("unknown")), true);
 						showToast('error', t("saveFail"), (r && r.error) || t("unknown"));
@@ -2323,13 +2334,13 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 		}
 
 			function addCard() {
-				commitStructure({ addCard: {} });
+				commitStructure({ addCard: {} }, null, function () { showToast('success', t('cardAdded'), ''); });
 			}
 			function deleteCard(id) {
 				commitStructure({ deleteCard: { id: id } }, function (d) {
 					d.apis = d.apis.filter(function (c) { return c.id !== id; });
 					return d;
-				});
+				}, function () { showToast('success', t('cardDeleted'), ''); });
 			}
 			function moveCardTo(id, position) {
 				commitStructure({ moveCardTo: { id: id, position: position } }, function (d) {
@@ -2367,13 +2378,13 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				commitStructure({ apis: (draft[0].apis || []).map(function (c) { return Object.assign({}, c, { collapsed: v }); }) }, function (d) {
 					d.apis = d.apis.map(function (c) { return Object.assign({}, c, { collapsed: v }); });
 					return d;
-				});
+				}, function () { showToast('success', v ? t('cardsCollapsedAll') : t('cardsExpandedAll'), ''); });
 			}
 			function batchDeleteAll() {
 				if (!confirmDelAll[0]) { confirmDelAll[1](true); return; }
 				batchOpen[1](false);
 				confirmDelAll[1](false);
-				commitStructure({ apis: [] }, function (d) { d.apis = []; return d; });
+				commitStructure({ apis: [] }, function (d) { d.apis = []; return d; }, function () { showToast('success', t('cardsDeletedAll'), ''); });
 			}
 			function deleteClick(id) {
 				if (confirmDel[0] !== id) { confirmDel[1](id); return; }
@@ -2585,6 +2596,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					if (r && r.ok) {
 						models[1](function (m) { return Object.assign({}, m, { [id]: r.models || [] }); });
 						modelCount[1]({ cardId: id, count: (r.models || []).length });
+						showToast('success', t('fetchOkPrefix') + (r.models || []).length + t('fetchOkSuffix'), '');
 						if ((r.models || []).length > 0) openDd[1](id); // auto-open dropdown
 					} else {
 						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
