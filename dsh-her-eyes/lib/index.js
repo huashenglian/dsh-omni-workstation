@@ -1775,22 +1775,31 @@ const buildImggenToolDef = (comfy) => defineTool({
           }
           break // wait outcome is final — do not re-submit the same prompt
         }
-        // v2.6: use the configured workflow (custom API format) or the built-in default,
-        // then inject prompt/size/seed via the (possibly custom) node mapping.
+        // v2.7: read active workflow from comfyWorkflows[] list, inject prompt/size/seed
+        // + steps/cfg/scheduler from basic config. Empty seed = random.
         let wf = comfyDefaultWorkflow()
-        const rawWf = typeof igc.comfyWorkflow === 'string' && igc.comfyWorkflow.trim() ? igc.comfyWorkflow.trim() : ''
+        const awf = (cfg.comfyWorkflows || []).find((w) => w.id === cfg.activeComfyWorkflow)
+        const rawWf = awf && typeof awf.workflow === 'string' && awf.workflow.trim() ? awf.workflow.trim() : ''
         if (rawWf) {
           try { wf = JSON.parse(rawWf) } catch { wf = comfyDefaultWorkflow(); cfDetail = '（自定义工作流 JSON 解析失败，已回退默认工作流）' }
         }
-        const mp = (igc.comfyMapping && typeof igc.comfyMapping === 'object')
-          ? igc.comfyMapping
+        const mp = (awf && awf.mapping && typeof awf.mapping === 'object')
+          ? awf.mapping
           : { sampler: '3', checkpoint: '4', latent: '5', positive: '6', negative: '7' }
         const inj = (id) => wf[id] && wf[id].inputs ? wf[id].inputs : null
         let injected = false
         if (mp.checkpoint && inj(mp.checkpoint)) { inj(mp.checkpoint).ckpt_name = igc.model; injected = true }
         if (mp.latent && inj(mp.latent)) { inj(mp.latent).width = cfSize.width; inj(mp.latent).height = cfSize.height; inj(mp.latent).batch_size = n; injected = true }
         if (mp.positive && inj(mp.positive)) { inj(mp.positive).text = prompt; injected = true }
-        if (mp.sampler && inj(mp.sampler)) { inj(mp.sampler).seed = Math.floor(Math.random() * 1125899906842624) }
+        if (mp.sampler && inj(mp.sampler)) {
+          if (awf && awf.seed !== '' && awf.seed != null) inj(mp.sampler).seed = awf.seed
+          else inj(mp.sampler).seed = Math.floor(Math.random() * 1125899906842624)
+          if (awf) {
+            if (awf.steps !== '' && awf.steps != null) inj(mp.sampler).steps = awf.steps
+            if (awf.cfg !== '' && awf.cfg != null) inj(mp.sampler).cfg = awf.cfg
+            if (awf.scheduler) inj(mp.sampler).scheduler = awf.scheduler
+          }
+        }
         if (!injected && !cfDetail) cfDetail = '（映射节点未命中，使用工作流原样参数）'
         const clientId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'dsh-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
         const submitRes = await httpJson(cfBase + '/prompt', 'POST', cfHeaders, { prompt: wf, client_id: clientId }, clampTimeout(igc.timeoutMs, 300000))
