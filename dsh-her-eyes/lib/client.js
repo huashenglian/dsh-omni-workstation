@@ -779,22 +779,6 @@ ddHint: "Pick a model",
 		}
 
 		var et = function (e) { return (e && e.message ? e.message : String(e)); };
-		toastSeq = 0;
-		var toasts = React.useState([]);
-		function showToast(type, title, desc) {
-			var id = 't_' + (++toastSeq);
-			toasts[1](function (prev) {
-				var next = [{ id: id, type: type, title: title, desc: desc }].concat(prev || []);
-				return next.length > 5 ? next.slice(0, 5) : next;
-			});
-			var dur = TOAST_DUR[type] || 4000;
-			if (dur > 0) { setTimeout(function () { closeToast(id); }, dur); }
-		}
-		function closeToast(id) {
-			toasts[1](function (prev) { return (prev || []).filter(function (t) { return t.id !== id; }); });
-		}
-		function pauseToast(id) {}
-		function resumeToast(id) {}
 
 		// ---------- inline SVG icon ----------
 		function SvgIcon(props) {
@@ -2202,6 +2186,22 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			var mirrorAllModels = React.useState([]);
 			var mirrorBusy = React.useState("");
 			var mirrorOpenDd = React.useState(null);
+			toastSeq = 0;
+			var toasts = React.useState([]);
+			function showToast(type, title, desc) {
+				var id = 't_' + (++toastSeq);
+				toasts[1](function (prev) {
+					var next = [{ id: id, type: type, title: title, desc: desc }].concat(prev || []);
+					return next.length > 5 ? next.slice(0, 5) : next;
+				});
+				var dur = TOAST_DUR[type] || 4000;
+				if (dur > 0) { setTimeout(function () { closeToast(id); }, dur); }
+			}
+			function closeToast(id) {
+				toasts[1](function (prev) { return (prev || []).filter(function (t) { return t.id !== id; }); });
+			}
+			function pauseToast(id) {}
+			function resumeToast(id) {}
 
 			function reorderFallbackModels(fromIndex, toIndex) {
 				updateDraft(function (d) {
