@@ -2228,8 +2228,9 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						draft[1](s.config);
 					} else {
 						setMsg(t("loadFail") + (s && s.error ? s.error : t("unknown")), true);
+						showToast('error', t("loadFail"), (s && s.error) || t("unknown"));
 					}
-				}).catch(function (e) { setMsg(t("loadFail") + et(e), true); });
+				}).catch(function (e) { setMsg(t("loadFail") + et(e), true); showToast('error', t("loadFail"), et(e)); });
 			}, []);
 
 			// close card menu / model dropdown on outside click
@@ -2567,8 +2568,9 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						if ((r.models || []).length > 0) openDd[1](id); // auto-open dropdown
 					} else {
 						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+						showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
 					}
-				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); }).finally(function () { busy[1](""); });
+				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { busy[1](""); });
 			}
 
 			// ---- imggen field patch: local update + debounced save ----
@@ -2615,8 +2617,9 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						if ((r.models || []).length > 0) igOpenDd[1](true); // auto-open dropdown
 					} else {
 						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+						showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
 					}
-				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); }).finally(function () { igBusy[1](""); });
+				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { igBusy[1](""); });
 			}
 			function pickIgModel(m) {
 				patchImggen("model", m);
