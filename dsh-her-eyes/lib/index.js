@@ -114,8 +114,8 @@ const defaultImggenConfig = () => ({
   retryCount: 2,
   responseFormat: 'auto', // 'auto' | 'b64_json' | 'url'
   filterImageModels: true,
-  comfyWorkflow: '', // v2.6: custom ComfyUI workflow (API format JSON string; '' = built-in default)
-  comfyMapping: null // v2.6: { sampler, checkpoint, latent, positive, negative } node-id overrides
+  comfyWorkflows: [], // v2.7: multi-workflow list [{id,name,workflow,mapping,steps,cfg,scheduler,seed}]
+  activeComfyWorkflow: '' // v2.7: id of active workflow, '' = none
 })
 
 const COMFY_MAPPING_KEYS = ['sampler', 'checkpoint', 'latent', 'positive', 'negative']
@@ -126,15 +126,6 @@ function normalizeImggenConfig(raw) {
   // bailian（阿里云百炼）始终走 DashScope 原生协议；comfyui 固定走 ComfyUI 协议（UI 隐藏 protocol 字段）
   const protocol = provider === 'bailian' ? 'dashscope-image' : provider === 'comfyui' ? 'comfyui-image' : (IMGGEN_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-images')
   const retryRaw = Math.floor(Number(raw.retryCount))
-  let comfyMapping = null
-  if (raw.comfyMapping && typeof raw.comfyMapping === 'object') {
-    const out = {}
-    for (const k of COMFY_MAPPING_KEYS) {
-      const v = raw.comfyMapping[k]
-      if (typeof v === 'string' && v.trim() !== '') out[k] = String(v).trim()
-    }
-    if (Object.keys(out).length > 0) comfyMapping = out
-  }
   return {
     provider,
     protocol,
@@ -146,8 +137,8 @@ function normalizeImggenConfig(raw) {
     retryCount: Number.isFinite(retryRaw) && retryRaw > 0 ? Math.min(retryRaw, 10) : 2,
     responseFormat: ['auto', 'b64_json', 'url'].includes(raw.responseFormat) ? raw.responseFormat : 'auto',
     filterImageModels: raw.filterImageModels !== false,
-    comfyWorkflow: typeof raw.comfyWorkflow === 'string' ? raw.comfyWorkflow : '',
-    comfyMapping
+    comfyWorkflows: Array.isArray(raw.comfyWorkflows) ? raw.comfyWorkflows : [],
+    activeComfyWorkflow: typeof raw.activeComfyWorkflow === 'string' ? raw.activeComfyWorkflow : ''
   }
 }
 
@@ -161,8 +152,8 @@ const maskedImggen = (c) => ({
   retryCount: c.retryCount,
   responseFormat: c.responseFormat,
   filterImageModels: c.filterImageModels,
-  comfyWorkflow: c.comfyWorkflow,
-  comfyMapping: c.comfyMapping,
+  comfyWorkflows: c.comfyWorkflows || [],
+  activeComfyWorkflow: c.activeComfyWorkflow || '',
   apiKeySet: c.apiKey !== ''
 })
 
@@ -327,7 +318,41 @@ function normalizeConfig(raw) {
   // sync: runtime imggenConfig = active preset's config (source of truth)
   const activePreset = imggenPresets.find((p) => p.id === activeImggenPreset) || imggenPresets[0]
   const runtimeImggenConfig = normalizeImggenConfig(activePreset.config)
-  return { retryCount, vlmEnabled, imggenEnabled, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig }
+  // ---- comfy workflows (top-level, independent of imggenConfig/presets) ----
+  let comfyWorkflows = []
+  if (Array.isArray(src.comfyWorkflows)) {
+    comfyWorkflows = src.comfyWorkflows
+      .filter((w) => w && typeof w === 'object')
+      .map((w) => ({
+        id: typeof w.id === 'string' ? w.id : 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        name: typeof w.name === 'string' ? w.name : '工作流',
+        workflow: typeof w.workflow === 'string' ? w.workflow : '',
+        mapping: w.mapping && typeof w.mapping === 'object' ? w.mapping : null,
+        steps: w.steps === '' || w.steps == null ? '' : Number(w.steps),
+        cfg: w.cfg === '' || w.cfg == null ? '' : Number(w.cfg),
+        scheduler: typeof w.scheduler === 'string' ? w.scheduler : '',
+        seed: w.seed === '' || w.seed == null ? '' : Number(w.seed)
+      }))
+  }
+  // Migration: legacy single comfyWorkflow/comfyMapping → first list entry (idempotent)
+  if (comfyWorkflows.length === 0 && src.imggenConfig && typeof src.imggenConfig.comfyWorkflow === 'string' && src.imggenConfig.comfyWorkflow.trim() !== '') {
+    try {
+      const parsed = JSON.parse(src.imggenConfig.comfyWorkflow)
+      const wfId = 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
+      comfyWorkflows.push({
+        id: wfId,
+        name: '导入的工作流',
+        workflow: JSON.stringify(parsed),
+        mapping: src.imggenConfig.comfyMapping || null,
+        steps: '',
+        cfg: '',
+        scheduler: '',
+        seed: ''
+      })
+    } catch (e) { /* invalid JSON → skip migration silently */ }
+  }
+  const activeComfyWorkflow = typeof src.activeComfyWorkflow === 'string' && comfyWorkflows.some((w) => w.id === src.activeComfyWorkflow) ? src.activeComfyWorkflow : (comfyWorkflows.length > 0 ? comfyWorkflows[0].id : '')
+  return { retryCount, vlmEnabled, imggenEnabled, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
@@ -336,8 +361,10 @@ const masked = (cfg) => ({
   imggenEnabled: cfg.imggenEnabled === true,
   visionToolsEnabled: cfg.visionToolsEnabled !== false,
     visionToolToggles: cfg.visionToolToggles || {},
- mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
- imggenConfig: maskedImggen(cfg.imggenConfig || defaultImggenConfig()),
+  mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
+  imggenConfig: maskedImggen(cfg.imggenConfig || defaultImggenConfig()),
+  comfyWorkflows: cfg.comfyWorkflows || [],
+  activeComfyWorkflow: cfg.activeComfyWorkflow || '',
   imggenPresets: (Array.isArray(cfg.imggenPresets) ? cfg.imggenPresets : []).map((p) => ({ id: p.id, name: p.name, config: maskedImggen(p.config || defaultImggenConfig()) })),
   activeImggenPreset: cfg.activeImggenPreset || (Array.isArray(cfg.imggenPresets) && cfg.imggenPresets.length > 0 ? cfg.imggenPresets[0].id : ''),
   fallbackConfig: cfg.fallbackConfig ? { provider: cfg.fallbackConfig.provider, models: cfg.fallbackConfig.models, timeoutMs: cfg.fallbackConfig.timeoutMs } : null,
@@ -2258,17 +2285,7 @@ function applyPatch(cfg, patch) {
       else if (field === 'retryCount') c.imggenConfig.retryCount = Math.max(1, Math.min(Math.floor(Number(value) || 2), 10))
       else if (field === 'responseFormat' && ['auto', 'b64_json', 'url'].includes(value)) c.imggenConfig.responseFormat = value
       else if (field === 'filterImageModels') c.imggenConfig.filterImageModels = value === true
-      else if (field === 'comfyWorkflow') c.imggenConfig.comfyWorkflow = typeof value === 'string' ? value : ''
-      else if (field === 'comfyWorkflowPrepared') {
-        // { workflow, mapping } validated server-side before applyPatch
-        if (value && typeof value === 'object') {
-          if (typeof value.workflow === 'string') c.imggenConfig.comfyWorkflow = value.workflow
-          if (value.mapping && typeof value.mapping === 'object') c.imggenConfig.comfyMapping = value.mapping
-          else c.imggenConfig.comfyMapping = null
-        }
-      }
-      else if (field === 'comfyMapping' && value && typeof value === 'object') c.imggenConfig.comfyMapping = value
-     else if (field === 'apiKey') {
+      else if (field === 'apiKey') {
        if (typeof value === 'string' && value.length > 0) c.imggenConfig.apiKey = value
        else if (value === null) c.imggenConfig.apiKey = ''
      }
@@ -2318,6 +2335,61 @@ function applyPatch(cfg, patch) {
   if (p.imggenPresetRename && typeof p.imggenPresetRename === 'string') {
     const ap = (c.imggenPresets || []).find((pr) => pr.id === c.activeImggenPreset)
     if (ap) ap.name = String(p.imggenPresetRename).slice(0, 60)
+  }
+  // NOTE: activeComfyWorkflow/comfyWorkflows are TOP-LEVEL, NOT inside imggenConfig.
+  // When imggenPresetSwitch overwrites c.imggenConfig above, they are untouched.
+  // ---- comfy workflow CRUD (v2.7) ----
+  if (p.comfyWfImport && typeof p.comfyWfImport === 'object') {
+    // comfyWfImport is pre-parsed by the POST handler (async prepareComfyWorkflow)
+    const entry = {
+      id: typeof p.comfyWfImport.id === 'string' ? p.comfyWfImport.id : 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+      name: typeof p.comfyWfImport.name === 'string' ? p.comfyWfImport.name : '工作流',
+      workflow: typeof p.comfyWfImport.workflow === 'string' ? p.comfyWfImport.workflow : '',
+      mapping: p.comfyWfImport.mapping && typeof p.comfyWfImport.mapping === 'object' ? p.comfyWfImport.mapping : null,
+      steps: '',
+      cfg: '',
+      scheduler: '',
+      seed: ''
+    }
+    const wasEmpty = (c.comfyWorkflows || []).length === 0
+    c.comfyWorkflows = (c.comfyWorkflows || []).concat([entry])
+    if (wasEmpty) c.activeComfyWorkflow = entry.id
+  }
+  if (p.comfyWfDelete && typeof p.comfyWfDelete === 'object' && typeof p.comfyWfDelete.id === 'string') {
+    c.comfyWorkflows = (c.comfyWorkflows || []).filter((w) => w.id !== p.comfyWfDelete.id)
+    if (c.activeComfyWorkflow === p.comfyWfDelete.id) {
+      c.activeComfyWorkflow = c.comfyWorkflows.length > 0 ? c.comfyWorkflows[0].id : ''
+    }
+  }
+  if (p.comfyWfRename && typeof p.comfyWfRename === 'object' && typeof p.comfyWfRename.id === 'string' && typeof p.comfyWfRename.name === 'string') {
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfRename.id)
+    if (wf) wf.name = p.comfyWfRename.name
+  }
+  if (p.comfyWfToggle && typeof p.comfyWfToggle === 'object' && typeof p.comfyWfToggle.id === 'string') {
+    c.activeComfyWorkflow = p.comfyWfToggle.id
+  }
+  if (p.comfyWfUpdateConfig && typeof p.comfyWfUpdateConfig === 'object' && typeof p.comfyWfUpdateConfig.id === 'string') {
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfUpdateConfig.id)
+    if (wf) {
+      if (p.comfyWfUpdateConfig.steps !== undefined) wf.steps = p.comfyWfUpdateConfig.steps === '' || p.comfyWfUpdateConfig.steps == null ? '' : Number(p.comfyWfUpdateConfig.steps)
+      if (p.comfyWfUpdateConfig.cfg !== undefined) wf.cfg = p.comfyWfUpdateConfig.cfg === '' || p.comfyWfUpdateConfig.cfg == null ? '' : Number(p.comfyWfUpdateConfig.cfg)
+      if (p.comfyWfUpdateConfig.scheduler !== undefined) wf.scheduler = typeof p.comfyWfUpdateConfig.scheduler === 'string' ? p.comfyWfUpdateConfig.scheduler : ''
+      if (p.comfyWfUpdateConfig.seed !== undefined) wf.seed = p.comfyWfUpdateConfig.seed === '' || p.comfyWfUpdateConfig.seed == null ? '' : Number(p.comfyWfUpdateConfig.seed)
+    }
+  }
+  if (p.comfyWfAutoMap && typeof p.comfyWfAutoMap === 'object' && typeof p.comfyWfAutoMap.id === 'string') {
+    // comfyWfAutoMap is pre-parsed by the POST handler (async detectComfyMapping)
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfAutoMap.id)
+    if (wf && p.comfyWfAutoMap.mapping && typeof p.comfyWfAutoMap.mapping === 'object') {
+      wf.mapping = p.comfyWfAutoMap.mapping
+    }
+  }
+  if (p.comfyWfUpdateJson && typeof p.comfyWfUpdateJson === 'object' && typeof p.comfyWfUpdateJson.id === 'string') {
+    // comfyWfUpdateJson is pre-parsed by the POST handler (async prepareComfyWorkflow)
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfUpdateJson.id)
+    if (wf && typeof p.comfyWfUpdateJson.workflow === 'string') {
+      wf.workflow = p.comfyWfUpdateJson.workflow
+    }
   }
   if (p.fallbackConfig) {
     if (p.fallbackConfig === 'reset' || p.fallbackConfig.reset === true) {
