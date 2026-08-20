@@ -48,6 +48,14 @@ window.__ModuleLoader__.load({
 				cardsCollapsedAll: "已全部折叠",
 				cardsExpandedAll: "已全部展开",
 				cardsDeletedAll: "已删除全部卡片",
+				importedWf: "已导入工作流",
+				deletedWf: "已删除工作流",
+				resetDone: "已重置",
+				autoMapped: "已自动映射",
+				jsonUpdated: "已更新工作流",
+				presetAdded: "已新建预设",
+				presetDeleted: "已删除预设",
+				presetSwitched: "已切换预设",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
 				cardNamePh: "VLM API",
 				nameHint: "双击重命名",
@@ -260,6 +268,14 @@ ddHint: "选择模型",
 				cardsCollapsedAll: "All collapsed",
 				cardsExpandedAll: "All expanded",
 				cardsDeletedAll: "All cards deleted",
+				importedWf: "Workflow imported",
+				deletedWf: "Workflow deleted",
+				resetDone: "Reset complete",
+				autoMapped: "Auto-mapped",
+				jsonUpdated: "Workflow updated",
+				presetAdded: "Preset added",
+				presetDeleted: "Preset deleted",
+				presetSwitched: "Preset switched",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
 				cardNamePh: "VLM API",
 				nameHint: "Double-click to rename",
@@ -2647,6 +2663,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						igModelList[1](r.models || []);
 						igModelCount[1]((r.models || []).length);
 						if ((r.models || []).length > 0) igOpenDd[1](true); // auto-open dropdown
+						showToast('success', t('fetchOkPrefix') + (r.models || []).length + t('fetchOkSuffix'), '');
 					} else {
 						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
 						showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
@@ -2658,21 +2675,21 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				igOpenDd[1](false);
 			}
 			function importWorkflow(name, text) {
-				commitStructure({ comfyWfImport: { name: name, workflow: text } }, function (d) { return d; });
+				commitStructure({ comfyWfImport: { name: name, workflow: text } }, function (d) { return d; }, function () { showToast('success', t('importedWf'), ''); });
 			}
 			function deleteWorkflow(id) {
-				commitStructure({ comfyWfDelete: { id: id } });
+				commitStructure({ comfyWfDelete: { id: id } }, null, function () { showToast('success', t('deletedWf'), ''); });
 			}
 			function renameWorkflow(id, name) { commitStructure({ comfyWfRename: { id: id, name: name } }); }
 			function toggleWorkflow(id) { commitStructure({ comfyWfToggle: { id: id } }); }
 			function updateWfJson(id, text) {
-				commitStructure({ comfyWfUpdateJson: { id: id, workflow: text } });
+				commitStructure({ comfyWfUpdateJson: { id: id, workflow: text } }, null, function () { showToast('success', t('jsonUpdated'), ''); });
 			}
 			function updateWfConfig(id, field, value) {
 				var p = { id: id }; p[field] = value; commitStructure({ comfyWfUpdateConfig: p });
 			}
 			function autoMapWorkflow(id) {
-				commitStructure({ comfyWfAutoMap: { id: id } });
+				commitStructure({ comfyWfAutoMap: { id: id } }, null, function () { showToast('success', t('autoMapped'), ''); });
 			}
 			function updateWfMapping(id, key, value) {
 				commitStructure({ comfyWfUpdateMapping: { id: id, key: key, value: value } });
@@ -2693,7 +2710,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				igModelCount[1](null);
 				igKeyDraft[1]("");
 				igRevealed[1](false);
-				commitStructure({ imggenReset: true }, function (d) { d.imggenConfig = null; return d; });
+				commitStructure({ imggenReset: true }, function (d) { d.imggenConfig = null; return d; }, function () { showToast('success', t('resetDone'), ''); });
 			}
 		function switchPreset(id) {
 			igPresetDdOpen[1](false);
@@ -2701,7 +2718,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetSwitch: id });
+			commitStructure({ imggenPresetSwitch: id }, null, function () { showToast('success', t('presetSwitched'), ''); });
 		}
 		function addPreset() {
 			igPresetDdOpen[1](false);
@@ -2709,7 +2726,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetAdd: true });
+			commitStructure({ imggenPresetAdd: true }, null, function () { showToast('success', t('presetAdded'), ''); });
 		}
 		function deletePreset(id) {
 			igPresetDeleteConfirm[1](false);
@@ -2717,7 +2734,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetDelete: id });
+			commitStructure({ imggenPresetDelete: id }, null, function () { showToast('success', t('presetDeleted'), ''); });
 		}
 		function renamePreset(name) {
 			queueSave({ imggenPresetRename: name });
