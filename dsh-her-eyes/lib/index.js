@@ -1439,6 +1439,22 @@ function detectComfyMapping(api) {
   return { sampler, checkpoint, latent, positive, negative }
 }
 
+// Extract steps/cfg/scheduler/seed from the KSampler node's widget inputs.
+// Linked inputs (arrays like ["6", 0]) → '' — can't override a linked value.
+function extractComfyBasicConfig(api, mapping) {
+  const empty = { steps: '', cfg: '', scheduler: '', seed: '' }
+  if (!api || !mapping || !mapping.sampler || !api[mapping.sampler] || !api[mapping.sampler].inputs) return empty
+  const inputs = api[mapping.sampler].inputs
+  const num = (v) => typeof v === 'number' ? v : ''
+  const str = (v) => typeof v === 'string' ? v : ''
+  return {
+    steps: num(inputs.steps),
+    cfg: num(inputs.cfg),
+    scheduler: str(inputs.scheduler),
+    seed: num(inputs.seed)
+  }
+}
+
 // Parse raw pasted/imported workflow text -> { api, mapping, format }.
 async function prepareComfyWorkflow(raw, endpoint) {
   let obj = null
