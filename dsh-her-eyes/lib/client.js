@@ -603,6 +603,15 @@ ddHint: "Pick a model",
 		".vlm-comfy-wf-mapping-body { margin-top: 8px; padding: 8px 12px; background: var(--dsw-alias-bg-layer-2); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; }",
 		".vlm-comfy-wf-mapping-summary { display: flex; gap: 8px; font-size: 12px; }",
 		".vlm-comfy-wf-automap { align-self: flex-start; }",
+		".vlm-toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }",
+		".vlm-toast-card { display: flex; align-items: flex-start; gap: 8px; padding: 12px 16px; background: var(--dsw-alias-bg-layer-2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 480px; pointer-events: auto; animation: vlm-toast-in 0.2s ease; border-left: 3px solid #3b82f6; }",
+		".vlm-toast-info { border-left-color: #3b82f6; } .vlm-toast-info svg { color: #3b82f6; }",
+		".vlm-toast-success { border-left-color: #22c55e; } .vlm-toast-success svg { color: #22c55e; }",
+		".vlm-toast-warning { border-left-color: #f59e0b; } .vlm-toast-warning svg { color: #f59e0b; }",
+		".vlm-toast-error { border-left-color: #e5484d; } .vlm-toast-error svg { color: #e5484d; }",
+		".vlm-toast-body { flex: 1; } .vlm-toast-title { font-size: 13px; font-weight: 600; } .vlm-toast-desc { font-size: 12px; opacity: 0.85; margin-top: 2px; word-break: break-word; }",
+		".vlm-toast-close { background: none; border: none; color: inherit; opacity: 0.5; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; } .vlm-toast-close:hover { opacity: 1; }",
+		"@keyframes vlm-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }",
 		".vlm-label-sm { font-size: 11px; opacity: 0.8; }",
 		".vlm-msg-err { color: #f85149; font-size: 12px; word-break: break-all; }",
 			// ---- delete buttons (trash icons are always red) ----
@@ -770,6 +779,22 @@ ddHint: "Pick a model",
 		}
 
 		var et = function (e) { return (e && e.message ? e.message : String(e)); };
+		toastSeq = 0;
+		var toasts = React.useState([]);
+		function showToast(type, title, desc) {
+			var id = 't_' + (++toastSeq);
+			toasts[1](function (prev) {
+				var next = [{ id: id, type: type, title: title, desc: desc }].concat(prev || []);
+				return next.length > 5 ? next.slice(0, 5) : next;
+			});
+			var dur = TOAST_DUR[type] || 4000;
+			if (dur > 0) { setTimeout(function () { closeToast(id); }, dur); }
+		}
+		function closeToast(id) {
+			toasts[1](function (prev) { return (prev || []).filter(function (t) { return t.id !== id; }); });
+		}
+		function pauseToast(id) {}
+		function resumeToast(id) {}
 
 		// ---------- inline SVG icon ----------
 		function SvgIcon(props) {
@@ -805,6 +830,10 @@ ddHint: "Pick a model",
 		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
 	var I_EDIT = ["M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z", "M10 4l2 2"];
+	var I_TOAST_INFO = ["M8 2a6 6 0 100 12A6 6 0 008 2zm0 3a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6a.75.75 0 100 1.5.75.75 0 000-1.5z"];
+	var I_TOAST_SUCCESS = ["M8 2a6 6 0 100 12A6 6 0 008 2zm3 4.5L7 10.5 5 8.5"];
+	var I_TOAST_WARNING = ["M8 1.5L1 14h14L8 1.5zM8 6v4M8 12v.5"];
+	var I_TOAST_ERROR = ["M8 2a6 6 0 100 12A6 6 0 008 2zm3 3L5 11M11 5L5 11"];
 		var I_PLUS = ["M8 3v10", "M3 8h10"];
 		var I_RESET_SVG = ["M434.816 140.16c179.264-37.312 361.408 57.28 430.08 229.568a38.4 38.4 0 0 1-71.424 28.48c-56.32-141.312-208.96-217.6-356.928-179.648a302.976 302.976 0 1 0 181.632 577.216 303.04 303.04 0 0 0 194.24-244.416 38.4 38.4 0 0 1 76.16 9.984 379.84 379.84 0 0 1-243.52 306.368A379.776 379.776 0 1 1 417.472 144.192l17.344-4.032z", "M814.912 170.752a38.4 38.4 0 0 1 76.8 0v213.312c0 21.184-17.216 38.4-38.4 38.4H640a38.4 38.4 0 0 1 0-76.8h174.912V170.752z"];
 		var I_GEAR_SVG = ["M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"];
@@ -1199,6 +1228,37 @@ ddHint: "Pick a model",
 			}, [head, body]);
 		}
 
+		// ---------- toast notification system (v2.7) ----------
+		var TOAST_ICONS = { info: I_TOAST_INFO, success: I_TOAST_SUCCESS, warning: I_TOAST_WARNING, error: I_TOAST_ERROR };
+		var TOAST_DUR = { info: 4000, success: 4000, warning: 7000, error: 0 };
+		function ToastCard(props) {
+			var t = props.toast || {};
+			var icon = TOAST_ICONS[t.type] || TOAST_ICONS.info;
+			return React.createElement("div", {
+				className: "vlm-toast-card vlm-toast-" + (t.type || "info"),
+				onMouseEnter: props.onPause, onMouseLeave: props.onResume
+			}, [
+				React.createElement(SvgIcon, { d: icon, width: 18, height: 18 }),
+				React.createElement("div", { className: "vlm-toast-body" }, [
+					t.title ? React.createElement("div", { className: "vlm-toast-title" }, t.title) : null,
+					t.desc ? React.createElement("div", { className: "vlm-toast-desc" }, t.desc) : null
+				]),
+				React.createElement("button", { className: "vlm-toast-close", onClick: props.onClose }, "\u00d7")
+			]);
+		}
+		function ToastContainer(props) {
+			var toasts = Array.isArray(props.toasts) ? props.toasts : [];
+			return React.createElement("div", { className: "vlm-toast-container" },
+				toasts.map(function (t) {
+					return React.createElement(ToastCard, {
+						key: t.id, toast: t,
+						onClose: function () { props.onClose(t.id); },
+						onPause: function () { props.onPause(t.id); },
+						onResume: function () { props.onResume(t.id); }
+					});
+				})
+			);
+		}
 		// ---------- image generation panel ----------
 		// v2.7: multi-workflow list + edit view replaces old single-workflow textarea
 		function WorkflowList(props) {
@@ -1334,11 +1394,22 @@ ddHint: "Pick a model",
 							className: "vlm-btn vlm-comfy-wf-automap",
 							onClick: function () { props.onAutoMap(wf.id); }
 						}, t("comfyWfAutoMap")),
-						React.createElement("div", { className: "vlm-comfy-wf-mapping-summary" }, [
-							React.createElement("span", { className: "vlm-label-sm" }, t("comfyWfMappingSummary")),
-							React.createElement("span", null, summary || "—")
-						]),
-						props.mappingError ? React.createElement("p", { className: "vlm-err" }, props.mappingError) : null
+						React.createElement("div", { className: "vlm-row" }, [
+								{ key: "sampler", label: "KSampler" },
+								{ key: "checkpoint", label: "Checkpoint" },
+								{ key: "latent", label: "EmptyLatent" },
+								{ key: "positive", label: "Positive" },
+								{ key: "negative", label: "Negative" }
+							].map(function (m) {
+								return React.createElement("div", { key: m.key, className: "vlm-field vlm-grow" }, [
+									React.createElement("span", { className: "vlm-label vlm-label-sm" }, m.label),
+									React.createElement("input", {
+										className: "vlm-input", type: "text",
+										value: (wf.mapping && wf.mapping[m.key]) || "",
+										onChange: function (e) { props.onUpdateMapping(wf.id, m.key, e.target.value); }
+									})
+								]);
+							}))
 					]) : null
 				])
 			]);
@@ -1618,7 +1689,7 @@ ddHint: "Pick a model",
 					t: t, wf: editWf[0], onBack: function () { wfView[1]("list"); editWf[1](null); },
 					onRename: props.onRename, onUpdateJson: props.onUpdateJson,
 					onUpdateConfig: props.onUpdateConfig, onAutoMap: props.onAutoMap,
-					mappingError: props.mappingError
+					onUpdateMapping: props.onUpdateMapping
 				}) : null,
 				React.createElement("p", { className: "vlm-status" },
 					t("imggenStatusPrefix") + (props.visible ? t("imggenToolVisible") : (isComfy ? t("imggenToolHidden") : t("toolHidden"))) +
@@ -2217,11 +2288,12 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 						snap[1](r);
 					} else {
 						setMsg(t("saveFail") + (r && r.error ? r.error : t("unknown")), true);
+						showToast('error', t("saveFail"), (r && r.error) || t("unknown"));
 						call("config").then(function (s) {
 							if (s && s.config) { draft[1](s.config); snap[1](s); }
 						});
 					}
-				}).catch(function (e) { setMsg(t("saveFail") + et(e), true); }).finally(function () { busy[1](""); });
+				}).catch(function (e) { setMsg(t("saveFail") + et(e), true); showToast('error', t("saveFail"), et(e)); }).finally(function () { busy[1](""); });
 			};
 			if (flushPromise && typeof flushPromise.then === 'function') {
 				flushPromise.then(proceed).catch(proceed);
@@ -2552,7 +2624,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				igOpenDd[1](false);
 			}
 			function importWorkflow(name, text) {
-				commitStructure({ comfyWfImport: { name: name, workflow: text } });
+				commitStructure({ comfyWfImport: { name: name, workflow: text } }, function (d) { return d; });
 			}
 			function deleteWorkflow(id) {
 				commitStructure({ comfyWfDelete: { id: id } });
@@ -2567,6 +2639,9 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			}
 			function autoMapWorkflow(id) {
 				commitStructure({ comfyWfAutoMap: { id: id } });
+			}
+			function updateWfMapping(id, key, value) {
+				commitStructure({ comfyWfUpdateMapping: { id: id, key: key, value: value } });
 			}
 			function toggleIgFilter() {
 				patchImggen("filterImageModels", !igc.filterImageModels);
@@ -2773,7 +2848,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 
 			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
 				igcValid
-					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, mappingError: (msg[0] && errState[0] ? msg[0] : ""), workflows: (draft[0].comfyWorkflows || []), activeWfId: (draft[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, onUpdateMapping: updateWfMapping, workflows: (draft[0].comfyWorkflows || []), activeWfId: (draft[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
 				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
 			]);
@@ -2796,6 +2871,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 		]);
 
 			return React.createElement("div", { className: "vlm-page" }, [
+				React.createElement(ToastContainer, { toasts: toasts[0], onClose: closeToast, onPause: pauseToast, onResume: resumeToast }),
 				React.createElement("div", { className: "vlm-tabs" }, [
 					React.createElement("button", { className: "vlm-tab" + (tab[0] === "vlm" ? " active" : ""), onClick: function () { tab[1]("vlm"); } }, [
 					"VLM",
