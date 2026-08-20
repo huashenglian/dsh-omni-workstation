@@ -65,18 +65,28 @@ window.__ModuleLoader__.load({
 				imggenToolVisible: " · generate_image 工具已启用",
 				comfyWfLabel: "ComfyUI 工作流",
 				comfyWfPh: "粘贴工作流 JSON（API 格式，或 WebUI 保存的标准格式；留空用内置默认工作流）",
-				comfyWfImport: "导入文件",
-				comfyWfParse: "解析工作流",
-				comfyWfReset: "恢复默认",
+				comfyWfListTitle: "ComfyUI 工作流",
+				comfyWfImportBtn: "导入工作流",
+				comfyWfEdit: "编辑",
+				comfyWfDelete: "删除",
+				comfyWfDeleteConfirm: "确认删除此工作流？",
+				comfyWfDeleteConfirmBtn: "确认删除",
+				comfyWfDeleteCancel: "取消",
+				comfyWfAutoMap: "自动映射",
+				comfyWfBack: "返回列表",
+				comfyWfNamePh: "工作流名称",
+				comfyWfSteps: "Steps",
+				comfyWfCfg: "CFG",
+				comfyWfScheduler: "Scheduler",
+				comfyWfSeed: "Seed（留空=随机）",
+				comfyWfMappingTitle: "节点映射",
+				comfyWfMappingSummary: "映射结果",
+				comfyWfNoWorkflows: "暂无工作流，点击下方导入",
+				comfyWfJsonLabel: "工作流 JSON",
+				comfyWfBasicConfig: "基础配置",
 				comfyWfError: "工作流解析失败",
-				comfyWfMappingLabel: "节点映射（采样器/Checkpoint/空Latent/正向/负向）",
-				comfyWfDefaultTag: "内置默认工作流",
 				comfyWfImportPh: "选择 .json 工作流文件…",
-				comfyMapSampler: "采样器",
-				comfyMapCheckpoint: "Checkpoint",
-				comfyMapLatent: "空Latent",
-				comfyMapPositive: "正向",
-				comfyMapNegative: "负向",
+				comfyWfDefaultTag: "内置默认工作流",
 				ollamaHint: "Ollama 为本地模型服务器：只需填写 URL，无需 API Key。",
 				apiKeyLabel: "API Key（输入后自动保存；留空保持不变）",
 				apiKeySet: "已设置（输入新值以替换）",
@@ -262,18 +272,28 @@ ddHint: "选择模型",
 				imggenToolVisible: " · generate_image tool enabled",
 				comfyWfLabel: "ComfyUI Workflow",
 				comfyWfPh: "Paste workflow JSON (API format, or standard WebUI format; blank = built-in default)",
-				comfyWfImport: "Import file",
-				comfyWfParse: "Parse workflow",
-				comfyWfReset: "Reset default",
+				comfyWfListTitle: "ComfyUI Workflow",
+				comfyWfImportBtn: "Import Workflow",
+				comfyWfEdit: "Edit",
+				comfyWfDelete: "Delete",
+				comfyWfDeleteConfirm: "Delete this workflow?",
+				comfyWfDeleteConfirmBtn: "Confirm Delete",
+				comfyWfDeleteCancel: "Cancel",
+				comfyWfAutoMap: "Auto Map",
+				comfyWfBack: "Back to List",
+				comfyWfNamePh: "Workflow name",
+				comfyWfSteps: "Steps",
+				comfyWfCfg: "CFG",
+				comfyWfScheduler: "Scheduler",
+				comfyWfSeed: "Seed (empty=random)",
+				comfyWfMappingTitle: "Node Mapping",
+				comfyWfMappingSummary: "Mapping Result",
+				comfyWfNoWorkflows: "No workflows yet, click import below",
+				comfyWfJsonLabel: "Workflow JSON",
+				comfyWfBasicConfig: "Basic Config",
 				comfyWfError: "Workflow parse failed",
-				comfyWfMappingLabel: "Node mapping (sampler/checkpoint/latent/positive/negative)",
-				comfyWfDefaultTag: "Built-in default workflow",
 				comfyWfImportPh: "Choose a .json workflow file…",
-				comfyMapSampler: "Sampler",
-				comfyMapCheckpoint: "Checkpoint",
-				comfyMapLatent: "Latent",
-				comfyMapPositive: "Positive",
-				comfyMapNegative: "Negative",
+				comfyWfDefaultTag: "Built-in default workflow",
 				ollamaHint: "Ollama is a local model server: just fill in the URL, no API Key needed.",
 				apiKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
 				apiKeySet: "Set (enter new value to replace)",
@@ -557,11 +577,32 @@ ddHint: "Pick a model",
 			".vlm-preset-divider { height: 1px; background: var(--dsh-border, #555); opacity: 0.3; margin: 6px 0; }",
 			".vlm-preset-del-btn:disabled { opacity: 0.35; cursor: not-allowed; }",
 		// ---- comfy workflow editor ----
-		".vlm-comfy-wf { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }",
-		".vlm-comfy-wf-input { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; min-height: 88px; resize: vertical; }",
-		".vlm-comfy-wf-actions { gap: 8px; }",
-		".vlm-comfy-wf-import { cursor: pointer; display: inline-flex; align-items: center; }",
+		".vlm-comfy-wf-list { display: flex; flex-direction: column; gap: 8px; }",
+		".vlm-comfy-wf-list-title { margin: 0 0 4px; font-size: 13px; }",
+		".vlm-comfy-wf-cards { display: flex; flex-direction: column; gap: 4px; }",
+		".vlm-comfy-wf-card { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--dsw-alias-bg-layer-2); border-radius: 6px; }",
+		".vlm-comfy-wf-toggle { width: 16px; height: 16px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0; }",
+		".vlm-comfy-wf-toggle.on { background: #22c55e; }",
+		".vlm-comfy-wf-toggle.off { border: 2px solid #666; background: transparent; }",
+		".vlm-comfy-wf-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+		".vlm-comfy-wf-edit, .vlm-comfy-wf-delete { background: none; border: none; cursor: pointer; padding: 4px; display: inline-flex; }",
+		".vlm-comfy-wf-delete { margin-left: 24px; color: #e5484d; }",
+		".vlm-comfy-wf-edit svg, .vlm-comfy-wf-delete svg { width: 16px; height: 16px; }",
+		".vlm-comfy-wf-import-btn { cursor: pointer; display: inline-flex; align-items: center; align-self: flex-start; }",
+		".vlm-comfy-wf-confirm-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }",
+		".vlm-comfy-wf-confirm-content { background: var(--dsw-alias-bg-layer-2); padding: 24px; border-radius: 8px; text-align: center; }",
+		".vlm-confirm-delete { background: #e5484d; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }",
+		".vlm-comfy-wf-edit { display: flex; flex-direction: column; gap: 12px; }",
+		".vlm-comfy-wf-edit-header { display: flex; align-items: center; gap: 8px; }",
+		".vlm-comfy-wf-title { font-size: 13px; font-weight: 600; }",
+		".vlm-comfy-wf-name-input { flex: 1; }",
+		".vlm-comfy-wf-json { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; min-height: 120px; resize: vertical; }",
+		".vlm-comfy-wf-basic-config { display: flex; flex-direction: column; gap: 6px; }",
 		".vlm-comfy-wf-mapping { display: flex; flex-direction: column; gap: 6px; }",
+		".vlm-comfy-wf-mapping-toggle { background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: inherit; font-size: 13px; }",
+		".vlm-comfy-wf-mapping-body { margin-top: 8px; padding: 8px 12px; background: var(--dsw-alias-bg-layer-2); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; }",
+		".vlm-comfy-wf-mapping-summary { display: flex; gap: 8px; font-size: 12px; }",
+		".vlm-comfy-wf-automap { align-self: flex-start; }",
 		".vlm-label-sm { font-size: 11px; opacity: 0.8; }",
 		".vlm-msg-err { color: #f85149; font-size: 12px; word-break: break-all; }",
 			// ---- delete buttons (trash icons are always red) ----
@@ -1158,13 +1199,146 @@ ddHint: "Pick a model",
 		}
 
 		// ---------- image generation panel ----------
-		var COMFY_MAP_LABELS = [
-			{ key: "sampler", def: "3", labelKey: "comfyMapSampler" },
-			{ key: "checkpoint", def: "4", labelKey: "comfyMapCheckpoint" },
-			{ key: "latent", def: "5", labelKey: "comfyMapLatent" },
-			{ key: "positive", def: "6", labelKey: "comfyMapPositive" },
-			{ key: "negative", def: "7", labelKey: "comfyMapNegative" }
-		];
+		// v2.7: multi-workflow list + edit view replaces old single-workflow textarea
+		function WorkflowList(props) {
+			var t = props.t;
+			var workflows = Array.isArray(props.workflows) ? props.workflows : [];
+			var activeId = props.activeId || "";
+			var delConfirm = React.useState(null);
+			var cards = workflows.map(function (wf) {
+				var isActive = wf.id === activeId;
+				return React.createElement("div", { key: wf.id, className: "vlm-comfy-wf-card" }, [
+					React.createElement("button", {
+						className: "vlm-comfy-wf-toggle " + (isActive ? "on" : "off"),
+						title: isActive ? "ON" : "OFF",
+						onClick: function () { if (!isActive) props.onToggle(wf.id); }
+					}),
+					React.createElement("span", { className: "vlm-comfy-wf-name" }, wf.name || t("comfyWfNamePh")),
+					React.createElement("button", {
+						className: "vlm-comfy-wf-edit", title: t("comfyWfEdit"),
+						onClick: function () { props.onEdit(wf.id); }
+					}, React.createElement(SvgIcon, { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" })),
+					React.createElement("button", {
+						className: "vlm-comfy-wf-delete", title: t("comfyWfDelete"),
+						onClick: function () { delConfirm[1](wf.id); }
+					}, React.createElement(SvgIcon, { d: "M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" }))
+				]);
+			});
+			var modal = delConfirm[0] ? React.createElement("div", { className: "vlm-comfy-wf-confirm-modal" }, [
+				React.createElement("div", { className: "vlm-comfy-wf-confirm-content" }, [
+					React.createElement("p", null, t("comfyWfDeleteConfirm")),
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement("button", {
+							className: "vlm-btn vlm-confirm-delete",
+							onClick: function () { props.onDelete(delConfirm[0]); delConfirm[1](null); }
+						}, t("comfyWfDeleteConfirmBtn")),
+						React.createElement("button", {
+							className: "vlm-btn vlm-cancel",
+							onClick: function () { delConfirm[1](null); }
+						}, t("comfyWfDeleteCancel"))
+					])
+				])
+			]) : null;
+			return React.createElement("div", { className: "vlm-comfy-wf-list" }, [
+				React.createElement("h4", { className: "vlm-comfy-wf-list-title" }, t("comfyWfListTitle")),
+				workflows.length === 0 ? React.createElement("p", { className: "vlm-msg" }, t("comfyWfNoWorkflows")) : null,
+				React.createElement("div", { className: "vlm-comfy-wf-cards" }, cards),
+				React.createElement("label", { className: "vlm-btn vlm-comfy-wf-import-btn" }, [
+					t("comfyWfImportBtn"),
+					React.createElement("input", {
+						type: "file", accept: ".json,application/json", style: { display: "none" },
+						onChange: function (e) {
+							var f = e.target.files && e.target.files[0];
+							if (!f) return;
+							var reader = new FileReader();
+							reader.onload = function () {
+								props.onImport(f.name.replace(/\.[^.]+$/, ""), String(reader.result || ""));
+							};
+							reader.readAsText(f);
+							e.target.value = "";
+						}
+					})
+				]),
+				modal
+			]);
+		}
+
+		function WorkflowEdit(props) {
+			var t = props.t;
+			var wf = props.wf || {};
+			var collapsed = React.useState(true);
+			var jsonDraft = React.useState(wf.workflow || "");
+			var summary = wf.mapping ? [
+				{ k: "sampler", l: "KSampler" }, { k: "checkpoint", l: "Checkpoint" },
+				{ k: "latent", l: "EmptyLatent" }, { k: "positive", l: "Positive" }, { k: "negative", l: "Negative" }
+			].filter(function (m) { return wf.mapping[m.k]; }).map(function (m) { return m.l + ": " + wf.mapping[m.k]; }).join(" · ") : "";
+			return React.createElement("div", { className: "vlm-comfy-wf-edit" }, [
+				React.createElement("div", { className: "vlm-comfy-wf-edit-header" }, [
+					React.createElement("span", { className: "vlm-comfy-wf-title" }, t("comfyWfListTitle")),
+					React.createElement("input", {
+						className: "vlm-input vlm-comfy-wf-name-input", type: "text",
+						placeholder: t("comfyWfNamePh"), value: wf.name || "",
+						onChange: function (e) { props.onRename(wf.id, e.target.value); }
+					}),
+					React.createElement("button", { className: "vlm-btn vlm-comfy-wf-back", onClick: props.onBack }, t("comfyWfBack"))
+				]),
+				React.createElement("div", { className: "vlm-field" }, [
+					React.createElement("span", { className: "vlm-label" }, t("comfyWfJsonLabel")),
+					React.createElement("textarea", {
+						className: "vlm-input vlm-comfy-wf-json", rows: 12,
+						value: jsonDraft[0], onChange: function (e) { jsonDraft[1](e.target.value); }
+					}),
+					React.createElement("button", {
+						className: "vlm-btn", onClick: function () { props.onUpdateJson(wf.id, jsonDraft[0]); }
+					}, "保存 JSON")
+				]),
+				React.createElement("div", { className: "vlm-comfy-wf-basic-config" }, [
+					React.createElement("span", { className: "vlm-label" }, t("comfyWfBasicConfig")),
+					React.createElement("div", { className: "vlm-row" }, [
+						React.createElement("div", { className: "vlm-field" }, [
+							React.createElement("span", { className: "vlm-label vlm-label-sm" }, t("comfyWfSteps")),
+							React.createElement("input", { className: "vlm-input", type: "number", value: wf.steps === "" ? "" : wf.steps, placeholder: "20",
+								onChange: function (e) { props.onUpdateConfig(wf.id, "steps", e.target.value === "" ? "" : Number(e.target.value)); } })
+						]),
+						React.createElement("div", { className: "vlm-field" }, [
+							React.createElement("span", { className: "vlm-label vlm-label-sm" }, t("comfyWfCfg")),
+							React.createElement("input", { className: "vlm-input", type: "number", value: wf.cfg === "" ? "" : wf.cfg, placeholder: "8",
+								onChange: function (e) { props.onUpdateConfig(wf.id, "cfg", e.target.value === "" ? "" : Number(e.target.value)); } })
+						]),
+						React.createElement("div", { className: "vlm-field" }, [
+							React.createElement("span", { className: "vlm-label vlm-label-sm" }, t("comfyWfScheduler")),
+							React.createElement("input", { className: "vlm-input", type: "text", value: wf.scheduler || "", placeholder: "normal",
+								onChange: function (e) { props.onUpdateConfig(wf.id, "scheduler", e.target.value); } })
+						]),
+						React.createElement("div", { className: "vlm-field" }, [
+							React.createElement("span", { className: "vlm-label vlm-label-sm" }, t("comfyWfSeed")),
+							React.createElement("input", { className: "vlm-input", type: "number", value: wf.seed === "" ? "" : wf.seed, placeholder: t("comfyWfSeed"),
+								onChange: function (e) { props.onUpdateConfig(wf.id, "seed", e.target.value === "" ? "" : Number(e.target.value)); } })
+						])
+					])
+				]),
+				React.createElement("div", { className: "vlm-comfy-wf-mapping" }, [
+					React.createElement("button", {
+						className: "vlm-comfy-wf-mapping-toggle",
+						onClick: function () { collapsed[1](!collapsed[0]); }
+					}, [
+						React.createElement(SvgIcon, { d: collapsed[0] ? "M9 18l6-6-6-6" : "M15 18l-6-6 6-6" }),
+						React.createElement("span", null, t("comfyWfMappingTitle"))
+					]),
+					!collapsed[0] ? React.createElement("div", { className: "vlm-comfy-wf-mapping-body" }, [
+						React.createElement("button", {
+							className: "vlm-btn vlm-comfy-wf-automap",
+							onClick: function () { props.onAutoMap(wf.id); }
+						}, t("comfyWfAutoMap")),
+						React.createElement("div", { className: "vlm-comfy-wf-mapping-summary" }, [
+							React.createElement("span", { className: "vlm-label-sm" }, t("comfyWfMappingSummary")),
+							React.createElement("span", null, summary || "—")
+						]),
+						props.mappingError ? React.createElement("p", { className: "vlm-err" }, props.mappingError) : null
+					]) : null
+				])
+			]);
+		}
 		function ImggenPanel(props) {
 			var t = props.t;
 			var cfg = props.cfg || {};
@@ -1180,9 +1354,9 @@ ddHint: "Pick a model",
 			var modelList = Array.isArray(props.modelList) ? props.modelList : [];
 			var busy = props.busy;
 			var menuOpen = React.useState(false);
-			// v2.6: comfy workflow editor local state (draft text + error)
-			var wfText = React.useState(cfg.comfyWorkflow || "");
-			var wfErr = React.useState("");
+			// v2.7: workflow list/edit view state
+			var wfView = React.useState("list"); // "list" | "edit"
+			var editWf = React.useState(null); // workflow entry being edited
 
 			// close the reset menu on outside click (also clears the armed confirm state)
 			React.useEffect(function () {
@@ -1427,57 +1601,18 @@ ddHint: "Pick a model",
 					})
 				]),
 				isComfy ? React.createElement("p", { className: "vlm-status" }, t("comfyHint")) : null,
-				isComfy ? React.createElement("div", { className: "vlm-comfy-wf" }, [
-					React.createElement("span", { className: "vlm-label" }, t("comfyWfLabel")),
-					React.createElement("textarea", {
-						className: "vlm-input vlm-comfy-wf-input",
-						value: wfText[0],
-						placeholder: t("comfyWfPh"),
-						onChange: function (e) { wfText[1](e.target.value); wfErr[1](""); }
-					}),
-					wfErr[0] ? React.createElement("p", { className: "vlm-msg vlm-msg-err" }, t("comfyWfError") + ": " + wfErr[0]) : null,
-					React.createElement("div", { className: "vlm-row vlm-comfy-wf-actions" }, [
-						React.createElement("label", { className: "vlm-btn vlm-comfy-wf-import" }, [
-							t("comfyWfImport"),
-							React.createElement("input", {
-								type: "file", accept: ".json,application/json", style: { display: "none" },
-								onChange: function (e) {
-									var f = e.target.files && e.target.files[0];
-									if (!f) return;
-									var reader = new FileReader();
-									reader.onload = function () { wfText[1](String(reader.result || "")); wfErr[1](""); };
-									reader.readAsText(f);
-									e.target.value = "";
-								}
-							})
-						]),
-						React.createElement("button", {
-							className: "vlm-btn", type: "button", disabled: busy !== "" || !wfText[0].trim(),
-							onClick: function () { props.onParseWorkflow(wfText[0], function (err) { wfErr[1](err || ""); }); }
-						}, t("comfyWfParse")),
-						React.createElement("button", {
-							className: "vlm-btn", type: "button", disabled: busy !== "",
-							onClick: function () { props.onParseWorkflow("", function () {}); }
-						}, t("comfyWfReset"))
-					]),
-					React.createElement("div", { className: "vlm-comfy-wf-mapping" }, [
-						React.createElement("span", { className: "vlm-label" }, t("comfyWfMappingLabel")),
-						React.createElement("div", { className: "vlm-row" }, COMFY_MAP_LABELS.map(function (mk) {
-							return React.createElement("div", { key: mk.key, className: "vlm-field vlm-grow" }, [
-								React.createElement("span", { className: "vlm-label vlm-label-sm" }, t(mk.labelKey)),
-								React.createElement("input", {
-									className: "vlm-input", type: "text",
-									value: (cfg.comfyMapping && cfg.comfyMapping[mk.key]) || mk.def,
-									onChange: function (e) {
-										var m = Object.assign({}, cfg.comfyMapping || {});
-										m[mk.key] = e.target.value.trim();
-										props.onPatch("comfyMapping", m);
-									}
-								})
-							]);
-						}))
-					])
-				]) : null,
+				isComfy && wfView[0] === "list" ? React.createElement(WorkflowList, {
+					t: t, workflows: props.workflows || [], activeId: props.activeWfId,
+					onImport: props.onImport, onToggle: props.onToggle,
+					onEdit: function (id) { editWf[1]((props.workflows || []).find(function (w) { return w.id === id; })); wfView[1]("edit"); },
+					onDelete: props.onDelete
+				}) : null,
+				isComfy && wfView[0] === "edit" && editWf[0] ? React.createElement(WorkflowEdit, {
+					t: t, wf: editWf[0], onBack: function () { wfView[1]("list"); editWf[1](null); },
+					onRename: props.onRename, onUpdateJson: props.onUpdateJson,
+					onUpdateConfig: props.onUpdateConfig, onAutoMap: props.onAutoMap,
+					mappingError: props.mappingError
+				}) : null,
 				React.createElement("p", { className: "vlm-status" },
 					t("imggenStatusPrefix") + (props.visible ? t("imggenToolVisible") : (isComfy ? t("imggenToolHidden") : t("toolHidden"))) +
 					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
@@ -2409,16 +2544,33 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				patchImggen("model", m);
 				igOpenDd[1](false);
 			}
-			function parseImggenWorkflow(text, onErr) {
-				// '' = reset to default workflow
-				igBusy[1]("ig-wf");
-				call("config", { imggenConfig: { field: "comfyWorkflow", value: text } }).then(function (r) {
-					if (r && r.ok) {
-						onErr && onErr("");
-					} else {
-						onErr && onErr((r && r.error) || t("unknown"));
-					}
-				}).catch(function (e) { onErr && onErr(et(e)); }).finally(function () { igBusy[1](""); });
+			function importWorkflow(name, text) {
+				call("config", { comfyWfImport: { name: name, workflow: text } }).then(function (r) {
+					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
+					else { msg[1](""); errState[1](false); }
+				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+			}
+			function deleteWorkflow(id) {
+				call("config", { comfyWfDelete: { id: id } }).then(function (r) {
+					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
+				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+			}
+			function renameWorkflow(id, name) { call("config", { comfyWfRename: { id: id, name: name } }); }
+			function toggleWorkflow(id) { call("config", { comfyWfToggle: { id: id } }); }
+			function updateWfJson(id, text) {
+				call("config", { comfyWfUpdateJson: { id: id, workflow: text } }).then(function (r) {
+					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
+					else { msg[1](""); errState[1](false); }
+				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+			}
+			function updateWfConfig(id, field, value) {
+				var p = { id: id }; p[field] = value; call("config", { comfyWfUpdateConfig: p });
+			}
+			function autoMapWorkflow(id) {
+				call("config", { comfyWfAutoMap: { id: id } }).then(function (r) {
+					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
+					else { msg[1](""); errState[1](false); }
+				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
 			}
 			function toggleIgFilter() {
 				patchImggen("filterImageModels", !igc.filterImageModels);
@@ -2625,7 +2777,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 
 			var imggenBody = React.createElement("div", { className: "vlm-tab-body" }, [
 				igcValid
-					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onParseWorkflow: parseImggenWorkflow, onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { igOpenDd[1](!igOpenDd[0]); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, mappingError: (msg[0] && errState[0] ? msg[0] : ""), workflows: (snap[0].comfyWorkflows || []), activeWfId: (snap[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "vlm-msg" }, t("imggenNoConfig")),
 				msg[0] ? React.createElement("p", { className: "vlm-msg " + (errState[0] ? "vlm-err" : "vlm-ok") }, msg[0]) : null
 			]);
