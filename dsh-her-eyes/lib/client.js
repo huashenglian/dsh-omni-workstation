@@ -56,6 +56,9 @@ window.__ModuleLoader__.load({
 				presetAdded: "已新建预设",
 				presetDeleted: "已删除预设",
 				presetSwitched: "已切换预设",
+				mappingAdded: "已添加映射",
+				mappingRemoved: "已删除映射",
+				comingSoon: "即将推出",
 				noCards: "尚未配置任何 API 卡片，点击右上角“添加模型”开始。",
 				cardNamePh: "VLM API",
 				nameHint: "双击重命名",
@@ -276,6 +279,9 @@ ddHint: "选择模型",
 				presetAdded: "Preset added",
 				presetDeleted: "Preset deleted",
 				presetSwitched: "Preset switched",
+				mappingAdded: "Mapping added",
+				mappingRemoved: "Mapping removed",
+				comingSoon: "Coming soon",
 				noCards: "No API cards yet. Click “Add Model” in the top-right to start.",
 				cardNamePh: "VLM API",
 				nameHint: "Double-click to rename",
@@ -2066,8 +2072,10 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					onClick: function () { if (props.onHelp) props.onHelp(); }
 				}, t("helpBtn")),
 				React.createElement("button", {
+					disabled: true,
+					title: t("comingSoon"),
 					className: "vlm-btn",
-					onClick: function () { /* ghost: pending new repo */ }
+					onClick: function () {}
 				}, t("checkUpdateBtn"))
 			]),
 			React.createElement("p", { className: "vlm-status vlm-about-version" }, t("versionLabel") + (props.version || ""))
@@ -2524,13 +2532,13 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					d.mirrorConfig.mappings = d.mirrorConfig.mappings || [];
 					d.mirrorConfig.mappings.push({ id: "m_temp", originalProvider: "", originalModel: "", mirrorName: "" });
 					return d;
-				});
+				}, function () { showToast('success', t('mappingAdded'), ''); });
 			}
 			function removeMirrorMapping(id) {
 				commitStructure({ mirrorConfig: { field: "removeMapping", value: id } }, function (d) {
 					if (d.mirrorConfig) d.mirrorConfig.mappings = (d.mirrorConfig.mappings || []).filter(function (m) { return m.id !== id; });
 					return d;
-				});
+				}, function () { showToast('success', t('mappingRemoved'), ''); });
 			}
 			function selectMirrorModel(id, provider, model) {
 				commitStructure({ mirrorConfig: { field: "updateMapping", value: { id: id, originalProvider: provider, originalModel: model } } }, function (d) {
@@ -3177,9 +3185,10 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					React.createElement("code", { className: "vlm-toolview-path" }, v),
 					React.createElement("button", {
 						className: "vlm-btn vlm-toolview-copy",
-						onClick: function () {
-							try { if (navigator.clipboard) navigator.clipboard.writeText(v); } catch (e) {}
-							copied[1](k);
+onClick: function () {
+						try { if (navigator.clipboard) navigator.clipboard.writeText(v); } catch (e) {}
+						showToast('success', t('toolsCopied'), '');
+						copied[1](k);
 							setTimeout(function () { copied[1](null); }, 1500);
 						}
 					}, copied[0] === k ? t("toolsCopied") : t("toolsCopyPath"))
