@@ -804,6 +804,7 @@ ddHint: "Pick a model",
 		var I_PIN_TOP = ["M8 13V3", "M4 7L8 3l4 4"];
 		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
+	var I_EDIT = ["M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z", "M10 4l2 2"];
 		var I_PLUS = ["M8 3v10", "M3 8h10"];
 		var I_RESET_SVG = ["M434.816 140.16c179.264-37.312 361.408 57.28 430.08 229.568a38.4 38.4 0 0 1-71.424 28.48c-56.32-141.312-208.96-217.6-356.928-179.648a302.976 302.976 0 1 0 181.632 577.216 303.04 303.04 0 0 0 194.24-244.416 38.4 38.4 0 0 1 76.16 9.984 379.84 379.84 0 0 1-243.52 306.368A379.776 379.776 0 1 1 417.472 144.192l17.344-4.032z", "M814.912 170.752a38.4 38.4 0 0 1 76.8 0v213.312c0 21.184-17.216 38.4-38.4 38.4H640a38.4 38.4 0 0 1 0-76.8h174.912V170.752z"];
 		var I_GEAR_SVG = ["M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"];
@@ -1217,11 +1218,11 @@ ddHint: "Pick a model",
 					React.createElement("button", {
 						className: "vlm-comfy-wf-edit", title: t("comfyWfEdit"),
 						onClick: function () { props.onEdit(wf.id); }
-					}, React.createElement(SvgIcon, { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" })),
+					}, React.createElement(SvgIcon, { d: I_EDIT })),
 					React.createElement("button", {
 						className: "vlm-comfy-wf-delete", title: t("comfyWfDelete"),
 						onClick: function () { delConfirm[1](wf.id); }
-					}, React.createElement(SvgIcon, { d: "M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" }))
+					}, React.createElement(SvgIcon, { d: I_TRASH }))
 				]);
 			});
 			var modal = delConfirm[0] ? React.createElement("div", { className: "vlm-comfy-wf-confirm-modal" }, [
@@ -1268,6 +1269,8 @@ ddHint: "Pick a model",
 			var wf = props.wf || {};
 			var collapsed = React.useState(true);
 			var jsonDraft = React.useState(wf.workflow || "");
+			var nameDraft = React.useState(wf.name || "");
+			React.useEffect(function () { nameDraft[1](wf.name || ""); }, [wf.name]);
 			var summary = wf.mapping ? [
 				{ k: "sampler", l: "KSampler" }, { k: "checkpoint", l: "Checkpoint" },
 				{ k: "latent", l: "EmptyLatent" }, { k: "positive", l: "Positive" }, { k: "negative", l: "Negative" }
@@ -1277,8 +1280,9 @@ ddHint: "Pick a model",
 					React.createElement("span", { className: "vlm-comfy-wf-title" }, t("comfyWfListTitle")),
 					React.createElement("input", {
 						className: "vlm-input vlm-comfy-wf-name-input", type: "text",
-						placeholder: t("comfyWfNamePh"), value: wf.name || "",
-						onChange: function (e) { props.onRename(wf.id, e.target.value); }
+						placeholder: t("comfyWfNamePh"), value: nameDraft[0],
+						onChange: function (e) { nameDraft[1](e.target.value); },
+						onBlur: function (e) { if (e.target.value !== (wf.name || "")) props.onRename(wf.id, e.target.value); }
 					}),
 					React.createElement("button", { className: "vlm-btn vlm-comfy-wf-back", onClick: props.onBack }, t("comfyWfBack"))
 				]),
@@ -1322,7 +1326,7 @@ ddHint: "Pick a model",
 						className: "vlm-comfy-wf-mapping-toggle",
 						onClick: function () { collapsed[1](!collapsed[0]); }
 					}, [
-						React.createElement(SvgIcon, { d: collapsed[0] ? "M9 18l6-6-6-6" : "M15 18l-6-6 6-6" }),
+						React.createElement(SvgIcon, { d: collapsed[0] ? I_EXPAND : I_COLLAPSE }),
 						React.createElement("span", null, t("comfyWfMappingTitle"))
 					]),
 					!collapsed[0] ? React.createElement("div", { className: "vlm-comfy-wf-mapping-body" }, [
@@ -1357,6 +1361,8 @@ ddHint: "Pick a model",
 			// v2.7: workflow list/edit view state
 			var wfView = React.useState("list"); // "list" | "edit"
 			var editWf = React.useState(null); // workflow entry being edited
+			var presetNameDraft = React.useState(props.activePresetName || "");
+			React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
 
 			// close the reset menu on outside click (also clears the armed confirm state)
 			React.useEffect(function () {
@@ -1432,9 +1438,10 @@ ddHint: "Pick a model",
 				React.createElement("input", {
 					className: "vlm-input vlm-preset-name-input",
 					type: "text",
-					value: props.activePresetName || "",
+					value: presetNameDraft[0],
 					placeholder: t("presetNamePh"),
-					onChange: function (e) { props.onRenamePreset(e.target.value); }
+					onChange: function (e) { presetNameDraft[1](e.target.value); },
+					onBlur: function (e) { if (e.target.value !== (props.activePresetName || "")) props.onRenamePreset(e.target.value); }
 				}),
 				React.createElement("button", {
 					className: "vlm-preset-dd-btn", type: "button",
