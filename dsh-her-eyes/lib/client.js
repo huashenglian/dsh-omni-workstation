@@ -1263,6 +1263,13 @@ ddHint: "Pick a model",
 		// ---------- toast notification system (v2.7) ----------
 		var TOAST_ICONS = { info: I_TOAST_INFO, success: I_TOAST_SUCCESS, warning: I_TOAST_WARNING, error: I_TOAST_ERROR };
 		var TOAST_DUR = { info: 3000, success: 3000, warning: 3000, error: 3000 };
+		// toastSeq / toastTimers live at module scope: the settings panel re-renders
+		// on every config save, and a component-local map would be re-created each
+		// render — extendToast could never clear the original dismiss timer and a
+		// clicked toast would still die at TOAST_DUR. Module scope keeps the map
+		// (and the id counter) alive across renders.
+		var toastSeq = 0;
+		var toastTimers = {};
 		function ToastCard(props) {
 			var t = props.toast || {};
 			var icon = TOAST_ICONS[t.type] || TOAST_ICONS.info;
@@ -2235,9 +2242,7 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 			var mirrorAllModels = React.useState([]);
 			var mirrorBusy = React.useState("");
 			var mirrorOpenDd = React.useState(null);
-			toastSeq = 0;
 			var toasts = React.useState([]);
-			var toastTimers = {};
 			function showToast(type, title, desc) {
 				var id = 't_' + (++toastSeq);
 				toasts[1](function (prev) {
