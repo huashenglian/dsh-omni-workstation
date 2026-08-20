@@ -2545,32 +2545,21 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 				igOpenDd[1](false);
 			}
 			function importWorkflow(name, text) {
-				call("config", { comfyWfImport: { name: name, workflow: text } }).then(function (r) {
-					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
-					else { msg[1](""); errState[1](false); }
-				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+				commitStructure({ comfyWfImport: { name: name, workflow: text } });
 			}
 			function deleteWorkflow(id) {
-				call("config", { comfyWfDelete: { id: id } }).then(function (r) {
-					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
-				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+				commitStructure({ comfyWfDelete: { id: id } });
 			}
-			function renameWorkflow(id, name) { call("config", { comfyWfRename: { id: id, name: name } }); }
-			function toggleWorkflow(id) { call("config", { comfyWfToggle: { id: id } }); }
+			function renameWorkflow(id, name) { commitStructure({ comfyWfRename: { id: id, name: name } }); }
+			function toggleWorkflow(id) { commitStructure({ comfyWfToggle: { id: id } }); }
 			function updateWfJson(id, text) {
-				call("config", { comfyWfUpdateJson: { id: id, workflow: text } }).then(function (r) {
-					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
-					else { msg[1](""); errState[1](false); }
-				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+				commitStructure({ comfyWfUpdateJson: { id: id, workflow: text } });
 			}
 			function updateWfConfig(id, field, value) {
-				var p = { id: id }; p[field] = value; call("config", { comfyWfUpdateConfig: p });
+				var p = { id: id }; p[field] = value; commitStructure({ comfyWfUpdateConfig: p });
 			}
 			function autoMapWorkflow(id) {
-				call("config", { comfyWfAutoMap: { id: id } }).then(function (r) {
-					if (!r || !r.ok) { msg[1]((r && r.error) || t("unknown")); errState[1](true); }
-					else { msg[1](""); errState[1](false); }
-				}).catch(function (e) { msg[1](et(e)); errState[1](true); });
+				commitStructure({ comfyWfAutoMap: { id: id } });
 			}
 			function toggleIgFilter() {
 				patchImggen("filterImageModels", !igc.filterImageModels);
