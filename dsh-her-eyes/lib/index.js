@@ -2371,10 +2371,10 @@ function applyPatch(cfg, patch) {
       name: typeof p.comfyWfImport.name === 'string' ? p.comfyWfImport.name : '工作流',
       workflow: typeof p.comfyWfImport.workflow === 'string' ? p.comfyWfImport.workflow : '',
       mapping: p.comfyWfImport.mapping && typeof p.comfyWfImport.mapping === 'object' ? p.comfyWfImport.mapping : null,
-      steps: '',
-      cfg: '',
-      scheduler: '',
-      seed: ''
+      steps: p.comfyWfImport.steps !== undefined ? p.comfyWfImport.steps : '',
+      cfg: p.comfyWfImport.cfg !== undefined ? p.comfyWfImport.cfg : '',
+      scheduler: p.comfyWfImport.scheduler !== undefined ? p.comfyWfImport.scheduler : '',
+      seed: p.comfyWfImport.seed !== undefined ? p.comfyWfImport.seed : ''
     }
     const wasEmpty = (c.comfyWorkflows || []).length === 0
     c.comfyWorkflows = (c.comfyWorkflows || []).concat([entry])
