@@ -165,6 +165,9 @@ ddHint: "选择模型",
 			mirrorSummaryOff: "已关闭",
 			settingsTab: "设置",
 			settingsTitle: "全局配置",
+			tabVideo: "视频",
+			tabAudio: "语音",
+			tabPlaceholder: "该模块尚在规划中，敬请期待。",
 			settingsModuleSection: "模块开关",
 			settingsBackoffSection: "退避策略",
 			backoffBaseLabel: "退避基数 (ms)",
@@ -359,6 +362,9 @@ ddHint: "Pick a model",
 			mirrorSummaryOff: "Off",
 			settingsTab: "Settings",
 			settingsTitle: "Global Config",
+			tabVideo: "Video",
+			tabAudio: "Audio",
+			tabPlaceholder: "This module is planned. Coming soon.",
 			settingsModuleSection: "Module Switches",
 			settingsBackoffSection: "Backoff Strategy",
 			backoffBaseLabel: "Backoff Base (ms)",
@@ -2651,9 +2657,13 @@ return React.createElement("div", { className: "vlm-imggen-panel" }, [head, pres
 					t("tabImggen"),
 					React.createElement("span", { className: "vlm-tab-dot " + (imggenOn ? "on" : "off") })
 				]),
+					React.createElement("button", { className: "vlm-tab" + (tab[0] === "video" ? " active" : ""), onClick: function () { tab[1]("video"); } }, t("tabVideo")),
+					React.createElement("button", { className: "vlm-tab" + (tab[0] === "audio" ? " active" : ""), onClick: function () { tab[1]("audio"); } }, t("tabAudio")),
 					React.createElement("button", { className: "vlm-tab" + (tab[0] === "settings" ? " active" : ""), onClick: function () { tab[1]("settings"); } }, t("settingsTab"))
 				]),
-				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : settingsBody),
+				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : (tab[0] === "video" || tab[0] === "audio"
+					? React.createElement("div", { className: "vlm-tab-body" }, [React.createElement("p", { className: "vlm-desc" }, t("tabPlaceholder"))])
+					: settingsBody)),
 				helpOpen[0] ? React.createElement(HelpModal, { t: t, onClose: function () { helpOpen[1](false); } }) : null
 			]);
 		}
