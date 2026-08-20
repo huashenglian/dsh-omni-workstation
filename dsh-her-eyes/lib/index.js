@@ -2409,6 +2409,15 @@ function applyPatch(cfg, patch) {
       wf.mapping = p.comfyWfAutoMap.mapping
     }
   }
+  if (p.comfyWfUpdateMapping && typeof p.comfyWfUpdateMapping === 'object' && typeof p.comfyWfUpdateMapping.id === 'string') {
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfUpdateMapping.id)
+    if (wf) {
+      if (!wf.mapping || typeof wf.mapping !== 'object') wf.mapping = {}
+      if (typeof p.comfyWfUpdateMapping.key === 'string' && typeof p.comfyWfUpdateMapping.value === 'string') {
+        wf.mapping[p.comfyWfUpdateMapping.key] = p.comfyWfUpdateMapping.value
+      }
+    }
+  }
   if (p.comfyWfUpdateJson && typeof p.comfyWfUpdateJson === 'object' && typeof p.comfyWfUpdateJson.id === 'string') {
     // comfyWfUpdateJson is pre-parsed by the POST handler (async prepareComfyWorkflow)
     const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfUpdateJson.id)
