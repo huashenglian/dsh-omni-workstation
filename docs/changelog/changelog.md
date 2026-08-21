@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.7.1 — 设置菜单更名 全模态 + 视觉工具箱默认开启
+- 设置导航 zh `多模态` → `全模态`、en `Multimodal` → `Omni Workstation`（含 fallback label）；intro/helpVlmContent 文案对齐全模态工作台
+- `visionToolsEnabled` 默认开启（运行时 config 显式置 true；代码默认 `!== false` 不变）
+- E2E 脚本路由随更名 `/vlm/*` → `/omni/*`、`text=多模态` 点击 → `text=全模态`
+- `.credentials.yaml` 扁平化修复（`{version, refs}` 嵌套 → 顶层 `KEY: value`，匹配加载器契约）
+
 ## v2.7 — 插件更名 dsh-her-eyes → dsh-omni-workstation（全模态工作台）
 - 包名/目录 `dsh-her-eyes` → `dsh-omni-workstation`；entry id `her-eyes` → `omni-workstation`；locale ns `settings.her-eyes` → `settings.omni-workstation`
 - 功能前缀全量统一：路由 `/vlm/*` → `/omni/*`；CSS `vlm-*` → `omni-*`；settings slot `vlm-vision` → `omni-vision`；toolview 插槽 `vlm-view-*` → `omni-view-*`；twin 路由 `*-her-eyes`/`her-eyes-m-*` → `*-omni-workstation`/`omni-workstation-m-*`
