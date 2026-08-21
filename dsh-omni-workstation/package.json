@@ -14,6 +14,7 @@
                   "lib/index.js",
                   "lib/client.js",
                   "lib/vision-tools.js",
+                  "lib/vendor/",
                   "cordis.patch.yml",
                   "README.md",
                   "README.zh.md"
