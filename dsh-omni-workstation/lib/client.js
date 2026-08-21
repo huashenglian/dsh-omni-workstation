@@ -10,12 +10,12 @@ window.__ModuleLoader__.load({
 		var NS = "settings.omni-workstation";
 		var DICTS = {
 			zh: {
-				nav: "多模态",
+				nav: "全模态",
 				loading: "加载中…",
 				loadFail: "加载配置失败：",
 				unknown: "未知错误",
 				saving: " · 正在自动保存…",
-				intro: "配置多模态视觉模型 (VLM)：所有修改自动保存、立即生效，无需“保存”按钮。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
+				intro: "全模态工作台：配置视觉模型 (VLM)、图像生成、镜像路由与视觉工具箱。所有修改自动保存、立即生效，无需“保存”按钮。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
 				retryTitle: "重试与回退",
 				retryLabel: "重试次数（默认 5：单张卡片在单次请求内连续失败超过该值后，回退到下一张卡片）",
 				statusPrefix: "当前有效卡片 ",
@@ -32,7 +32,7 @@ window.__ModuleLoader__.load({
 				helpGroupVlm: "VLM",
 				helpGroupImggen: "图像生成",
 				helpVlmTitle: "VLM 视觉模型",
-				helpVlmContent: "配置多模态视觉模型（VLM）。所有修改自动保存、立即生效，无需手动点保存。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
+				helpVlmContent: "配置全模态工作台的视觉模型（VLM）。所有修改自动保存、立即生效，无需手动点保存。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
 				helpImggenTitle: "图像生成",
 				helpImggenContent: "配置图像生成模型。AI 通过 generate_image 工具生成图片并保存到工作区 generated-images/ 目录。所有修改自动保存。",
 				helpAnalyzeTitle: "analyze_image 工具",
@@ -233,12 +233,12 @@ ddHint: "选择模型",
 			toolsElements: "元素检测"
 		},
 			en: {
-				nav: "Multimodal",
+				nav: "Omni Workstation",
 				loading: "Loading…",
 				loadFail: "Failed to load config: ",
 				unknown: "unknown error",
 				saving: " · auto-saving…",
-				intro: "Configure Multimodal Vision-Language Models (VLM). All changes auto-save and take effect immediately — no Save button. The AI calls these API cards via the analyze_image tool top-down; within a single request it retries and falls back to the next card past the retry limit, and every new request restarts from the top card. If no card is fully configured, analyze_image is hidden automatically.",
+				intro: "Omni Workstation: configure vision models (VLM), image generation, mirror routing and the vision toolkit. All changes auto-save and take effect immediately — no Save button. The AI calls these API cards via the analyze_image tool top-down; within a single request it retries and falls back to the next card past the retry limit, and every new request restarts from the top card. If no card is fully configured, analyze_image is hidden automatically.",
 				retryTitle: "Retry & Fallback",
 				retryLabel: "Retry count (default 5: within a single request, a card falls back to the next after this many consecutive failures)",
 				statusPrefix: "Valid cards: ",
@@ -255,7 +255,7 @@ ddHint: "选择模型",
 				helpGroupVlm: "VLM",
 				helpGroupImggen: "Image Generation",
 				helpVlmTitle: "VLM Vision Models",
-				helpVlmContent: "Configure multimodal vision models. All changes auto-save and take effect immediately. The AI calls analyze_image top-down by card order; retries and falls back to the next card past the limit; new requests restart from the top. If no card is configured, analyze_image is hidden.",
+				helpVlmContent: "Configure the omni workstation's vision models. All changes auto-save and take effect immediately. The AI calls analyze_image top-down by card order; retries and falls back to the next card past the limit; new requests restart from the top. If no card is configured, analyze_image is hidden.",
 				helpImggenTitle: "Image Generation",
 				helpImggenContent: "Configure image generation models. The AI generates images via generate_image and saves them to generated-images/. All changes auto-save.",
 				helpAnalyzeTitle: "analyze_image Tool",
@@ -3234,7 +3234,7 @@ onClick: function () {
 			effect(function () {
 				return slots.inject("settings.section", function () {
 					return slots.register(
-						{ name: "settings.section", id: "omni-vision", order: 40, locale: NS, label: function () { return tBound ? tBound("nav") : "多模态"; } },
+						{ name: "settings.section", id: "omni-vision", order: 40, locale: NS, label: function () { return tBound ? tBound("nav") : "全模态"; } },
 						function (props) { return React.createElement(VlmSettingsPage, { close: props && props.close, t: (props && props.t) || tBound, connection: connection, sessions: sessions }); }
 					);
 				});
