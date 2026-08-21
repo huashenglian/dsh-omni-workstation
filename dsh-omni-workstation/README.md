@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-A Vision-Language-Model (VLM) analyzer plugin for **DeepSeek Harness** (`dsh`). It gives the AI an `analyze_image` tool backed by an ordered list of vision API cards (OpenAI / Anthropic / Gemini protocols, Custom / Ollama providers) with single-request failover, per-card timeout, and a JPEG→PNG re-encode fallback, and adds an auto-saving **Settings → Vision Models (VLM)** page (English/中文).
+An **Omni Workstation** plugin for **DeepSeek Harness** (`dsh`). It gives the AI an `analyze_image` tool backed by an ordered list of vision API cards (OpenAI / Anthropic / Gemini protocols, Custom / Ollama providers) with single-request failover, per-card timeout, and a JPEG→PNG re-encode fallback, and adds an auto-saving **Settings → Omni Workstation** page (English/中文).
 
 ## Features
 
@@ -99,7 +99,7 @@ You can edit the file directly, or use the settings page (all edits auto-save).
 
 ## Vision Toolkit
 
-> New in v2.0 — 6 AI-callable vision tools registered by the host half (`lib/vision-tools.js`, via the `buildVisionToolDefs(deps)` factory). They share the same image-resolution (`resolveImage`) and card failover chain (`askVlm`) as `analyze_image`. Gated by `visionToolsEnabled` (on by default — the third Module Switch on the Settings → VLM page); toggling it off unregisters all 6 tools while keeping your config.
+> New in v2.0 — 6 AI-callable vision tools registered by the host half (`lib/vision-tools.js`, via the `buildVisionToolDefs(deps)` factory). They share the same image-resolution (`resolveImage`) and card failover chain (`askVlm`) as `analyze_image`. Gated by `visionToolsEnabled` (on by default — the third Module Switch on the Settings → Omni Workstation page); toggling it off unregisters all 6 tools while keeping your config.
 
 ### Tools
 
@@ -130,7 +130,7 @@ You can edit the file directly, or use the settings page (all edits auto-save).
 The package is **dual-face**:
 
 - **Host half** (`lib/index.js`) — a cordis plugin. Registers the `analyze_image` tool on the global tools registry and the `/omni/config|models|key` routes on the web server. Loads and persists `omni-vision.json`.
-- **Client half** (`lib/client.js`) — the browser module, loaded via `__ModuleLoader__` because the package declares `dsh.client`. Registers a **Settings → Vision Models (VLM)** section (list slot `settings.section`, id `omni-vision`, order 40) and the locale namespace `settings.omni-workstation`.
+- **Client half** (`lib/client.js`) — the browser module, loaded via `__ModuleLoader__` because the package declares `dsh.client`. Registers a **Settings → Omni Workstation** section (list slot `settings.section`, id `omni-vision`, order 40) and the locale namespace `settings.omni-workstation`.
 
 The bundle `cordis.patch.yml` inserts the `omni-workstation` entry that activates both halves.
 

@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-用于 **DeepSeek Harness**(`dsh`)的视觉语言模型(VLM)分析器插件。为 AI 提供 `analyze_image` 工具,底层接入**有序的视觉 API 卡片列表**(OpenAI / Anthropic / Gemini 协议,自定义 / Ollama 供应商),支持单次请求内回退、每卡超时与 JPEG→PNG 重编码兜底;同时在 Web 设置中新增**设置 → 多模态 (VLM)**面板(自动保存,支持中/英文)。
+用于 **DeepSeek Harness**(`dsh`)的全模态工作台(Omni Workstation)插件。为 AI 提供 `analyze_image` 工具,底层接入**有序的视觉 API 卡片列表**(OpenAI / Anthropic / Gemini 协议,自定义 / Ollama 供应商),支持单次请求内回退、每卡超时与 JPEG→PNG 重编码兜底;同时在 Web 设置中新增**设置 → 全模态**面板(自动保存,支持中/英文)。
 
 ## 功能
 
@@ -99,7 +99,7 @@ dsh plugin --profile web add ./dsh-omni-workstation-1.5.0.tgz
 
 ## 视觉工具箱（Vision Toolkit）
 
-> v2.0 新增。6 个 AI 可调用视觉工具由宿主半 `lib/vision-tools.js`(通过 `buildVisionToolDefs(deps)` 工厂)注册,与 `analyze_image` 共享同一套图片来源解析(`resolveImage`)与视觉模型卡片回退链(`askVlm`)。由设置页「多模态」Module Switches 第三行开关 `visionToolsEnabled`(默认开启)控制,关闭即注销全部 6 工具但保留配置。
+> v2.0 新增。6 个 AI 可调用视觉工具由宿主半 `lib/vision-tools.js`(通过 `buildVisionToolDefs(deps)` 工厂)注册,与 `analyze_image` 共享同一套图片来源解析(`resolveImage`)与视觉模型卡片回退链(`askVlm`)。由设置页「全模态」Module Switches 第三行开关 `visionToolsEnabled`(默认开启)控制,关闭即注销全部 6 工具但保留配置。
 
 ### 工具一览
 
@@ -130,7 +130,7 @@ dsh plugin --profile web add ./dsh-omni-workstation-1.5.0.tgz
 本包是**双面**插件:
 
 - **宿主半**(`lib/index.js`):cordis 插件,在全局工具注册表注册 `analyze_image` 工具,在 web server 注册 `/omni/config|models|key` 路由,读写 `omni-vision.json`。
-- **浏览器半**(`lib/client.js`):浏览器模块,因包声明了 `dsh.client` 由 `__ModuleLoader__` 加载。注册 **设置 → 多模态** 分区(list 槽 `settings.section`,id `omni-vision`,order 40)与 locale 命名空间 `settings.omni-workstation`。
+- **浏览器半**(`lib/client.js`):浏览器模块,因包声明了 `dsh.client` 由 `__ModuleLoader__` 加载。注册 **设置 → 全模态** 分区(list 槽 `settings.section`,id `omni-vision`,order 40)与 locale 命名空间 `settings.omni-workstation`。
 
 bundle 的 `cordis.patch.yml` 插入的 `omni-workstation` 条目同时激活两半。
 
