@@ -1,0 +1,7 @@
+# dsh-omni-workstation bundle layer.
+# - `analyze_image` tool registered on the global tools registry (all sessions).
+# - Web settings routes /omni/config|models|reset served by the host half.
+# - Client half renders Settings -> Vision Models (VLM) (auto-saving, i18n zh/en).
+- insert:
+    - id: omni-workstation
+      name: dsh-omni-workstation

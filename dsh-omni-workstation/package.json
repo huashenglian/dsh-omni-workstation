@@ -1,0 +1,41 @@
+{
+    "name":  "dsh-omni-workstation",
+    "version":  "2.7.0",
+    "description":  "Omni-modal workstation plugin for DeepSeek Harness: analyze_image + 6 vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show) and generate_image, backed by an ordered multi-card list (OpenAI/Anthropic/Gemini protocols; Custom/Ollama plus 28 built-in fixed providers), Tabbed settings (VLM / Image Gen / Mirror / Fallback), single-request failover, mirror model routing, JPEG->PNG re-encode fallback, and an auto-saving web settings page.",
+    "type":  "module",
+    "main":  "./lib/index.js",
+    "exports":  {
+                    ".":  "./lib/index.js",
+                    "./client":  "./lib/client.js",
+                    "./cordis.patch.yml":  "./cordis.patch.yml",
+                    "./package.json":  "./package.json"
+                },
+    "files":  [
+                  "lib/index.js",
+                  "lib/client.js",
+                  "lib/vision-tools.js",
+                  "cordis.patch.yml",
+                  "README.md",
+                  "README.zh.md"
+              ],
+    "license":  "MIT",
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/huashenglian/dsh-omni-workstation.git"
+                   },
+    "homepage":  "https://github.com/huashenglian/dsh-omni-workstation",
+    "bugs":  {
+                 "url":  "https://github.com/huashenglian/dsh-omni-workstation/issues"
+             },
+    "dsh":  {
+                "bundle":  {
+                               "patch":  "./cordis.patch.yml"
+                           },
+                "client":  {
+                               "inject":  [
+                                              "@deepseek-ai/dsh-client-runtime"
+                                          ],
+                               "platform":  "web"
+                           }
+            }
+}
