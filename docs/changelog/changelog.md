@@ -2,6 +2,10 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.7.3 — 恢复生图验证提醒开关（toolVisible 门控）
+- 恢复「生图后自动验证提醒」完整链路：设置页开关、`globalConfig.verifyReminder` 默认值/normalize/patch handler、generate_image 输出 schema + ⚠️ render 块、zh/en i18n
+- 与 v2.7.2 解耦成果兼容：提醒文本仅在 analyze_image 实际注册时追加（execute 门控改为 `gc.verifyReminder !== false && toolVisible`，替代旧的 `cfg.vlmEnabled !== false`）——VLM 关闭**或**无有效卡片时不再产生死指令；开关标签标注「需 VLM 开启」
+
 ## v2.7.2 — 视觉工具箱与 VLM 开关解耦；移除生图验证提醒
 - **视觉工具箱在 VLM 模块关闭时保持可用**（注册本就独立于 `vlmEnabled`；本次修复的是引用链）：
   - 图片 marker（用户上传 / show_image 会话表面 sanitize）不再硬编码 analyze_image——按 `toolVisible` 动态指向：VLM 开启时指 analyze_image，关闭时指视觉工具箱本地工具（zoom/sample_colors/image_diff/ocr/detect，ocr/detect 走卡片链不依赖 VLM 开关）
