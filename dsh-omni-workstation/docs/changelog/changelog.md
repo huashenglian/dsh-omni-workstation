@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.7.2 — 视觉工具箱与 VLM 开关解耦；移除生图验证提醒
+- **视觉工具箱在 VLM 模块关闭时保持可用**（注册本就独立于 `vlmEnabled`；本次修复的是引用链）：
+  - 图片 marker（用户上传 / show_image 会话表面 sanitize）不再硬编码 analyze_image——按 `toolVisible` 动态指向：VLM 开启时指 analyze_image，关闭时指视觉工具箱本地工具（zoom/sample_colors/image_diff/ocr/detect，ocr/detect 走卡片链不依赖 VLM 开关）
+  - VLM 关闭且工具箱开启时，状态行显示「analyze_image 已停用 · 视觉工具箱仍可用」（新 i18n key `toolOffToolkit` zh/en）
+- **移除「生图后自动验证提醒」**（绑定 analyze_image，VLM 关闭即失效）：删 `globalConfig.verifyReminder` 默认值/normalize/mask、generate_image 输出 schema 字段 + render ⚠️ 块 + execute 返回字段、patch handler 分支、设置页开关行、zh/en i18n；工具描述去掉「必须立即调用 analyze_image 验证」；删除过时 smoke_verify_reminder.mjs
+
 ## v2.7.1 — 设置菜单更名 全模态 + 视觉工具箱默认开启
 - 设置导航 zh `多模态` → `全模态`、en `Multimodal` → `Omni Workstation`（含 fallback label）；intro/helpVlmContent 文案对齐全模态工作台
 - `visionToolsEnabled` 默认开启（运行时 config 显式置 true；代码默认 `!== false` 不变）
