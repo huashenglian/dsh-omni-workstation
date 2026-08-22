@@ -202,7 +202,7 @@ ddHint: "选择模型",
 			backoff429MaxLabel: "429 退避上限 (ms)",
 			retryStatusCodesLabel: "重试状态码",
 			retryStatusCodesHint: "逗号分隔的 HTTP 状态码，触发重试+回退",
-			verifyReminderLabel: "生图后自动验证提醒",
+			toolOffToolkit: " · analyze_image 已停用 · 视觉工具箱仍可用（本地工具不依赖 VLM）",
 			toolsSwitchLabel: "视觉工具箱",
 			toolsOpen: "已开启",
 			toolsOff: "已关闭",
@@ -425,7 +425,7 @@ ddHint: "Pick a model",
 			backoff429MaxLabel: "429 Backoff Max (ms)",
 			retryStatusCodesLabel: "Retry Status Codes",
 			retryStatusCodesHint: "Comma-separated HTTP status codes that trigger retry+failover",
-			verifyReminderLabel: "Auto-verify reminder after image generation",
+			toolOffToolkit: " · analyze_image disabled · Vision Toolkit still available (local tools need no VLM)",
 			toolsSwitchLabel: "Vision Toolbox",
 			toolsOpen: "Enabled",
 			toolsOff: "Disabled",
@@ -2054,15 +2054,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						React.createElement("span", { className: "omni-label" }, t("toolsSwitchLabel")),
 							React.createElement("button", { className: "omni-icon-btn", title: t("extToolSettings"), onClick: function () { toolSettingsOpen[1](true); } }, React.createElement(SvgFillIcon, { d: I_GEAR_SVG, viewBox: "0 0 24 24" }))
 
-					]),
-					React.createElement("div", { className: "omni-module-row" }, [
-						React.createElement("label", { className: "omni-switch" }, [
-							React.createElement("input", { type: "checkbox", checked: gc.verifyReminder !== false, onChange: function (e) { props.onPatchGlobal("verifyReminder", e.target.checked); } }),
-							React.createElement("span", { className: "omni-switch-slider" })
-						]),
-						React.createElement("span", { className: "omni-label" }, t("verifyReminderLabel"))
-					])
-				]) : null
+				])
+			]) : null
 			]),
 			toolModal
 		]);
@@ -2768,7 +2761,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var vlmOn = draft[0].vlmEnabled !== false;
 			var imggenOn = draft[0].imggenEnabled === true;
 			var toolsOn = draft[0].visionToolsEnabled !== false;
-			var toolStatus = vlmOn ? (validCount > 0 ? t("toolVisible") : t("toolHidden")) : t("toolOff");
+			var toolStatus = vlmOn ? (validCount > 0 ? t("toolVisible") : t("toolHidden")) : (toolsOn ? t("toolOffToolkit") : t("toolOff"));
 			var igc = draft[0].imggenConfig || {};
 			var igcValid = !!(draft[0].imggenPresets && draft[0].imggenPresets.length > 0);
 			var imggenVisible = snap[0] ? snap[0].imggenVisible : false;
