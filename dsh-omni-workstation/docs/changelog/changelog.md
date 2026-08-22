@@ -2,6 +2,11 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.7.4 — 镜像路由适配新 harness 的 prepareCall 契约
+- **修复**：切换镜像模型发送消息报错 `registration.adapter.prepareCall is not a function`。新版 dsh CLI 的 agent-loop 对每个请求走 `llm.prepareCall → adapter.prepareCall`（旧版不走此路径，重装新版后暴露）
+- 三个 twin 工厂（auto-vision / per-provider / mapping）全部补齐 `prepareCall(provider, model, signal)`：尽力向源 adapter 委托能力元数据查询（contextWindow 等），再按 `normalizeModelInfo` 契约重标 provider=镜像路由、id=请求模型、强制 `inputModalities:['text','image']`；返回的 `stream` 复用既有委托逻辑
+- 新增 2 个回归测试（prepareCall 元数据形状 + 源 provider/id 不泄漏）
+
 ## v2.7.3 — 恢复生图验证提醒开关（toolVisible 门控）
 - 恢复「生图后自动验证提醒」完整链路：设置页开关、`globalConfig.verifyReminder` 默认值/normalize/patch handler、generate_image 输出 schema + ⚠️ render 块、zh/en i18n
 - 与 v2.7.2 解耦成果兼容：提醒文本仅在 analyze_image 实际注册时追加（execute 门控改为 `gc.verifyReminder !== false && toolVisible`，替代旧的 `cfg.vlmEnabled !== false`）——VLM 关闭**或**无有效卡片时不再产生死指令；开关标签标注「需 VLM 开启」
