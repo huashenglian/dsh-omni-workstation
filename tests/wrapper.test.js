@@ -149,3 +149,41 @@ test('rewriteImagesDeep: untouched input keeps identity', () => {
   assert.equal(result.changed, false)
   assert.equal(result.content, content)
 })
+
+// v2.7.4: newer dsh agent-loop resolves every call via llm.prepareCall →
+// adapter.prepareCall; a twin without the method crashed mirror routes with
+// "registration.adapter.prepareCall is not a function".
+test('prepareCall: returns route-branded metadata + delegating stream', async () => {
+  resetSource()
+  const source = makeSource(async (p, m) => ({ id: m, provider: p, inputModalities: ['text'] }))
+  const ctx = makeCtx(source)
+  const adapter = makeTwinAdapter(ctx, 'alpha')
+  assert.equal(typeof adapter.prepareCall, 'function')
+  const prepared = await adapter.prepareCall('auto-vision', 'auto-vision', undefined)
+  // normalizeModelInfo contract: provider === route id, id === requested model
+  assert.equal(prepared.model.provider, 'auto-vision')
+  assert.equal(prepared.model.id, 'auto-vision')
+  assert.equal(typeof prepared.model.name, 'string')
+  assert.ok(prepared.model.name.length > 0)
+  assert.deepEqual(prepared.model.inputModalities, ['text', 'image'])
+  // prepared.stream delegates to the source like stream() does
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }]
+  for await (const chunk of prepared.stream({ provider: 'auto-vision', model: 'auto-vision', messages })) void chunk
+  assert.equal(ctx.calls.length, 1)
+  assert.equal(ctx.calls[0].provider, 'alpha', 'prepared stream delegates to source provider')
+})
+
+test('prepareCall: re-brands inherited source metadata (no provider/id leak)', async () => {
+  resetSource()
+  const source = {
+    ...makeSource(async () => ({ id: 'x', provider: 'x', inputModalities: ['text'] })),
+    prepareCall: async () => ({ model: { provider: 'alpha', id: 'some-model', name: 'Some Model', context: { contextWindow: 8192 } }, stream: async function* () {} })
+  }
+  const ctx = makeCtx(source)
+  const adapter = makeTwinAdapter(ctx, 'alpha')
+  const prepared = await adapter.prepareCall('auto-vision', 'auto-vision', undefined)
+  assert.equal(prepared.model.provider, 'auto-vision', 'source provider must NOT leak through')
+  assert.equal(prepared.model.id, 'auto-vision')
+  assert.equal(prepared.model.name, 'Some Model', 'source display name inherited')
+  assert.equal(prepared.model.context.contextWindow, 8192, 'context metadata inherited')
+})
