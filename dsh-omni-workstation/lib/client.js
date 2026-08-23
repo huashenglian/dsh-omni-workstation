@@ -198,6 +198,55 @@ ddHint: "选择模型",
 			tabVideo: "视频",
 			tabAudio: "语音",
 			tabPlaceholder: "该模块尚在规划中，敬请期待。",
+			// v2.8 视频生成
+			videoIntro: "配置视频生成模型：AI 通过 generate_video 工具生成视频（文生视频 t2v / 图生视频 i2v）并保存到工作区。视频生成是异步任务，可能耗时数分钟。关闭本模块开关时不会向模型注入 generate_video 工具（0 token 消耗）。",
+			videoTitle: "视频配置",
+			videoProviderLabel: "供应商",
+			videoProtocolLabel: "API 协议",
+			videoEndpointLabel: "端点 URL",
+			videoKeyLabel: "API Key（输入后自动保存；留空保持不变）",
+			videoKeyKlingHint: "可灵需填入 AccessKey|SecretKey（中间用竖线 | 分隔）",
+			videoModelLabel: "模型",
+			videoTimeoutLabel: "超时 (ms)",
+			videoPollIntervalLabel: "轮询间隔 (s)",
+			videoRetryLabel: "重试次数",
+			videoFilterLabel: "仅显示生视频模型",
+			videoFilterHint: "获取模型时按关键词筛选（video/t2v/i2v/wan/kling 等），关闭则拉取全部",
+			videoFetchBtn: "获取可用模型",
+			videoFetching: "获取中…",
+			videoReset: "重置配置",
+			videoResetConfirm: "确定",
+			videoResetHint: "重置所有视频配置为初始状态",
+			videoNoConfig: "未配置有效的视频 API，generate_video 工具已隐藏。",
+			videoStatusPrefix: "视频有效配置",
+			videoSecondsLabel: "默认时长 (s)",
+			videoAspectLabel: "画幅",
+			videoResolutionLabel: "分辨率",
+			videoSubmitPathLabel: "提交路径",
+			videoPollPathLabel: "轮询路径",
+			videoTaskIdFieldLabel: "任务 ID 字段",
+			videoStatusFieldLabel: "状态字段",
+			videoResultFieldLabel: "结果字段",
+			videoDoneStatusLabel: "完成状态值",
+			videoAsyncHint: "async-task 协议：自行填写提交/轮询路径与字段，适配任意异步任务网关",
+			videoProviderCustom: "自定义",
+			videoProviderAgnes: "Agnes AI",
+			videoProviderAgnesCn: "Agnes AI CN",
+			videoProviderDashscope: "阿里云百炼",
+			videoProviderKling: "可灵",
+			videoProviderVolc: "火山引擎",
+			videoProviderMinimax: "MiniMax 海螺",
+			videoProtocolOpenai: "openai-videos（Sora 兼容中转站 / Agnes）",
+			videoProtocolDashscope: "dashscope-video（百炼 wan）",
+			videoProtocolKling: "kling-video（JWT）",
+			videoProtocolVolc: "volc-video（火山方舟）",
+			videoProtocolMinimax: "minimax-video（海螺）",
+			videoProtocolAsync: "async-task（通用异步）",
+			videoGroupGeneral: "通用",
+			videoGroupIntl: "内置供应商 · 海外",
+			videoGroupCn: "内置供应商 · 国内",
+			videoToolOn: "generate_video 工具已启用",
+			videoToolHidden: "未配置有效视频 API，generate_video 工具已隐藏",
 			settingsModuleSection: "模块开关",
 			settingsBackoffSection: "退避策略",
 			backoffBaseLabel: "退避基数 (ms)",
@@ -426,6 +475,55 @@ ddHint: "Pick a model",
 			tabVideo: "Video",
 			tabAudio: "Audio",
 			tabPlaceholder: "This module is planned. Coming soon.",
+			// v2.8 video generation
+			videoIntro: "Configure video generation models: the AI generates videos via the generate_video tool (text-to-video t2v / image-to-video i2v) and saves them to the workspace. Video generation is an async task that can take minutes. Turning this module switch off stops injecting the generate_video tool into the model prompt (0 token cost).",
+			videoTitle: "Video Config",
+			videoProviderLabel: "Provider",
+			videoProtocolLabel: "API Protocol",
+			videoEndpointLabel: "Endpoint URL",
+			videoKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
+			videoKeyKlingHint: "Kling requires AccessKey|SecretKey (separated by a pipe |)",
+			videoModelLabel: "Model",
+			videoTimeoutLabel: "Timeout (ms)",
+			videoPollIntervalLabel: "Poll interval (s)",
+			videoRetryLabel: "Retry count",
+			videoFilterLabel: "Show video models only",
+			videoFilterHint: "Filter models by keyword (video/t2v/i2v/wan/kling etc.) when fetching; off fetches all",
+			videoFetchBtn: "Fetch available models",
+			videoFetching: "Fetching…",
+			videoReset: "Reset config",
+			videoResetConfirm: "Confirm",
+			videoResetHint: "Reset all video-generation config to defaults",
+			videoNoConfig: "No valid video-generation API configured; generate_video is hidden.",
+			videoStatusPrefix: "Video gen valid config",
+			videoSecondsLabel: "Default duration (s)",
+			videoAspectLabel: "Aspect ratio",
+			videoResolutionLabel: "Resolution",
+			videoSubmitPathLabel: "Submit path",
+			videoPollPathLabel: "Poll path",
+			videoTaskIdFieldLabel: "Task ID field",
+			videoStatusFieldLabel: "Status field",
+			videoResultFieldLabel: "Result field",
+			videoDoneStatusLabel: "Done status value",
+			videoAsyncHint: "async-task protocol: fill in submit/poll paths and fields for any async gateway",
+			videoProviderCustom: "Custom",
+			videoProviderAgnes: "Agnes AI",
+			videoProviderAgnesCn: "Agnes AI CN",
+			videoProviderDashscope: "Alibaba Bailian",
+			videoProviderKling: "Kling",
+			videoProviderVolc: "Volcengine",
+			videoProviderMinimax: "MiniMax Hailuo",
+			videoProtocolOpenai: "openai-videos (Sora-compatible relay / Agnes)",
+			videoProtocolDashscope: "dashscope-video (Bailian wan)",
+			videoProtocolKling: "kling-video (JWT)",
+			videoProtocolVolc: "volc-video (Volcengine Ark)",
+			videoProtocolMinimax: "minimax-video (Hailuo)",
+			videoProtocolAsync: "async-task (generic async)",
+			videoGroupGeneral: "General",
+			videoGroupIntl: "Built-in · Overseas",
+			videoGroupCn: "Built-in · China",
+			videoToolOn: "generate_video tool enabled",
+			videoToolHidden: "No valid video API configured; generate_video is hidden",
 			settingsModuleSection: "Module Switches",
 			settingsBackoffSection: "Backoff Strategy",
 			backoffBaseLabel: "Backoff Base (ms)",
@@ -926,6 +1024,37 @@ ddHint: "Pick a model",
 			return p === "custom" || p === "comfyui" ||
 				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface", "bailian"].indexOf(p) >= 0;
 		});
+
+		// v2.8: video-generation provider presets (mirror of host VIDEO_PROVIDERS).
+		// fixed: URL baked in; fixedProtocol: protocol locked for that provider.
+		var VIDEO_PROVIDERS_UI = {
+			custom: { fixed: false, fixedProtocol: false, keyRequired: true },
+			agnes: { fixed: true, fixedProtocol: true, protocol: "openai-videos", endpoint: "https://apihub.agnes-ai.com/v1", keyRequired: true },
+			"agnes-cn": { fixed: true, fixedProtocol: true, protocol: "openai-videos", endpoint: "https://api.agnes-ai.cn/v1", keyRequired: true },
+			dashscope: { fixed: false, fixedProtocol: true, protocol: "dashscope-video", endpoint: "https://dashscope.aliyuncs.com", keyRequired: true },
+			kling: { fixed: true, fixedProtocol: true, protocol: "kling-video", endpoint: "https://api.klingai.com", keyRequired: true },
+			volc: { fixed: true, fixedProtocol: true, protocol: "volc-video", endpoint: "https://ark.cn-beijing.volces.com", keyRequired: true },
+			minimax: { fixed: true, fixedProtocol: true, protocol: "minimax-video", endpoint: "https://api.minimaxi.com", keyRequired: true }
+		};
+		var VIDEO_PROVIDER_IDS_UI = Object.keys(VIDEO_PROVIDERS_UI);
+		var VIDEO_PROTOCOL_OPTIONS_UI = [
+			{ value: "openai-videos", label: "openai-videos" },
+			{ value: "dashscope-video", label: "dashscope-video" },
+			{ value: "kling-video", label: "kling-video" },
+			{ value: "volc-video", label: "volc-video" },
+			{ value: "minimax-video", label: "minimax-video" },
+			{ value: "async-task", label: "async-task" }
+		];
+		function videoProviderDisplay(id, t) {
+			if (id === "custom") return t("videoProviderCustom");
+			if (id === "agnes") return t("videoProviderAgnes");
+			if (id === "agnes-cn") return t("videoProviderAgnesCn");
+			if (id === "dashscope") return t("videoProviderDashscope");
+			if (id === "kling") return t("videoProviderKling");
+			if (id === "volc") return t("videoProviderVolc");
+			if (id === "minimax") return t("videoProviderMinimax");
+			return id;
+		}
 
 		function providerDisplay(id, t) {
 			var m = PROVIDERS_UI[id];
@@ -2065,6 +2194,193 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			return React.createElement("div", { className: "omni-card omni-mirror-card" }, [head, body]);
 		}
 
+		// ---------- video generation panel (v2.8) ----------
+		// Mirrors ImggenPanel but slimmer: single config, async-task fields,
+		// provider-grouped dropdown (General / Overseas / China). No presets.
+		function VideoPanel(props) {
+			var t = props.t;
+			var cfg = props.cfg || {};
+			var meta = VIDEO_PROVIDERS_UI[cfg.provider] || {};
+			var isFixed = !!meta.fixed;
+			var isFixedProtocol = !!meta.fixedProtocol;
+			var isAsync = cfg.protocol === "async-task";
+			var keyDraftValue = props.keyDraft || "";
+			var isRevealed = !!props.revealed;
+			var isDdOpen = !!props.openDd;
+			var provOpen = !!props.openProv;
+			var modelList = Array.isArray(props.modelList) ? props.modelList : [];
+			var busy = props.busy;
+			var menuOpen = React.useState(false);
+
+			var providerGroups = [
+				{ label: t("videoGroupGeneral"), options: [{ value: "custom", label: t("videoProviderCustom") }] },
+				{ label: t("videoGroupIntl"), options: ["agnes", "agnes-cn"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) },
+				{ label: t("videoGroupCn"), options: ["dashscope", "kling", "volc", "minimax"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) }
+			];
+			var protocolOptions = VIDEO_PROTOCOL_OPTIONS_UI.map(function (o) {
+				var label = o.value === "openai-videos" ? t("videoProtocolOpenai")
+					: o.value === "dashscope-video" ? t("videoProtocolDashscope")
+					: o.value === "kling-video" ? t("videoProtocolKling")
+					: o.value === "volc-video" ? t("videoProtocolVolc")
+					: o.value === "minimax-video" ? t("videoProtocolMinimax")
+					: t("videoProtocolAsync");
+				return { value: o.value, label: label };
+			});
+			var aspectOptions = [
+				{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" },
+				{ value: "1:1", label: "1:1" }, { value: "4:3", label: "4:3" }, { value: "3:4", label: "3:4" }
+			];
+			var resolutionOptions = [
+				{ value: "720p", label: "720p" }, { value: "1080p", label: "1080p" }, { value: "768p", label: "768p" }
+			];
+
+			var head = React.createElement("div", { className: "omni-imggen-head" }, [
+				React.createElement("span", { className: "omni-imggen-title" }, t("videoTitle")),
+				React.createElement("div", { className: "omni-card-menu-wrap" }, [
+					React.createElement("button", {
+						className: "omni-icon-btn omni-card-menu-btn",
+						onClick: function () { menuOpen[1](!menuOpen[0]); }
+					}, React.createElement(SvgIcon, { d: I_MENU })),
+					menuOpen[0] ? React.createElement("div", { className: "omni-card-menu", ref: menuDdRef }, [
+						React.createElement("div", {
+							className: "omni-menu-item omni-menu-danger" + (props.confirmReset ? " omni-menu-confirm" : ""),
+							title: t("videoResetHint"),
+							onClick: function () {
+								var wasArmed = !!props.confirmReset;
+								props.onResetClick();
+								if (wasArmed) menuOpen[1](false);
+							}
+						}, React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, props.confirmReset ? t("videoResetConfirm") : t("videoReset")))
+					]) : null
+				])
+			]);
+
+			var body = React.createElement("div", { className: "omni-card-body" }, [
+				React.createElement("p", { className: "omni-desc" }, t("videoIntro")),
+				React.createElement("div", { className: "omni-row" }, [
+					React.createElement("div", { className: "omni-field omni-grow" }, [
+						React.createElement("span", { className: "omni-label" }, t("videoProviderLabel")),
+						React.createElement("div", { className: "omni-provider-wrap" }, [
+							React.createElement("button", {
+								className: "omni-input omni-provider-btn", type: "button",
+								onClick: function () { props.onToggleProv(); }
+							}, [
+								React.createElement("span", { className: "omni-provider-label" }, videoProviderDisplay(cfg.provider, t)),
+								React.createElement("span", { className: "omni-provider-arrow" }, provOpen ? "▴" : "▾")
+							]),
+							provOpen ? React.createElement("div", { className: "omni-provider-dropdown", ref: provDdRef }, providerGroups.map(function (g) {
+								return [React.createElement("div", { key: "g-" + g.label, className: "omni-dd-group" }, g.label)].concat(g.options.map(function (o) {
+									return React.createElement("div", {
+										key: o.value, className: "omni-dd-item" + (o.value === cfg.provider ? " active" : ""),
+										onClick: function () { props.onPickProvider(o.value); }
+									}, o.label);
+								}));
+							})) : null
+						])
+					]),
+					isFixedProtocol ? null : React.createElement(SelectField, {
+						label: t("videoProtocolLabel"),
+						value: cfg.protocol,
+						options: protocolOptions,
+						onChange: function (e) { props.onPatch("protocol", e.target.value); }
+					}),
+					React.createElement(Field, {
+						label: t("videoTimeoutLabel"), number: true, min: 60000,
+						value: String(cfg.timeoutMs != null ? cfg.timeoutMs : 600000),
+						placeholder: "600000",
+						onChange: function (e) { props.onPatch("timeoutMs", e.target.value); }
+					})
+				]),
+				isFixed
+					? React.createElement("p", { className: "omni-fixed-url" }, t("fixedUrlLabel") + ": " + meta.endpoint)
+					: React.createElement(Field, {
+						label: t("videoEndpointLabel"),
+						value: cfg.endpoint || "",
+						placeholder: cfg.provider === "dashscope" ? "https://dashscope.aliyuncs.com" : "https://relay.example.com/v1",
+						onChange: function (e) { props.onPatch("endpoint", e.target.value); }
+					}),
+				React.createElement("div", { className: "omni-row" }, [
+					React.createElement("div", { className: "omni-field omni-grow" }, [
+						React.createElement("span", { className: "omni-label" }, t("videoKeyLabel")),
+						React.createElement("div", { className: "omni-key-wrap" }, [
+							React.createElement("input", {
+								className: "omni-input omni-key-input",
+								type: isRevealed ? "text" : "password",
+								value: keyDraftValue,
+								placeholder: cfg.apiKeySet ? t("apiKeySet") : "sk-...",
+								onChange: function (e) { props.onSaveKey(e.target.value); }
+							}),
+							React.createElement("button", { className: "omni-eye-btn", type: "button", onClick: props.onToggleReveal },
+								React.createElement(SvgIcon, { d: isRevealed ? I_EYE_OFF : I_EYE }))
+						])
+					]),
+					React.createElement("div", { className: "omni-field omni-grow" }, [
+						React.createElement("span", { className: "omni-label" }, t("videoModelLabel")),
+						React.createElement("div", { className: "omni-model-wrap" }, [
+							React.createElement("input", {
+								className: "omni-input omni-model-input",
+								type: "text", value: cfg.model || "",
+								placeholder: "agnes-video-v2.0 / wan2.7-i2v",
+								onChange: function (e) { props.onPatch("model", e.target.value); }
+							}),
+							React.createElement("button", {
+								className: "omni-btn omni-model-btn", type: "button",
+								disabled: busy !== "",
+								onClick: props.onFetchModels
+							}, busy === "video-mdl" ? t("videoFetching") : t("videoFetchBtn")),
+							isDdOpen ? React.createElement("div", { className: "omni-model-dropdown", ref: ddRef }, modelList.map(function (m) {
+								return React.createElement("div", {
+									key: m, className: "omni-dd-item" + (m === cfg.model ? " active" : ""),
+									onClick: function () { props.onPickModel(m); }
+								}, m);
+							})) : null
+						])
+					])
+				]),
+				cfg.provider === "kling" ? React.createElement("p", { className: "omni-status" }, t("videoKeyKlingHint")) : null,
+				React.createElement("div", { className: "omni-row" }, [
+					React.createElement(Field, { label: t("videoPollIntervalLabel"), number: true, min: 1, value: String(cfg.pollIntervalMs != null ? cfg.pollIntervalMs / 1000 : 5), placeholder: "5", onChange: function (e) { props.onPatch("pollIntervalMs", Number(e.target.value) * 1000); } }),
+					React.createElement(Field, { label: t("videoRetryLabel"), number: true, min: 1, value: String(cfg.retryCount != null ? cfg.retryCount : 1), placeholder: "1", onChange: function (e) { props.onPatch("retryCount", e.target.value); } }),
+					React.createElement(Field, { label: t("videoSecondsLabel"), number: true, min: 1, max: 30, value: String(cfg.seconds != null ? cfg.seconds : 5), placeholder: "5", onChange: function (e) { props.onPatch("seconds", e.target.value); } })
+				]),
+				React.createElement("div", { className: "omni-row" }, [
+					React.createElement(SelectField, {
+						label: t("videoAspectLabel"), value: cfg.aspectRatio || "16:9",
+						options: aspectOptions,
+						onChange: function (e) { props.onPatch("aspectRatio", e.target.value); }
+					}),
+					React.createElement(SelectField, {
+						label: t("videoResolutionLabel"), value: cfg.resolution || "720p",
+						options: resolutionOptions,
+						onChange: function (e) { props.onPatch("resolution", e.target.value); }
+					}),
+					React.createElement("div", { className: "omni-field omni-grow" }, [
+						React.createElement("label", { className: "omni-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
+							React.createElement("span", { className: "omni-switch-slider" })
+						]),
+						React.createElement("span", { className: "omni-label" }, t("videoFilterLabel")),
+						React.createElement("span", { className: "omni-tool-desc", title: t("videoFilterHint") }, t("videoFilterHint"))
+					])
+				]),
+				isAsync ? React.createElement("div", { className: "omni-row" }, [
+					React.createElement(Field, { label: t("videoSubmitPathLabel"), value: cfg.submitPath || "/videos", placeholder: "/api/v1/generations", onChange: function (e) { props.onPatch("submitPath", e.target.value); } }),
+					React.createElement(Field, { label: t("videoPollPathLabel"), value: cfg.pollPath || "/videos", placeholder: "/tasks/{id}", onChange: function (e) { props.onPatch("pollPath", e.target.value); } })
+				]) : null,
+				isAsync ? React.createElement("div", { className: "omni-row" }, [
+					React.createElement(Field, { label: t("videoTaskIdFieldLabel"), value: cfg.taskIdField || "", placeholder: "data.task_id", onChange: function (e) { props.onPatch("taskIdField", e.target.value); } }),
+					React.createElement(Field, { label: t("videoStatusFieldLabel"), value: cfg.statusField || "status", placeholder: "status", onChange: function (e) { props.onPatch("statusField", e.target.value); } }),
+					React.createElement(Field, { label: t("videoResultFieldLabel"), value: cfg.resultField || "metadata.url", placeholder: "data.url", onChange: function (e) { props.onPatch("resultField", e.target.value); } })
+				]) : null,
+				isAsync ? React.createElement("div", { className: "omni-row" }, [
+					React.createElement(Field, { label: t("videoDoneStatusLabel"), value: cfg.doneStatus || "completed", placeholder: "completed", onChange: function (e) { props.onPatch("doneStatus", e.target.value); } }),
+					React.createElement("p", { className: "omni-status" }, t("videoAsyncHint"))
+				]) : null,
+				React.createElement("p", { className: "omni-status" }, props.visible ? t("videoToolOn") : t("videoToolHidden"))
+			]);
+			return React.createElement("div", { className: "omni-imggen-panel" }, [head, body]);
+		}
+
 		// ---------- settings panel (global config) ----------
 		function SettingsPanel(props) {
 			var t = props.t;
@@ -2074,7 +2390,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement("span", { className: "omni-settings-section-title" }, t("settingsModuleSection")),
 					React.createElement("div", { className: "omni-row" }, [
 						props.moduleRow("VLM", props.vlmOn, props.onToggleVlm, ""),
-						props.moduleRow(t("tabImggen"), props.imggenOn, props.onToggleImggen, "")
+						props.moduleRow(t("tabImggen"), props.imggenOn, props.onToggleImggen, ""),
+						props.moduleRow(t("tabVideo"), props.videoOn, props.onToggleVideo, "")
 					]),
 				]),
 				React.createElement("div", { className: "omni-settings-section" }, [
@@ -2325,6 +2642,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var igUnetList = React.useState([]);
 			var igVaeDd = React.useState(false);
 			var igClipDd = React.useState(false);
+			// v2.8: video panel state
+			var videoKeyDraft = React.useState("");
+			var videoRevealed = React.useState(false);
+			var videoOpenDd = React.useState(false);
+			var videoOpenProv = React.useState(false);
+			var videoBusy = React.useState("");
+			var videoConfirmReset = React.useState(false);
+			var videoModelList = React.useState([]);
 			var fbCollapsed = React.useState(function () { try { var s = JSON.parse(localStorage.getItem('omni-workstation-collapse') || '{}'); return s.fb !== undefined ? s.fb : true; } catch (e) { return true; } });
 			var fbModels = React.useState([]);
 			var fbOpenDd = React.useState(false);
@@ -2531,6 +2856,15 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				Promise.resolve().then(function () { saveState[1]("recent"); });
 			}
 
+			// v2.8: video module switch (default OFF — tool/schema injected only when ON)
+			function toggleVideo() {
+				var v = draft[0].videoEnabled === true ? false : true;
+				updateDraft(function (d) { d.videoEnabled = v; return d; });
+				saveState[1]("saving");
+				queueSave({ videoEnabled: v });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+
 			function toggleTools() {
 				var v = draft[0].visionToolsEnabled !== false ? false : true;
 				updateDraft(function (d) { d.visionToolsEnabled = v; return d; });
@@ -2728,6 +3062,76 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { busy[1](""); });
 			}
 
+			// ---- video field patch: local update + debounced save (v2.8) ----
+			function patchVideo(field, value) {
+				updateDraft(function (d) {
+					d.videoConfig = Object.assign({}, d.videoConfig || {}, { [field]: value });
+					return d;
+				});
+				if (field === "apiKey" && String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ videoConfig: { field: field, value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function saveVideoKey(value) {
+				videoKeyDraft[1](value);
+				if (String(value || "").length === 0) return;
+				saveState[1]("saving");
+				queueSave({ videoConfig: { field: "apiKey", value: value } });
+				Promise.resolve().then(function () { saveState[1]("recent"); });
+			}
+			function toggleVideoReveal() {
+				var willShow = !videoRevealed[0];
+				var curVc = draft[0].videoConfig || {};
+				if (willShow && !videoKeyDraft[0] && curVc.apiKeySet) {
+					call("key", { video: true }).then(function (r) {
+						if (r && r.ok) videoKeyDraft[1](r.apiKey || "");
+					}).catch(function () {});
+				}
+				if (!willShow) videoKeyDraft[1]("");
+				videoRevealed[1](willShow);
+			}
+			function fetchVideoModels() {
+				videoBusy[1]("video-mdl");
+				videoModelList[1]([]);
+				setMsg("", false);
+				call("models", {
+					video: true,
+					endpoint: (draft[0].videoConfig || {}).endpoint || undefined,
+					protocol: (draft[0].videoConfig || {}).protocol,
+					apiKey: videoKeyDraft[0] || undefined
+				}).then(function (r) {
+					if (r && r.ok && Array.isArray(r.models) && r.models.length > 0) {
+						videoModelList[1](r.models);
+						videoOpenDd[1](true);
+						showToast('success', t('fetchOkPrefix') + r.models.length + t('fetchOkSuffix'), '');
+					} else {
+						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+						showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
+					}
+				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { videoBusy[1](""); });
+			}
+			function pickVideoModel(m) {
+				patchVideo("model", m);
+				videoOpenDd[1](false);
+			}
+			function toggleVideoFilter() {
+				patchVideo("filterVideoModels", !((draft[0].videoConfig || {}).filterVideoModels !== false));
+			}
+			function changeVideoProvider(v) {
+				if (!VIDEO_PROVIDERS_UI[v]) return;
+				patchVideo("provider", v);
+				videoModelList[1]([]);
+			}
+			function resetVideo() {
+				if (!videoConfirmReset[0]) { videoConfirmReset[1](true); return; }
+				videoConfirmReset[1](false);
+				videoModelList[1]([]);
+				videoKeyDraft[1]("");
+				videoRevealed[1](false);
+				commitStructure({ videoReset: true }, function (d) { d.videoConfig = null; return d; }, function () { showToast('success', t('resetDone'), ''); });
+			}
+
 			// ---- imggen field patch: local update + debounced save ----
 			function patchImggen(field, value) {
 				updateDraft(function (d) {
@@ -2903,6 +3307,10 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var igc = draft[0].imggenConfig || {};
 			var igcValid = !!(draft[0].imggenPresets && draft[0].imggenPresets.length > 0);
 			var imggenVisible = snap[0] ? snap[0].imggenVisible : false;
+			// v2.8: video panel derived state
+			var vc = draft[0].videoConfig || {};
+			var videoOn = draft[0].videoEnabled === true;
+			var videoVisible = snap[0] ? snap[0].videoVisible : false;
 
 			var cardProps = {
 				t: t,
@@ -3048,16 +3456,46 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				null
 			]);
 
+			// v2.8: video tab body
+			var videoBody = React.createElement("div", { className: "omni-tab-body" }, [
+				React.createElement(VideoPanel, {
+					t: t,
+					cfg: vc,
+					visible: videoVisible,
+					busy: videoBusy[0],
+					keyDraft: videoKeyDraft[0],
+					revealed: videoRevealed[0],
+					openDd: videoOpenDd[0],
+					openProv: videoOpenProv[0],
+					confirmReset: videoConfirmReset[0],
+					modelList: videoModelList[0],
+					onPatch: patchVideo,
+					onSaveKey: saveVideoKey,
+					onToggleReveal: toggleVideoReveal,
+					onFetchModels: fetchVideoModels,
+					onPickModel: pickVideoModel,
+					onToggleDd: function () { videoOpenDd[1](!videoOpenDd[0]); },
+					onPickProvider: function (v) { changeVideoProvider(v); videoOpenProv[1](false); },
+					onToggleProv: function () { videoOpenProv[1](!videoOpenProv[0]); },
+					onToggleFilter: toggleVideoFilter,
+					onResetClick: resetVideo,
+					onCloseMenu: function () { videoConfirmReset[1](false); }
+				}),
+				null
+			]);
+
 			var settingsBody = React.createElement("div", { className: "omni-tab-body" }, [
 			React.createElement(SettingsPanel, {
 				t: t,
 				globalConfig: draft[0].globalConfig || {},
 				vlmOn: vlmOn,
 				imggenOn: imggenOn,
+				videoOn: videoOn,
 				toolsOn: toolsOn,
 				moduleRow: moduleRow,
 				onToggleVlm: toggleVlm,
 				onToggleImggen: toggleImggen,
+				onToggleVideo: toggleVideo,
 				onToggleTools: toggleTools,
 				onPatchGlobal: patchGlobal
 			}),
@@ -3076,13 +3514,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					t("tabImggen"),
 					React.createElement("span", { className: "omni-tab-dot " + (imggenOn ? "on" : "off") })
 				]),
-					React.createElement("button", { className: "omni-tab" + (tab[0] === "video" ? " active" : ""), onClick: function () { tab[1]("video"); } }, t("tabVideo")),
+					React.createElement("button", { className: "omni-tab" + (tab[0] === "video" ? " active" : ""), onClick: function () { tab[1]("video"); } }, [
+					t("tabVideo"),
+					React.createElement("span", { className: "omni-tab-dot " + (videoOn ? "on" : "off") })
+				]),
 					React.createElement("button", { className: "omni-tab" + (tab[0] === "audio" ? " active" : ""), onClick: function () { tab[1]("audio"); } }, t("tabAudio")),
 					React.createElement("button", { className: "omni-tab" + (tab[0] === "settings" ? " active" : ""), onClick: function () { tab[1]("settings"); } }, t("settingsTab"))
 				]),
-				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : (tab[0] === "video" || tab[0] === "audio"
+				tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : (tab[0] === "video" ? videoBody : (tab[0] === "audio"
 					? React.createElement("div", { className: "omni-tab-body" }, [React.createElement("p", { className: "omni-desc" }, t("tabPlaceholder"))])
-					: settingsBody)),
+					: settingsBody))),
 				helpOpen[0] ? React.createElement(HelpModal, { t: t, onClose: function () { helpOpen[1](false); } }) : null
 			]);
 		}
