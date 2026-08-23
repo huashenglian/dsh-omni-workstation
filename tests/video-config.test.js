@@ -14,7 +14,8 @@ const {
   applyPatch,
   VIDEO_PROVIDERS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS,
   buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId,
-  klingJwt, agnesNumFrames, pathGet, pollVideoOnce, minimaxResolveUrl
+  klingJwt, agnesNumFrames, pathGet, pollVideoOnce, minimaxResolveUrl,
+  filterVideoModelIds, buildVideoToolDef
 } = await import('../lib/index.js')
 
 const agnes = () => normalizeVideoConfig({
@@ -430,4 +431,43 @@ test('video presets: add / switch / rename / delete', () => {
   cfg = applyPatch(cfg, { videoPresetDelete: p0 })
   assert.equal(cfg.videoPresets.length, 1)
   assert.equal(cfg.videoPresets[0].name, '默认')
+})
+
+// ---- v2.8.x: video model list filter + tool description defaults ----
+
+test('filterVideoModelIds keeps video-family names and excludes image models', () => {
+  const keep = [
+    'wan2.7-i2v', 'wan2.5-t2v', 'agnes-video-2.5', 'sora-2', 'doubao-seedance-2-5',
+    'kling-v1-6', 'MiniMax-Hailuo-2.3', 'cogvideox-5b', 'veo-3', 'vidu-1'
+  ]
+  const drop = [
+    'wan2.2-t2i-flash', 'wanx2.1-t2i-turbo', 'gpt-image-1', 'seedream-4.5',
+    'dall-e-3', 'flux-schnell', 'cogview-4', 'stable-diffusion-3', 'qwen-max',
+    'text-embedding-v3'
+  ]
+  const out = filterVideoModelIds(keep.concat(drop))
+  for (const id of keep) assert.ok(out.includes(id), 'keep ' + id)
+  for (const id of drop) assert.ok(!out.includes(id), 'drop ' + id)
+  assert.deepEqual(filterVideoModelIds(null), [])
+  assert.deepEqual(filterVideoModelIds('nope'), [])
+})
+
+test('buildVideoSubmit: args.resolution / args.aspectRatio override panel defaults', () => {
+  const b1 = buildVideoSubmit(volc(), { prompt: 'p', aspectRatio: '1:1', resolution: '1080p' }, null)
+  assert.equal(b1.body.resolution, '1080p')
+  assert.equal(b1.body.ratio, '1:1')
+  const b2 = buildVideoSubmit(volc(), { prompt: 'p' }, null)
+  assert.equal(b2.body.resolution, '720p')
+  assert.equal(b2.body.ratio, '16:9')
+})
+
+test('buildVideoToolDef injects panel defaults and user-priority guidance', () => {
+  const def = buildVideoToolDef({ seconds: 10, aspectRatio: '1:1', retryCount: 3 })
+  assert.ok(def.description.includes('10s'))
+  assert.ok(def.description.includes('1:1'))
+  assert.ok(def.description.includes('3 次'))
+  assert.ok(def.description.includes('以用户要求为最高优先级'))
+  const props = def.parameters.properties
+  assert.ok(props.resolution, 'resolution param present')
+  assert.ok(props.aspect_ratio.description.includes('用户要求为准'))
 })
