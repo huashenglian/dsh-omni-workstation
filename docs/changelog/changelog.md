@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.1 — 模型下拉交互统一 + 视频面板 UI 对齐生图 + 视频预设
+- **模型选择下拉统一（VLM / 生图 / 视频）**：模型输入框右侧新增/常驻「▾」指示图标按钮（点击开合下拉；列表未拉取时自动触发「获取可用模型」）；点击「获取可用模型」拉取成功即自动弹出下拉列表（三面板同款交互）
+- **视频面板 UI 重排对齐生图（规范）**：删除长说明段落；新增预设管理行（预设名输入 + ▾ 菜单 + ＋新增 + 垃圾桶删除）+ 分隔线；布局统一为「供应商｜超时 → 内置端点 → API Key 整行（眼睛内嵌）→ 模型整行（输入框 + ▾ + 获取按钮同行）→ 过滤开关独占行 → 轮询间隔｜重试次数 → 默认时长｜（留空）→ 画幅｜分辨率」；async-task 字段改双列；底部状态行改多段「·」分隔（生视频有效配置 · 工具已启用/隐藏 · 可用模型 N 个）
+- **视频真预设功能**：host 半 `videoPresets` + `activeVideoPreset`（normalize/mask/applyPatch：videoPresetSwitch/Add/Delete/Rename，videoConfig patch 同步到 active preset）；client 预设行 + handlers，与生图 imggenPresets 对齐
+- **生图下拉健壮性**：模型下拉列表内容由 `modelOpts`（comfy 分支）回退到 `modelList`，避免残留 unet mapping 导致下拉无法渲染
+- 新增视频预设单测 3 例（默认预设/同步/patch 管理）；全套 146 例通过
+- 详见 [docs/plan/v2.8-video.md](../plan/v2.8-video.md)
+
 ## v2.8.0 — 视频生成面板 + generate_video 工具（全模态扩展）
 - **新增设置页「视频」tab**（替换占位）：供应商下拉分组（通用-自定义 / 海外-Agnes AI、Agnes AI CN / 国内-阿里云百炼、可灵、火山引擎、MiniMax 海螺）、协议下拉（内置供应商锁定）、endpoint（fixed 只读 / dashscope 可编辑）、API Key（password+眼睛）、模型（自由输入+获取可用模型）、超时/轮询间隔/重试、默认时长/画幅/分辨率、视频模型过滤开关、async-task 专属字段组、重置、状态行（zh/en i18n 全量）
 - **新增 `generate_video` 工具**（t2v + i2v 双能力）：`prompt` 必填 + `image`（首帧图，本地路径或公网 URL）+ `seconds`/`aspect_ratio`/`output_dir`；异步任务 submit → poll → 下载 mp4 → 写入工作区 `video_<ts>.mp4`（复用 sessionCwd，不回退 process.cwd()）
