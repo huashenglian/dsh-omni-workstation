@@ -2,6 +2,17 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.2 — VLM 卡片菜单收纳修复 + 视频面板交互/筛选/布局修复
+- **修复 VLM 卡片菜单触发收纳**：ApiCard 的 '...' 菜单项（置顶/沉底/删除）补 `e.stopPropagation()`——此前点击菜单项冒泡到卡片头 `toggleCollapse` 导致卡片意外收纳；现点击菜单项后卡片收纳/展开状态保持不变
+- **视频面板外点关闭**：模型下拉/供应商下拉纳入主外点关闭 effect（此前漏了 `videoOpenDd/videoOpenProv`，点空白不关）；VideoPanel 补齐 reset 菜单与预设下拉的外点关闭（镜像生图面板）
+- **文案**：「仅显示生视频模型」→「仅显示视频模型」，hint 说明自动排除 t2i/生图模型
+- **筛选关键词修正**：内联正则抽成纯函数 `filterVideoModelIds()`（export + 单测）——先排除 `t2i|wanx|image|img|seedream|dall|flux|cogview` 生图系，再保留 `t2v|i2v|video|sora|wan|kling|hailuo|seedance|cogvideo|veo|vidu`；修复裸 `wan` 放过 wan2.2-t2i/wanx 系生图模型的坑
+- **移除分辨率 UI + 参数行合并**：删除设置面板「分辨率」字段（分辨率由 AI 经 generate_video `resolution` 参数自行决定；后端 cfg.resolution 归一化保留供 volc/minimax 协议缺省）；轮询间隔 (s)｜重试次数｜默认时长 (s)｜画幅 合并为一行 4 字段水平对齐
+- **面板参数 = 初始默认，用户提示词优先**：`buildVideoToolDef(vc)` 动态注入面板初始默认（时长/画幅/重试）到工具描述并声明「用户明确要求时以用户要求为最高优先级」；新增 `resolution` 工具参数；注册处按 videoSig 变更重注册（seconds/aspectRatio/retryCount 变化时刷新描述）
+- **wan2.7-i2v 排查结论（上游问题）**：关闭筛选拉全量，dashscope compatible-mode 返回 100 模型，**无 wan2.7-i2v 且无任何 i2v/t2v 视频模型**（仅 wan2.7-image-pro/wan2.7-image 生图系）——该模型未在上游 /v1/models 上架，非插件 bug
+- 新增 3 例单测（filterVideoModelIds / args 覆盖 / 工具描述注入）；全套 149 例通过；截图 `截图/v2_8x_*.jpg`
+- 详见 [docs/plan/v2.8-video.md](../plan/v2.8-video.md) 与 [docs/decisions.md](../../../docs/decisions.md)
+
 ## v2.8.1 — 模型下拉交互统一 + 视频面板 UI 对齐生图 + 视频预设
 - **模型选择下拉统一（VLM / 生图 / 视频）**：模型输入框右侧新增/常驻「▾」指示图标按钮（点击开合下拉；列表未拉取时自动触发「获取可用模型」）；点击「获取可用模型」拉取成功即自动弹出下拉列表（三面板同款交互）
 - **视频面板 UI 重排对齐生图（规范）**：删除长说明段落；新增预设管理行（预设名输入 + ▾ 菜单 + ＋新增 + 垃圾桶删除）+ 分隔线；布局统一为「供应商｜超时 → 内置端点 → API Key 整行（眼睛内嵌）→ 模型整行（输入框 + ▾ + 获取按钮同行）→ 过滤开关独占行 → 轮询间隔｜重试次数 → 默认时长｜（留空）→ 画幅｜分辨率」；async-task 字段改双列；底部状态行改多段「·」分隔（生视频有效配置 · 工具已启用/隐藏 · 可用模型 N 个）
