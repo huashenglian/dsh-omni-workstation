@@ -15,6 +15,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFil
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { createHmac } from 'node:crypto'
 import jpegJs from './vendor/jpeg-js/index.cjs'
 import { encodePng } from './vendor/png.js'
 import { buildVisionToolDefs } from './vision-tools.js'
@@ -174,6 +175,390 @@ function isImggenConfigValid(c) {
   return typeof c.apiKey === 'string' && c.apiKey !== ''
 }
 
+// ---------- video (video generation) config model (v2.8) ----------
+// Video generation is ALWAYS an async task protocol (submit -> poll task ->
+// fetch result URL), unlike image generation. The tool is registered ONLY
+// when videoEnabled === true AND the config is valid — turning the switch off
+// (or an invalid config) means the tool schema is never injected into the
+// model prompt (0 token cost), exactly like generate_image.
+const VIDEO_PROVIDERS = {
+  custom:    { protocol: 'openai-videos', endpoint: '', keyRequired: true, fixedUrl: false, fixedProtocol: false },
+  agnes:     { protocol: 'openai-videos', endpoint: 'https://apihub.agnes-ai.com/v1', keyRequired: true, fixedUrl: true, fixedProtocol: true },
+  'agnes-cn':{ protocol: 'openai-videos', endpoint: 'https://api.agnes-ai.cn/v1', keyRequired: true, fixedUrl: true, fixedProtocol: true },
+  // 阿里云百炼：endpoint 可编辑（支持 workspace 专属域名），协议固定 DashScope 原生
+  dashscope: { protocol: 'dashscope-video', endpoint: 'https://dashscope.aliyuncs.com', keyRequired: true, fixedUrl: false, fixedProtocol: true },
+  // 可灵：apiKey 格式 AccessKey|SecretKey（JWT HS256 鉴权）
+  kling:     { protocol: 'kling-video', endpoint: 'https://api.klingai.com', keyRequired: true, fixedUrl: true, fixedProtocol: true },
+  volc:      { protocol: 'volc-video', endpoint: 'https://ark.cn-beijing.volces.com', keyRequired: true, fixedUrl: true, fixedProtocol: true },
+  minimax:   { protocol: 'minimax-video', endpoint: 'https://api.minimaxi.com', keyRequired: true, fixedUrl: true, fixedProtocol: true }
+}
+const VIDEO_PROVIDER_IDS = Object.keys(VIDEO_PROVIDERS)
+const VIDEO_PROTOCOLS = ['openai-videos', 'dashscope-video', 'kling-video', 'volc-video', 'minimax-video', 'async-task']
+const VIDEO_ASPECT_RATIOS = {
+  '16:9': { width: 1280, height: 720 },
+  '9:16': { width: 720, height: 1280 },
+  '1:1': { width: 768, height: 768 },
+  '4:3': { width: 1024, height: 768 },
+  '3:4': { width: 768, height: 1024 }
+}
+
+const defaultVideoConfig = () => ({
+  provider: 'custom',
+  protocol: 'openai-videos',
+  endpoint: '',
+  apiKey: '',
+  model: '',
+  timeoutMs: 600000,
+  pollIntervalMs: 5000,
+  retryCount: 1,
+  filterVideoModels: true,
+  seconds: 5,
+  aspectRatio: '16:9',
+  resolution: '720p',
+  // async-task 专属字段（openai-videos 的 base 已含 /v1，故路径用 /videos）
+  submitPath: '/videos',
+  pollPath: '/videos',
+  taskIdField: '',
+  statusField: 'status',
+  resultField: 'metadata.url',
+  doneStatus: 'completed'
+})
+
+function normalizeVideoConfig(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultVideoConfig()
+  const provider = VIDEO_PROVIDER_IDS.includes(raw.provider) ? raw.provider : 'custom'
+  const meta = VIDEO_PROVIDERS[provider]
+  // 内置供应商协议锁定；custom 允许用户选择任何协议
+  const protocol = meta && meta.fixedProtocol
+    ? meta.protocol
+    : (VIDEO_PROTOCOLS.includes(raw.protocol) ? raw.protocol : 'openai-videos')
+  const piRaw = Math.floor(Number(raw.pollIntervalMs))
+  const secRaw = Math.floor(Number(raw.seconds))
+  return {
+    provider,
+    protocol,
+    endpoint: typeof raw.endpoint === 'string' ? raw.endpoint : '',
+    apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : '',
+    model: typeof raw.model === 'string' ? raw.model : '',
+    timeoutMs: clampTimeout(raw.timeoutMs, 600000),
+    pollIntervalMs: Number.isFinite(piRaw) && piRaw >= 1000 ? Math.min(piRaw, 60000) : 5000,
+    retryCount: Number.isFinite(Number(raw.retryCount)) && Number(raw.retryCount) > 0 ? Math.min(Math.floor(Number(raw.retryCount)), 5) : 1,
+    filterVideoModels: raw.filterVideoModels !== false,
+    seconds: Number.isFinite(secRaw) && secRaw > 0 ? Math.min(secRaw, 30) : 5,
+    aspectRatio: VIDEO_ASPECT_RATIOS[raw.aspectRatio] ? raw.aspectRatio : '16:9',
+    resolution: /^(720p|1080p|768p)$/i.test(String(raw.resolution)) ? String(raw.resolution).toLowerCase() : '720p',
+    submitPath: typeof raw.submitPath === 'string' ? raw.submitPath : '/videos',
+    pollPath: typeof raw.pollPath === 'string' ? raw.pollPath : '/videos',
+    taskIdField: typeof raw.taskIdField === 'string' ? raw.taskIdField : '',
+    statusField: typeof raw.statusField === 'string' && raw.statusField.trim() ? raw.statusField : 'status',
+    resultField: typeof raw.resultField === 'string' && raw.resultField.trim() ? raw.resultField : 'metadata.url',
+    doneStatus: typeof raw.doneStatus === 'string' && raw.doneStatus.trim() ? raw.doneStatus : 'completed'
+  }
+}
+
+const maskedVideo = (c) => ({
+  provider: c.provider,
+  protocol: c.protocol,
+  endpoint: c.endpoint,
+  model: c.model,
+  timeoutMs: c.timeoutMs,
+  pollIntervalMs: c.pollIntervalMs,
+  retryCount: c.retryCount,
+  filterVideoModels: c.filterVideoModels,
+  seconds: c.seconds,
+  aspectRatio: c.aspectRatio,
+  resolution: c.resolution,
+  submitPath: c.submitPath,
+  pollPath: c.pollPath,
+  taskIdField: c.taskIdField,
+  statusField: c.statusField,
+  resultField: c.resultField,
+  doneStatus: c.doneStatus,
+  apiKeySet: c.apiKey !== ''
+})
+
+function isVideoConfigValid(c) {
+  if (!c) return false
+  const meta = VIDEO_PROVIDERS[c.provider]
+  const endpoint = (meta && meta.fixedUrl) ? meta.endpoint : c.endpoint
+  if (typeof endpoint !== 'string' || endpoint.trim() === '') return false
+  if (typeof c.model !== 'string' || c.model.trim() === '') return false
+  if (typeof c.apiKey !== 'string' || c.apiKey === '') return false
+  // 可灵用 AccessKey|SecretKey 双段 JWT 鉴权
+  if (c.provider === 'kling' && !String(c.apiKey).includes('|')) return false
+  return true
+}
+
+// ---------- video engine: pure helpers (exported for unit tests) ----------
+// Resolve dotted paths like "metadata.url" from a poll response body.
+function pathGet(obj, path) {
+  if (!obj || typeof obj !== 'object' || !path) return undefined
+  let cur = obj
+  for (const seg of String(path).split('.')) {
+    if (cur == null || typeof cur !== 'object') return undefined
+    cur = cur[seg]
+  }
+  return cur
+}
+
+// Agnes Video: seconds -> num_frames (8n+1, 24fps, capped at 441)
+function agnesNumFrames(seconds) {
+  const fps = 24
+  const target = Math.max(1, Math.floor(Number(seconds) || 5)) * fps
+  const frames = Math.min(441, Math.max(9, Math.ceil((target - 1) / 8) * 8 + 1))
+  return frames
+}
+
+// Kling: HS256 JWT (AccessKey | SecretKey), no external dependency.
+function klingJwt(ak, sk) {
+  const header = { alg: 'HS256', typ: 'JWT' }
+  const now = Math.floor(Date.now() / 1000)
+  const payload = { iss: ak, exp: now + 1800, nbf: now - 5 }
+  const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
+  const data = b64url(header) + '.' + b64url(payload)
+  const sig = createHmac('sha256', String(sk)).update(data).digest('base64url')
+  return data + '.' + sig
+}
+
+// Effective video base URL: fixed providers use their baked-in endpoint.
+function videoBase(cfg) {
+  const meta = VIDEO_PROVIDERS[cfg.provider]
+  const ep = (meta && meta.fixedUrl) ? meta.endpoint : cfg.endpoint
+  const base = String(ep || '').trim().replace(/\/+$/, '')
+  // openai 族协议要求 /v1 前缀（如 agnes-ai.cn 无 /v1 路径会被 Cloudflare 403）
+  if (cfg.protocol === 'openai-videos' && !/\/v[0-9]+$/.test(base)) return base + '/v1'
+  return base
+}
+
+// DashScope native base for video: rewrite workspace/compatible-mode hosts to
+// /api/v1 (same rule as image generation; ws-*.maas.aliyuncs.com 拒绝原生路径).
+function dashscopeVideoBase(cfg) {
+  const meta = VIDEO_PROVIDERS[cfg.provider]
+  const ep = (meta && meta.fixedUrl) ? meta.endpoint : cfg.endpoint
+  const base = String(ep || '').trim().replace(/\/+$/, '')
+  const wsHost = /^(https?:\/\/)[^/]+\.maas\.aliyuncs\.com(?:[/?#]|$)/i.exec(base)
+  if (wsHost) return wsHost[1] + 'dashscope.aliyuncs.com/api/v1'
+  if (/\/compatible-mode\/v[0-9]+$/.test(base)) return base.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
+  if (/\/api\/v[0-9]+$/.test(base)) return base
+  if (/\/v[0-9]+$/.test(base)) return base.replace(/\/v[0-9]+$/, '/api/v1')
+  return base + '/api/v1'
+}
+
+// Build the submit request for a protocol. `image` is {kind:'url'|'b64'|'dataUrl', value}
+// or null for t2v. args: {prompt, seconds, aspectRatio, resolution}.
+function buildVideoSubmit(cfg, args, image) {
+  const prompt = String(args.prompt || '').trim()
+  const seconds = Math.max(1, Math.min(Math.floor(Number(args.seconds) || cfg.seconds || 5), 30))
+  const aspectRatio = VIDEO_ASPECT_RATIOS[args.aspectRatio] ? args.aspectRatio
+    : (VIDEO_ASPECT_RATIOS[cfg.aspectRatio] ? cfg.aspectRatio : '16:9')
+  const res = String(args.resolution || cfg.resolution || '720p').toLowerCase()
+  const protocol = cfg.protocol
+  const base = videoBase(cfg)
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  const isAgnes = cfg.provider === 'agnes' || cfg.provider === 'agnes-cn'
+  const size = VIDEO_ASPECT_RATIOS[aspectRatio] || { width: 1280, height: 720 }
+  const imageDataUrl = image ? (image.kind === 'dataUrl' ? image.value : (image.kind === 'url' ? image.value : 'data:image/png;base64,' + image.value)) : ''
+  switch (protocol) {
+    case 'openai-videos': {
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
+      const body = { model: cfg.model, prompt }
+      if (image) body.image_url = image.kind === 'url' ? image.value : imageDataUrl
+      if (isAgnes) {
+        // Agnes Video V2.0 原生参数：num_frames(8n+1) + frame_rate + width/height
+        body.num_frames = agnesNumFrames(seconds)
+        body.frame_rate = 24
+        body.width = size.width
+        body.height = size.height
+      } else {
+        // 中转站通用 Sora 风格：size 字段
+        body.size = size.width + 'x' + size.height
+      }
+      const sp = String(cfg.submitPath || '/videos').trim()
+      const url = base + (sp.startsWith('/') ? sp : '/' + sp)
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    case 'dashscope-video': {
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
+      headers['X-DashScope-Async'] = 'enable'
+      const input = { prompt }
+      // wan i2v：img_url 支持公网 URL 或裸 Base64（DashScope 原生口径）
+      if (image) input.img_url = image.kind === 'url' ? image.value : (image.kind === 'dataUrl' ? image.value : image.value)
+      const body = { model: cfg.model, input, parameters: {} }
+      const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/generation'
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    case 'kling-video': {
+      const [ak, sk] = String(cfg.apiKey || '').split('|')
+      if (!ak || !sk) throw new Error('kling-video: apiKey 必须是 AccessKey|SecretKey 格式')
+      headers.Authorization = 'Bearer ' + klingJwt(ak, sk)
+      const path = image ? 'image2video' : 'text2video'
+      const body = { model: cfg.model, prompt, duration: String(seconds), aspect_ratio: aspectRatio, mode: 'std' }
+      if (image) body.image = image.kind === 'url' ? image.value : (image.kind === 'dataUrl' ? image.value : image.value)
+      const url = base + '/v1/videos/' + path
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    case 'volc-video': {
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
+      const content = [{ type: 'text', text: prompt }]
+      if (image) content.push({ type: 'image_url', image_url: { url: imageDataUrl }, role: 'first_frame' })
+      const body = { model: cfg.model, content, resolution: res === '1080p' ? '1080p' : '720p', ratio: aspectRatio, duration: seconds }
+      const url = base + '/api/v3/contents/generations/tasks'
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    case 'minimax-video': {
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
+      const body = { model: cfg.model, prompt, duration: seconds, resolution: res === '1080p' ? '1080P' : '720P' }
+      const url = base + '/v1/video_generation'
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    case 'async-task': {
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
+      const body = { model: cfg.model, prompt }
+      if (image) body.image = image.kind === 'url' ? image.value : imageDataUrl
+      const sp = String(cfg.submitPath || '/videos').trim()
+      const url = base + (sp.startsWith('/') ? sp : '/' + sp)
+      return { url, method: 'POST', headers, body, i2v: !!image }
+    }
+    default:
+      throw new Error('generate_video: 未知协议 ' + protocol)
+  }
+}
+
+// Poll URL for a protocol. `i2v` only matters for kling (image2video vs text2video).
+function videoPollUrl(protocol, cfg, taskId, i2v) {
+  const base = videoBase(cfg)
+  switch (protocol) {
+    case 'openai-videos': {
+      const p = String(cfg.pollPath || '/videos').trim()
+      return base + (p.startsWith('/') ? p : '/' + p) + '/' + encodeURIComponent(taskId)
+    }
+    case 'dashscope-video':
+      return dashscopeVideoBase(cfg) + '/tasks/' + encodeURIComponent(taskId)
+    case 'kling-video': {
+      const kind = i2v ? 'image2video' : 'text2video'
+      return base + '/v1/videos/' + kind + '/' + encodeURIComponent(taskId)
+    }
+    case 'volc-video':
+      return base + '/api/v3/contents/generations/tasks/' + encodeURIComponent(taskId)
+    case 'minimax-video':
+      return base + '/v1/query/video_generation?task_id=' + encodeURIComponent(taskId)
+    case 'async-task': {
+      const p = String(cfg.pollPath || '').trim()
+      if (!p) return base + '/' + encodeURIComponent(taskId)
+      if (p.includes('{id}')) return base + (p.startsWith('/') ? p : '/' + p).replace('{id}', encodeURIComponent(taskId))
+      return base + (p.startsWith('/') ? p : '/' + p) + '/' + encodeURIComponent(taskId)
+    }
+    default:
+      return ''
+  }
+}
+
+// Normalize a poll response body into {status, url?, fileId?, message?}.
+// status: 'pending' | 'running' | 'done' | 'failed' | 'error'
+function normalizeVideoStatus(protocol, cfg, body) {
+  if (!body || typeof body !== 'object') return { status: 'error', message: '响应非 JSON 对象' }
+  switch (protocol) {
+    case 'openai-videos': {
+      const st = String(body.status || '').toLowerCase()
+      const isDone = st === 'completed' || st === 'succeeded' || (cfg.doneStatus && st === String(cfg.doneStatus).toLowerCase())
+      if (isDone) {
+        const url = pathGet(body, cfg.resultField || 'metadata.url') || body.url || (body.output && body.output.url) || ''
+        // Agnes/Sora：轮询完成通常不含结果 URL，仅返回 video_id —— 由执行器走
+        // /agnesapi?video_id= 解析（agnes 供应商）或 /content 端点（Sora 中转站）。
+        return { status: 'done', url, videoId: body.video_id || '' }
+      }
+      if (/fail|error|cancelled|cancel/.test(st)) return { status: 'failed', message: st }
+      return { status: /queued|pending/.test(st) ? 'pending' : 'running' }
+    }
+    case 'dashscope-video': {
+      const out = body.output || {}
+      const st = String(out.task_status || body.status || '').toUpperCase()
+      if (st === 'SUCCEEDED') return { status: 'done', url: out.video_url || '' }
+      if (st === 'FAILED' || st === 'CANCELED') return { status: 'failed', message: out.message || st }
+      return { status: st === 'PENDING' ? 'pending' : 'running' }
+    }
+    case 'kling-video': {
+      const d = body.data || {}
+      const st = String(d.task_status || '').toLowerCase()
+      if (st === 'succeed') {
+        const vs = d.task_result && Array.isArray(d.task_result.videos) ? d.task_result.videos : []
+        return { status: 'done', url: (vs[0] && vs[0].url) || '' }
+      }
+      if (st === 'failed') return { status: 'failed', message: String(d.task_status_msg || d.task_status || '') }
+      return { status: st === 'submitted' ? 'pending' : 'running' }
+    }
+    case 'volc-video': {
+      const st = String(body.status || '').toLowerCase()
+      if (st === 'succeeded') {
+        const cs = Array.isArray(body.content) ? body.content : []
+        const vu = cs.find((c) => c && c.type === 'video_url') || {}
+        return { status: 'done', url: (vu.video_url && vu.video_url.url) || '' }
+      }
+      if (st === 'failed' || st === 'cancelled') return { status: 'failed', message: String(body.error || '') }
+      return { status: 'running' }
+    }
+    case 'minimax-video': {
+      const st = String(body.status || '').toLowerCase()
+      if (st === 'success') return { status: 'done', fileId: body.file_id || '' }
+      if (st === 'failed') return { status: 'failed', message: String((body.base_resp && body.base_resp.status_msg) || '') }
+      return { status: 'running' }
+    }
+    case 'async-task': {
+      const st = String(body[cfg.statusField] || body.status || '').toLowerCase()
+      if (cfg.doneStatus && st === String(cfg.doneStatus).toLowerCase()) {
+        return { status: 'done', url: pathGet(body, cfg.resultField || '') || '' }
+      }
+      if (/fail|error|cancel/.test(st)) return { status: 'failed', message: st }
+      return { status: /pending|queued/.test(st) ? 'pending' : 'running' }
+    }
+    default:
+      return { status: 'running' }
+  }
+}
+
+// Extract task id from a submit response (protocol-aware).
+function extractVideoTaskId(protocol, cfg, body) {
+  if (!body || typeof body !== 'object') return ''
+  const b = body.data && typeof body.data === 'object' ? body.data : body
+  const cands = []
+  if (protocol === 'async-task' && cfg.taskIdField) cands.push(pathGet(body, cfg.taskIdField))
+  if (protocol === 'dashscope-video') cands.push(body.output && body.output.task_id)
+  cands.push(b.task_id, b.taskId, b.id, b.taskID)
+  for (const c of cands) if (c && String(c).length > 0) return String(c)
+  return ''
+}
+
+// One poll iteration: fetch + normalize. fetchImpl injectable for unit tests.
+async function pollVideoOnce(protocol, cfg, taskId, i2v, fetchImpl) {
+  const f = fetchImpl || httpJson
+  const url = videoPollUrl(protocol, cfg, taskId, i2v)
+  if (!url) return { status: 'error', message: '无法构造轮询 URL（protocol=' + protocol + '）' }
+  const headers = { Accept: 'application/json' }
+  if (protocol === 'kling-video') {
+    const [ak, sk] = String(cfg.apiKey || '').split('|')
+    if (ak && sk) headers.Authorization = 'Bearer ' + klingJwt(ak, sk)
+  } else if (cfg.apiKey) {
+    headers.Authorization = 'Bearer ' + cfg.apiKey
+  }
+  const res = await f(url, 'GET', headers, null, 60000)
+  if (!res.ok || !res.body || typeof res.body !== 'object') {
+    return { status: 'error', message: 'HTTP ' + res.status + ': ' + String(res.message || '').slice(0, 200) }
+  }
+  return normalizeVideoStatus(protocol, cfg, res.body)
+}
+
+// MiniMax: after success, resolve the download URL via /v1/files/retrieve.
+async function minimaxResolveUrl(cfg, fileId, fetchImpl) {
+  const f = fetchImpl || httpJson
+  const base = videoBase(cfg)
+  const url = base + '/v1/files/retrieve?file_id=' + encodeURIComponent(fileId) + '&purpose=video'
+  const headers = { Accept: 'application/json', ...(cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {}) }
+  const r = await f(url, 'GET', headers, null, 60000)
+  if (!r.ok || !r.body) return ''
+  const fobj = r.body.file || {}
+  return fobj.download_url || ''
+}
+
 let idCounter = 0
 const genId = () => 'c_' + Date.now().toString(36) + '_' + (idCounter++).toString(36)
 
@@ -258,6 +643,10 @@ function normalizeConfig(raw) {
   const retryCount = Number.isFinite(retryRaw) && retryRaw > 0 ? Math.min(Math.floor(retryRaw), 20) : fallback.retryCount
   const vlmEnabled = src.vlmEnabled !== false
   const imggenEnabled = src.imggenEnabled === true
+  // v2.8: video generation defaults OFF — the tool is registered (and its
+  // schema injected into the model prompt) only when the user flips it on.
+  const videoEnabled = src.videoEnabled === true
+  const videoConfig = normalizeVideoConfig(src.videoConfig)
   const rawToggles = src.visionToolToggles && typeof src.visionToolToggles === 'object' && !Array.isArray(src.visionToolToggles) ? src.visionToolToggles : {}
   const visionToolToggles = {}
   for (const name of VISION_TOOL_NAMES) { visionToolToggles[name] = rawToggles[name] !== false }
@@ -358,13 +747,15 @@ function normalizeConfig(raw) {
     } catch (e) { /* invalid JSON → skip migration silently */ }
   }
   const activeComfyWorkflow = typeof src.activeComfyWorkflow === 'string' && comfyWorkflows.some((w) => w.id === src.activeComfyWorkflow) ? src.activeComfyWorkflow : (comfyWorkflows.length > 0 ? comfyWorkflows[0].id : '')
-  return { retryCount, vlmEnabled, imggenEnabled, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
+  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
   retryCount: cfg.retryCount,
   vlmEnabled: cfg.vlmEnabled !== false,
   imggenEnabled: cfg.imggenEnabled === true,
+  videoEnabled: cfg.videoEnabled === true,
+  videoConfig: maskedVideo(cfg.videoConfig || defaultVideoConfig()),
   visionToolsEnabled: cfg.visionToolsEnabled !== false,
     visionToolToggles: cfg.visionToolToggles || {},
   mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
@@ -1238,6 +1629,9 @@ let toolVisible = false
 let imggenDisposer = null
 let imggenVisible = false
 let imggenComfyMode = false
+// v2.8: video tool gate (registered only when videoEnabled && valid config)
+let videoDisposer = null
+let videoVisible = false
 // v2.7.2: analyze_image is gated on the VLM module switch; when unregistered,
 // image markers must point at the vision toolkit (whose local tools and
 // card-backed ocr/detect both work with the VLM module off) instead of a dead
@@ -1935,6 +2329,152 @@ const buildImggenToolDef = (comfy) => defineTool({
   }
 })
 
+// ---------- video generation (v2.8): submit -> poll -> download ----------
+async function runVideoGeneration(cfg, args, exec) {
+  const protocol = cfg.protocol
+  // resolve optional first-frame image (i2v): http(s) URL passes through;
+  // local path is read into base64. t2v passes null.
+  let image = null
+  const rawImage = args.image ? String(args.image).trim() : ''
+  if (rawImage) {
+    if (/^https?:\/\//i.test(rawImage)) {
+      image = { kind: 'url', value: rawImage }
+    } else {
+      let p = rawImage
+      const cwd = sessionCwd(exec)
+      if (cwd && !/^[A-Za-z]:[\\/]/.test(p) && !p.startsWith('/') && !p.startsWith('\\\\')) p = join(cwd, p)
+      try {
+        const buf = readFileSync(p)
+        image = { kind: 'b64', value: buf.toString('base64') }
+      } catch (e) {
+        throw new Error('generate_video: 无法读取首帧图片 ' + rawImage + '：' + (e && e.message || e))
+      }
+    }
+  }
+  const built = buildVideoSubmit(cfg, args, image)
+  const i2v = built.i2v === true
+  const attempts0 = Math.max(1, Math.min(cfg.retryCount || 1, 5))
+  let taskId = ''
+  let lastErr = null
+  for (let attempt = 1; attempt <= attempts0; attempt++) {
+    const res = await httpJson(built.url, 'POST', built.headers, built.body, clampTimeout(cfg.timeoutMs, 600000))
+    if (res.ok && res.body) {
+      taskId = extractVideoTaskId(protocol, cfg, res.body)
+      if (taskId) break
+      lastErr = '提交成功但未返回任务 ID：' + String(res.message || '').slice(0, 200)
+    } else {
+      lastErr = 'HTTP ' + res.status + ': ' + String(res.message || '').slice(0, 200)
+    }
+    if (res.status === 'TIMEOUT') break
+    if (attempt < attempts0) await sleep(Math.min(800 * attempt, 4000))
+  }
+  if (!taskId) throw new Error('generate_video: 视频任务提交失败' + (lastErr ? '（' + lastErr + '）' : ''))
+  // poll until done (budget = user timeoutMs), fail fast after 5 consecutive errors
+  const pollIntervalMs = Math.max(1000, Math.floor(Number(cfg.pollIntervalMs) || 5000))
+  const pollBudgetMs = clampTimeout(cfg.timeoutMs, 600000)
+  const maxPolls = Math.max(1, Math.ceil(pollBudgetMs / pollIntervalMs))
+  let consecErr = 0
+  let lastStatus = ''
+  let lastPollErr = ''
+  for (let poll = 0; poll < maxPolls; poll++) {
+    await sleep(pollIntervalMs)
+    let st
+    try {
+      st = await pollVideoOnce(protocol, cfg, taskId, i2v)
+    } catch (e) {
+      st = { status: 'error', message: String(e && e.message || e) }
+    }
+    if (st.status === 'error') {
+      consecErr++
+      lastPollErr = st.message
+      if (consecErr >= 5) throw new Error('generate_video: 任务轮询连续失败（' + consecErr + ' 次）: ' + lastPollErr)
+      continue
+    }
+    consecErr = 0
+    if (st.status === 'done') {
+      let url = st.url || ''
+      if (protocol === 'minimax-video' && st.fileId) url = await minimaxResolveUrl(cfg, st.fileId)
+      // Agnes V2.0（实测）：轮询完成后仅返回 video_id，需再查 /agnesapi?video_id=
+      // 拿真实 mp4 下载地址；Sora 兼容中转站走 {pollPath}/{taskId}/content。
+      if (!url && protocol === 'openai-videos') {
+        const isAgnes = cfg.provider === 'agnes' || cfg.provider === 'agnes-cn'
+        if (isAgnes && st.videoId) {
+          const agnesBase = String(videoBase(cfg)).replace(/\/v[0-9]+$/, '')
+          const agnesHeaders = { Accept: 'application/json', ...(cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {}) }
+          const metaRes = await httpJson(agnesBase + '/agnesapi?video_id=' + encodeURIComponent(st.videoId), 'GET', agnesHeaders, null, 60000)
+          url = (metaRes && metaRes.body && metaRes.body.url) || ''
+          if (!url) throw new Error('generate_video: Agnes 任务完成但无法从 /agnesapi 解析视频 URL')
+        } else {
+          const p = String(cfg.pollPath || '/videos').trim()
+          url = videoBase(cfg) + (p.startsWith('/') ? p : '/' + p) + '/' + encodeURIComponent(taskId) + '/content'
+        }
+      }
+      if (!url) throw new Error('generate_video: 任务完成但无法解析视频 URL')
+      const buf = await fetchImageBuffer(url, clampTimeout(cfg.timeoutMs, 600000))
+      if (!buf || buf.length === 0) throw new Error('generate_video: 视频下载为空')
+      const agentCwd = sessionCwd(exec)
+      const rawOut = args.output_dir && String(args.output_dir).trim() ? String(args.output_dir).trim() : ''
+      let vDir
+      if (rawOut) vDir = /^[A-Za-z]:[\\/]/.test(rawOut) || rawOut.startsWith('\\\\') || rawOut.startsWith('/') ? rawOut : (agentCwd ? join(agentCwd, rawOut) : rawOut)
+      else if (agentCwd) vDir = agentCwd
+      else throw new Error('generate_video: 无法确定输出目录（未提供 output_dir 且当前会话无工作区路径）。请显式传入 output_dir。')
+      mkdirSync(vDir, { recursive: true })
+      const fileName = 'video_' + Date.now().toString(36) + '.mp4'
+      const full = join(vDir, fileName)
+      writeFileSync(full, buf)
+      return { ok: true, path: full, url, model: cfg.model || '', protocol, seconds: Math.max(1, Math.min(Math.floor(Number(args.seconds) || cfg.seconds || 5), 30)), attempts: attempts0 }
+    }
+    if (st.status === 'failed') throw new Error('generate_video: 视频任务失败：' + (st.message || '未知原因'))
+    lastStatus = st.status
+  }
+  throw new Error('generate_video: 视频任务轮询超时（' + Math.round(maxPolls * pollIntervalMs / 1000) + ' 秒未完成，最后状态: ' + lastStatus + '）')
+}
+
+const buildVideoToolDef = () => defineTool({
+  name: 'generate_video',
+  description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区根目录）。视频生成是异步任务，可能耗时数分钟。',
+  parameters: {
+    prompt: { type: 'string', required: true, description: '视频内容提示词：详细描述画面主体、动作、运镜、风格、光线、环境等' },
+    image: { type: 'string', description: '首帧图片路径（本地文件）或公网图片 URL（可选）。传入后以图生视频（i2v）模式生成。' },
+    seconds: { type: 'number', description: '视频时长（秒），默认取设置面板中的默认时长（通常 5）' },
+    aspect_ratio: { type: 'string', description: '画幅，如 16:9 / 9:16 / 1:1 / 4:3 / 3:4；留空用面板默认' },
+    output_dir: { type: 'string', description: '保存目录，绝对路径或相对当前工作区的相对路径。不指定则保存到当前工作区根目录。根据项目情况选择合适位置。' }
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        ok: { type: 'boolean', required: true },
+        path: { type: 'string' },
+        url: { type: 'string' },
+        model: { type: 'string' },
+        protocol: { type: 'string' },
+        seconds: { type: 'number' },
+        attempts: { type: 'number' },
+        detail: { type: 'string' }
+      }
+    },
+    render: (args, value) => {
+      if (!value || !value.ok) {
+        return [{ type: 'text', text: '视频生成失败：' + (value && value.detail ? value.detail : JSON.stringify(value || {})) }]
+      }
+      return [{ type: 'text', text: '## 视频生成结果\n\n文件: ' + (value.path || '') + '\n\n— 模型: ' + (value.model || '未知') + ' · 协议: ' + (value.protocol || '') + ' · 时长: ' + (value.seconds || '') + 's · 尝试: ' + (value.attempts || 1) + ' 次' }]
+    }
+  },
+  async execute(args, exec) {
+    const prompt = String(args && args.prompt || '').trim()
+    if (!prompt) throw new Error('generate_video: 缺少参数 prompt（视频描述）')
+    const ctx = appCtx
+    const cfg = await loadConfig(ctx)
+    const vc = cfg.videoConfig || defaultVideoConfig()
+    if (!isVideoConfigValid(vc)) {
+      throw new Error('generate_video: 视频配置无效。请在设置页「视频」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
+    }
+    return runVideoGeneration(vc, args, exec)
+  }
+})
+
 function fallbackHasModels(cfg) {
   return !!(cfg.fallbackConfig && Array.isArray(cfg.fallbackConfig.models) && cfg.fallbackConfig.models.length > 0)
 }
@@ -2341,6 +2881,20 @@ async function syncToolRegistration() {
     imggenVisible = false
     imggenComfyMode = false
   }
+  // video tool (v2.8): registered ONLY when the module switch is ON and the
+  // video config is valid — switch OFF / invalid config => the tool schema is
+  // never injected into the model prompt (0 token cost).
+  const shouldVideo = cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig)
+  if (shouldVideo && !videoVisible) {
+    videoDisposer = appCtx.tools.register(buildVideoToolDef())
+    videoVisible = true
+  } else if (!shouldVideo && videoVisible) {
+    if (videoDisposer) {
+      try { videoDisposer() } catch { /* best-effort */ }
+      videoDisposer = null
+    }
+    videoVisible = false
+  }
   // vision toolkit tools (independent of vlmEnabled: local-only tools work
   // with no cards; ocr/detect degrade to NO_VLM_CARDS without cards).
   // v2.2: master switch on → each tool registered only when its individual
@@ -2388,12 +2942,50 @@ function applyPatch(cfg, patch) {
   if (p.retryCount !== undefined) c.retryCount = Number(p.retryCount)
   if (p.vlmEnabled !== undefined) c.vlmEnabled = p.vlmEnabled === true
   if (p.imggenEnabled !== undefined) c.imggenEnabled = p.imggenEnabled === true
+  // v2.8: video module switch (default OFF — tool/schema injected only when ON)
+  if (p.videoEnabled !== undefined) c.videoEnabled = p.videoEnabled === true
   if (p.visionToolsEnabled !== undefined) c.visionToolsEnabled = p.visionToolsEnabled === true
     if (p.visionToolToggle && p.visionToolToggle.tool && VISION_TOOL_NAMES.includes(p.visionToolToggle.tool)) {
       if (!c.visionToolToggles) c.visionToolToggles = {}
       c.visionToolToggles[p.visionToolToggle.tool] = p.visionToolToggle.value === true
     }
   if (p.imggenReset === true) c.imggenConfig = defaultImggenConfig()
+  // v2.8: video config patch
+  if (p.videoReset === true) c.videoConfig = defaultVideoConfig()
+  if (p.videoConfig) {
+    if (p.videoConfig === 'reset' || p.videoConfig.reset === true) {
+      c.videoConfig = defaultVideoConfig()
+    } else if (p.videoConfig.field && p.videoConfig.value !== undefined) {
+      const { field, value } = p.videoConfig
+      if (field === 'provider' && VIDEO_PROVIDER_IDS.includes(value)) {
+        c.videoConfig.provider = value
+        const vmeta = VIDEO_PROVIDERS[value]
+        if (vmeta) {
+          c.videoConfig.protocol = vmeta.protocol
+          if (vmeta.fixedUrl) c.videoConfig.endpoint = vmeta.endpoint
+          else if (value === 'dashscope' && !String(c.videoConfig.endpoint || '').trim()) c.videoConfig.endpoint = vmeta.endpoint
+        }
+      } else if (field === 'protocol' && VIDEO_PROTOCOLS.includes(value)) c.videoConfig.protocol = value
+      else if (field === 'endpoint') c.videoConfig.endpoint = String(value || '').trim()
+      else if (field === 'model') c.videoConfig.model = String(value || '').trim()
+      else if (field === 'apiKey') {
+        if (typeof value === 'string' && value.length > 0) c.videoConfig.apiKey = value
+        else if (value === null) c.videoConfig.apiKey = ''
+      } else if (field === 'timeoutMs') c.videoConfig.timeoutMs = clampTimeout(value, 600000)
+      else if (field === 'pollIntervalMs') c.videoConfig.pollIntervalMs = Number.isFinite(Number(value)) && Number(value) > 0 ? Math.max(1000, Math.min(Math.floor(Number(value)), 60000)) : 5000
+      else if (field === 'retryCount') c.videoConfig.retryCount = Math.max(1, Math.min(Math.floor(Number(value) || 1), 5))
+      else if (field === 'filterVideoModels') c.videoConfig.filterVideoModels = value === true
+      else if (field === 'seconds') c.videoConfig.seconds = Math.max(1, Math.min(Math.floor(Number(value) || 5), 30))
+      else if (field === 'aspectRatio' && VIDEO_ASPECT_RATIOS[value]) c.videoConfig.aspectRatio = value
+      else if (field === 'resolution' && /^(720p|1080p|768p)$/i.test(String(value))) c.videoConfig.resolution = String(value).toLowerCase()
+      else if (field === 'submitPath') c.videoConfig.submitPath = String(value || '').trim()
+      else if (field === 'pollPath') c.videoConfig.pollPath = String(value || '').trim()
+      else if (field === 'taskIdField') c.videoConfig.taskIdField = String(value || '').trim()
+      else if (field === 'statusField') c.videoConfig.statusField = String(value || 'status').trim()
+      else if (field === 'resultField') c.videoConfig.resultField = String(value || 'metadata.url').trim()
+      else if (field === 'doneStatus') c.videoConfig.doneStatus = String(value || 'completed').trim()
+    }
+  }
   if (p.imggenConfig) {
     // reset (full or flag)
     if (p.imggenConfig === 'reset' || p.imggenConfig.reset === true) {
@@ -2806,6 +3398,7 @@ function apply(ctx) {
           visible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)),
           twinVisible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)),
           imggenVisible: cfg.imggenEnabled !== false && isImggenConfigValid(cfg.imggenConfig),
+          videoVisible: cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig),
           fallbackConfig: masked(cfg).fallbackConfig,
           fallbackVisible: !!(cfg.fallbackConfig && cfg.fallbackConfig.models && cfg.fallbackConfig.models.length > 0),
           globalConfig: masked(cfg).globalConfig
@@ -2849,7 +3442,7 @@ function apply(ctx) {
           const next = applyPatch(cfg, patch)
           await storeConfig(ctx, next)
           await syncToolRegistration()
-          jsonOut(res, 200, { ok: true, config: masked(next), path: await configFile(ctx), visible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), twinVisible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), imggenVisible: next.imggenEnabled !== false && isImggenConfigValid(next.imggenConfig), fallbackConfig: masked(next).fallbackConfig, fallbackVisible: fallbackHasModels(next), globalConfig: masked(next).globalConfig })
+          jsonOut(res, 200, { ok: true, config: masked(next), path: await configFile(ctx), visible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), twinVisible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), imggenVisible: next.imggenEnabled !== false && isImggenConfigValid(next.imggenConfig), videoVisible: next.videoEnabled === true && isVideoConfigValid(next.videoConfig), fallbackConfig: masked(next).fallbackConfig, fallbackVisible: fallbackHasModels(next), globalConfig: masked(next).globalConfig })
         } catch (e) {
           jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
         }
@@ -2868,6 +3461,40 @@ function apply(ctx) {
         const raw = await readBody(req)
         const args = raw ? JSON.parse(raw) : {}
         const cfg = await loadConfig(ctx)
+        // v2.8: video model list (async protocols expose /models on the OpenAI
+        // compatible layer or DashScope /api/v1/services/aigc/video-generation)
+        if (args.video === true) {
+          const vc = cfg.videoConfig || defaultVideoConfig()
+          const vmeta = VIDEO_PROVIDERS[vc.provider]
+          let endpoint = (vmeta && vmeta.fixedUrl) ? vmeta.endpoint : (args.endpoint && typeof args.endpoint === 'string' && args.endpoint.trim() ? args.endpoint.trim() : vc.endpoint)
+          const protocol = vc.protocol
+          const apiKey = args.apiKey && typeof args.apiKey === 'string' && args.apiKey.length ? args.apiKey : vc.apiKey
+          if (!endpoint) return jsonOut(res, 400, { ok: false, error: '未配置 endpoint，请先在上方填入端点 URL' })
+          let url = ''
+          const h = { Accept: 'application/json' }
+          if (protocol === 'kling-video') {
+            const [ak, sk] = String(apiKey || '').split('|')
+            if (ak && sk) h.Authorization = 'Bearer ' + klingJwt(ak, sk)
+            // 可灵无模型列表接口：走 text2video 只返回模型参数校验（列表为空由 UI 兜底）
+            url = String(endpoint).trim().replace(/\/+$/, '') + '/v1/videos/text2video'
+          } else {
+            if (apiKey) h.Authorization = 'Bearer ' + apiKey
+            let base = String(endpoint).trim().replace(/\/+$/, '')
+            if (!/\/v[0-9]+$/.test(base)) base = base + '/v1'
+            url = base + '/models'
+          }
+          const r = await httpJson(url, 'GET', h, undefined, 30000)
+          if (!r.ok) return jsonOut(res, 200, { ok: false, error: 'HTTP ' + r.status + ': ' + r.message })
+          const body = r.body && typeof r.body === 'object' ? r.body : {}
+          let ids = []
+          if (Array.isArray(body.data)) ids = body.data.map((d) => (d && (d.id || d.name)) || '').filter((s) => typeof s === 'string' && s.length > 0)
+          else if (Array.isArray(body.models)) ids = body.models.map((m) => (typeof m === 'string' ? m : (m && (m.id || m.name)) || '')).filter(Boolean)
+          else if (Array.isArray(body.ids)) ids = body.ids.filter((s) => typeof s === 'string')
+          if (vc.filterVideoModels !== false) {
+            ids = ids.filter((id) => /video|t2v|i2v|sora|wan|kling|hailuo|seedance|cogvideo/i.test(id))
+          }
+          return jsonOut(res, 200, { ok: true, models: ids.slice(0, 100) })
+        }
         if (args.imggen === true) {
           const igc = cfg.imggenConfig || defaultImggenConfig()
           const meta = PROVIDERS[igc.provider]
@@ -2994,6 +3621,10 @@ function apply(ctx) {
         const raw = await readBody(req)
         const args = raw ? JSON.parse(raw) : {}
         const cfg = await loadConfig(ctx)
+        if (args.video === true) {
+          const vc = cfg.videoConfig || defaultVideoConfig()
+          return jsonOut(res, 200, { ok: true, apiKey: vc.apiKey || '' })
+        }
         if (args.imggen === true) {
           const igc = cfg.imggenConfig || defaultImggenConfig()
           return jsonOut(res, 200, { ok: true, apiKey: igc.apiKey || '' })
@@ -3060,4 +3691,4 @@ function apply(ctx) {
   })
 }
 
-export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig }
+export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig, VIDEO_PROVIDERS, VIDEO_PROVIDER_IDS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS, defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid, pathGet, agnesNumFrames, klingJwt, buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId, pollVideoOnce, minimaxResolveUrl }
