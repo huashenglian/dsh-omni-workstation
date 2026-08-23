@@ -385,3 +385,49 @@ test('VIDEO_PROTOCOLS / VIDEO_PROVIDERS integrity', () => {
   assert.ok(VIDEO_ASPECT_RATIOS['16:9'])
   assert.ok(VIDEO_ASPECT_RATIOS['9:16'])
 })
+
+// ---- video presets (v2.8) ----
+
+test('video presets: default 预设 auto-created and runtime config follows it', () => {
+  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
+  assert.equal(cfg.videoConfig.provider, 'agnes-cn')
+  assert.ok(Array.isArray(cfg.videoPresets))
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoPresets[0].name, '默认')
+  assert.equal(cfg.activeVideoPreset, cfg.videoPresets[0].id)
+  assert.equal(cfg.videoConfig.provider, cfg.videoPresets[0].config.provider)
+})
+
+test('video presets: videoConfig patches sync into active preset', () => {
+  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
+  cfg = applyPatch(cfg, { videoConfig: { field: 'model', value: 'agnes-video-v2.0' } })
+  assert.equal(cfg.videoConfig.model, 'agnes-video-v2.0')
+  assert.equal(cfg.videoPresets[0].config.model, 'agnes-video-v2.0')
+})
+
+test('video presets: add / switch / rename / delete', () => {
+  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
+  const p0 = cfg.videoPresets[0].id
+  // add
+  cfg = applyPatch(cfg, { videoPresetAdd: true })
+  assert.equal(cfg.videoPresets.length, 2)
+  assert.equal(cfg.videoPresets[1].name, '新预设 1')
+  assert.equal(cfg.activeVideoPreset, cfg.videoPresets[1].id)
+  assert.equal(cfg.videoConfig.provider, 'custom') // 新预设默认配置
+  // switch back to first
+  cfg = applyPatch(cfg, { videoPresetSwitch: p0 })
+  assert.equal(cfg.activeVideoPreset, p0)
+  assert.equal(cfg.videoConfig.provider, 'agnes-cn')
+  // rename active
+  cfg = applyPatch(cfg, { videoPresetRename: 'Agnes 生产' })
+  assert.equal(cfg.videoPresets.find((p) => p.id === p0).name, 'Agnes 生产')
+  // delete the second preset (not active)
+  const p1 = cfg.videoPresets.find((p) => p.id !== p0).id
+  cfg = applyPatch(cfg, { videoPresetDelete: p1 })
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.activeVideoPreset, p0)
+  // delete the last one -> auto-recreate 默认
+  cfg = applyPatch(cfg, { videoPresetDelete: p0 })
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoPresets[0].name, '默认')
+})
