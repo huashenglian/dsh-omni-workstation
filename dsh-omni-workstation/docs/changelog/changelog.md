@@ -2,6 +2,16 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.0 — 视频生成面板 + generate_video 工具（全模态扩展）
+- **新增设置页「视频」tab**（替换占位）：供应商下拉分组（通用-自定义 / 海外-Agnes AI、Agnes AI CN / 国内-阿里云百炼、可灵、火山引擎、MiniMax 海螺）、协议下拉（内置供应商锁定）、endpoint（fixed 只读 / dashscope 可编辑）、API Key（password+眼睛）、模型（自由输入+获取可用模型）、超时/轮询间隔/重试、默认时长/画幅/分辨率、视频模型过滤开关、async-task 专属字段组、重置、状态行（zh/en i18n 全量）
+- **新增 `generate_video` 工具**（t2v + i2v 双能力）：`prompt` 必填 + `image`（首帧图，本地路径或公网 URL）+ `seconds`/`aspect_ratio`/`output_dir`；异步任务 submit → poll → 下载 mp4 → 写入工作区 `video_<ts>.mp4`（复用 sessionCwd，不回退 process.cwd()）
+- **6 协议适配**：`openai-videos`（Sora 兼容中转站 / Agnes V2.0，Agnes 完成时经 `/agnesapi?video_id=` 解析 cos 下载地址，实测）、`dashscope-video`（百炼 wan，workspace host 重写为标准域名）、`kling-video`（AccessKey|SecretKey JWT HS256，Node crypto 零依赖）、`volc-video`（方舟 content tasks，图片 base64 data URL）、`minimax-video`（两步取片 /v1/files/retrieve）、`async-task`（自配提交/轮询路径与字段，{id} 占位）
+- **门控**：`videoEnabled !== true` 或配置无效时 **generate_video 完全不注册**（tool schema 不注入 → 0 token），复用 imggen 模式；`/omni/config` 返回 `videoVisible`；`/omni/models` 支持 `{video:true}`（按 video/t2v/i2v/wan/kling 等过滤）；`/omni/key` 支持 `{video:true}`
+- **配置模型**：`videoConfig{provider,protocol,endpoint,apiKey,model,timeoutMs:600000,pollIntervalMs:5000,retryCount:1,filterVideoModels,seconds:5,aspectRatio:'16:9',resolution:'720p',submitPath,pollPath,taskIdField,statusField,resultField,doneStatus}` + `videoEnabled`（默认 false）
+- **单测**：新增 `tests/video-config.test.js` 33 例（normalize/mask/validity/applyPatch/门控/6 协议请求体快照/轮询 URL/状态归一化/task id 提取/JWT/num_frames）
+- **E2E 浏览器自动化**（Agnes CN agnes-video-v2.0 + bailian-LLM）：设置面板 UI/供应商分组/真实 key 保存 → 对话驱动 generate_video → 提交/轮询//agnesapi 解析 → mp4 落盘（ftyp 头验证 1.2MB）→ 门控 OFF/ON 断言
+- 详见 [docs/plan/v2.8-video.md](../plan/v2.8-video.md) 与 [docs/decisions.md](../docs/decisions.md)
+
 ## v2.7.4 — 镜像路由适配新 harness 的 prepareCall 契约
 - **修复**：切换镜像模型发送消息报错 `registration.adapter.prepareCall is not a function`。新版 dsh CLI 的 agent-loop 对每个请求走 `llm.prepareCall → adapter.prepareCall`（旧版不走此路径，重装新版后暴露）
 - 三个 twin 工厂（auto-vision / per-provider / mapping）全部补齐 `prepareCall(provider, model, signal)`：尽力向源 adapter 委托能力元数据查询（contextWindow 等），再按 `normalizeModelInfo` 契约重标 provider=镜像路由、id=请求模型、强制 `inputModalities:['text','image']`；返回的 `stream` 复用既有委托逻辑
