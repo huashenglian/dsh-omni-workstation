@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.4 — qwen-token-plan 供应商改走百炼（DashScope）通道
+- **问题**：v2.8.3 新增的 `qwen-token-plan` / `qwen-token-plan-cn` 供应商（视频 + 生图）误用 Token Plan OpenAI 兼容网关（`token-plan.*.maas.aliyuncs.com/compatible-mode/v1`），而非百炼（DashScope）通道。参考官方文档 [配置 API Key](https://platform.qianwenai.com/docs/api-reference/preparation/export-api-key-env)：Qwen 平台即百炼，API Key = `DASHSCOPE_API_KEY`，Base URL = `https://dashscope.aliyuncs.com`
+- **视频修复**：`VIDEO_PROVIDERS` / `VIDEO_PROVIDERS_UI` 中 `qwen-token-plan` / `qwen-token-plan-cn` 协议由 `openai-videos` 改为 `dashscope-video`（原生异步任务），端点改为 `https://dashscope.aliyuncs.com`，`fixedUrl` 改为 `false`（支持 workspace 专属域名，同 `dashscope` 供应商）；applyPatch 端点预填条件泛化为所有 `fixedUrl:false` 供应商
+- **生图/VLM 修复**：`PROVIDERS` / `PROVIDERS_UI` 中 `qwen-token-plan` / `qwen-token-plan-cn` 端点由 `token-plan.*.maas.aliyuncs.com/compatible-mode/v1` 改为 `https://dashscope.aliyuncs.com/compatible-mode/v1`（DashScope OpenAI 兼容通道）
+- 新增 applyPatch 端点预填单测；更新 qwen 视频请求体单测（`dashscope-video` 协议 + DashScope 端点）；全套 151 例通过
+
 ## v2.8.3 — 视频协议改名 + 生图/视频新增通义千问 (Qwen) Token Plan 供应商
 - **视频协议显示名修正**：`openai-videos` 协议在设置面板的显示名由「openai-videos（Sora 兼容中转站 / Agnes）」改为「openai-videos（openai兼容）」（en: "openai-videos (OpenAI-compatible)"），更准确反映其 OpenAI 兼容本质
 - **生图供应商新增 Qwen**：在 `IMGGEN_PROVIDER_IDS_UI` 过滤中加入 `qwen-token-plan` / `qwen-token-plan-cn`（复用 VLM 面板既有 Token Plan 端点，OpenAI 兼容网关；生图走 `openai-images` 协议，选中即锁定协议/端点）
