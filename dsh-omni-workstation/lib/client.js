@@ -236,7 +236,9 @@ ddHint: "选择模型",
 			videoProviderKling: "可灵",
 			videoProviderVolc: "火山引擎",
 			videoProviderMinimax: "MiniMax 海螺",
-			videoProtocolOpenai: "openai-videos（Sora 兼容中转站 / Agnes）",
+			videoProviderQwenTokenPlan: "Qwen Token Plan",
+			videoProviderQwenTokenPlanCn: "Qwen Token Plan CN",
+			videoProtocolOpenai: "openai-videos（openai兼容）",
 			videoProtocolDashscope: "dashscope-video（百炼 wan）",
 			videoProtocolKling: "kling-video（JWT）",
 			videoProtocolVolc: "volc-video（火山方舟）",
@@ -512,7 +514,9 @@ ddHint: "Pick a model",
 			videoProviderKling: "Kling",
 			videoProviderVolc: "Volcengine",
 			videoProviderMinimax: "MiniMax Hailuo",
-			videoProtocolOpenai: "openai-videos (Sora-compatible relay / Agnes)",
+			videoProviderQwenTokenPlan: "Qwen Token Plan",
+			videoProviderQwenTokenPlanCn: "Qwen Token Plan CN",
+			videoProtocolOpenai: "openai-videos (OpenAI-compatible)",
 			videoProtocolDashscope: "dashscope-video (Bailian wan)",
 			videoProtocolKling: "kling-video (JWT)",
 			videoProtocolVolc: "volc-video (Volcengine Ark)",
@@ -1021,7 +1025,7 @@ ddHint: "Pick a model",
 		// 生图面板供应商：仅保留已知提供生图模型的供应商（排除纯文本/编码/不支持的）
 		var IMGGEN_PROVIDER_IDS_UI = PROVIDER_IDS_UI.filter(function (p) {
 			return p === "custom" || p === "comfyui" ||
-				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface", "bailian"].indexOf(p) >= 0;
+				["agnes", "agnes-cn", "openai", "openrouter", "together", "fireworks", "huggingface", "bailian", "qwen-token-plan", "qwen-token-plan-cn"].indexOf(p) >= 0;
 		});
 
 		// v2.8: video-generation provider presets (mirror of host VIDEO_PROVIDERS).
@@ -1033,7 +1037,9 @@ ddHint: "Pick a model",
 			dashscope: { fixed: false, fixedProtocol: true, protocol: "dashscope-video", endpoint: "https://dashscope.aliyuncs.com", keyRequired: true },
 			kling: { fixed: true, fixedProtocol: true, protocol: "kling-video", endpoint: "https://api.klingai.com", keyRequired: true },
 			volc: { fixed: true, fixedProtocol: true, protocol: "volc-video", endpoint: "https://ark.cn-beijing.volces.com", keyRequired: true },
-			minimax: { fixed: true, fixedProtocol: true, protocol: "minimax-video", endpoint: "https://api.minimaxi.com", keyRequired: true }
+			minimax: { fixed: true, fixedProtocol: true, protocol: "minimax-video", endpoint: "https://api.minimaxi.com", keyRequired: true },
+			"qwen-token-plan": { fixed: true, fixedProtocol: true, protocol: "openai-videos", endpoint: "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1", keyRequired: true },
+			"qwen-token-plan-cn": { fixed: true, fixedProtocol: true, protocol: "openai-videos", endpoint: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", keyRequired: true }
 		};
 		var VIDEO_PROVIDER_IDS_UI = Object.keys(VIDEO_PROVIDERS_UI);
 		var VIDEO_PROTOCOL_OPTIONS_UI = [
@@ -1052,6 +1058,8 @@ ddHint: "Pick a model",
 			if (id === "kling") return t("videoProviderKling");
 			if (id === "volc") return t("videoProviderVolc");
 			if (id === "minimax") return t("videoProviderMinimax");
+			if (id === "qwen-token-plan") return t("videoProviderQwenTokenPlan");
+			if (id === "qwen-token-plan-cn") return t("videoProviderQwenTokenPlanCn");
 			return id;
 		}
 
@@ -2245,8 +2253,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 
 			var providerGroups = [
 				{ label: t("videoGroupGeneral"), options: [{ value: "custom", label: t("videoProviderCustom") }] },
-				{ label: t("videoGroupIntl"), options: ["agnes", "agnes-cn"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) },
-				{ label: t("videoGroupCn"), options: ["dashscope", "kling", "volc", "minimax"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) }
+				{ label: t("videoGroupIntl"), options: ["qwen-token-plan", "agnes", "agnes-cn"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) },
+				{ label: t("videoGroupCn"), options: ["qwen-token-plan-cn", "dashscope", "kling", "volc", "minimax"].map(function (p) { return { value: p, label: videoProviderDisplay(p, t) }; }) }
 			];
 			var protocolOptions = VIDEO_PROTOCOL_OPTIONS_UI.map(function (o) {
 				var label = o.value === "openai-videos" ? t("videoProtocolOpenai")
