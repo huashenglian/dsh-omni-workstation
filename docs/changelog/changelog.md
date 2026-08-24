@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.5 — 视频供应商分组合并 + i2v Base64 格式修复
+- **视频面板供应商分组合并**：下拉由「通用 / 内置供应商·海外 / 内置供应商·国内」三组合并为「通用 / 内置供应商」两组（新增 i18n key `videoGroupBuiltin`，保留旧 key 向后兼容）
+- **i2v Base64 格式修复（dashscope-video）**：原 `input.img_url` 对本地图片发裸 Base64（DashScope 报 `InvalidParameter: url error`）；改为 `data:{mime};base64,…`（`runVideoGeneration` 读取本地文件时通过 `sniffMediaType` + `mimeFor` 携带 mime）
+- **i2v 实际 mime（openai-videos / volc / minimax）**：`imageDataUrl` 由硬编码 `image/png` 改为按实际 mime 生成 `data:{mime};base64,…`
+- **Kling 不变**：仍发裸 Base64（无前缀），符合其协议要求
+- 新增 4 例 i2v 单测（dashscope data URL + mime / url 透传 / kling 裸 Base64 / openai-videos 实际 mime），更新 dashscope `img_url` 断言；全套 155 例通过
+- 验证：浏览器自动化 E2E 经 `agnes-cn`（openai-videos）供应商跑通 i2v —— 参考图 `img_mt65jeyo_0.png` 成功生成火车飞向太空视频并落盘（注：百炼/DashScope 通道当前 Key 无 wan 视频权限，无法在此环境实测 `dashscope-video` 路径，该路径仅由单测覆盖）
+
 ## v2.8.4 — qwen-token-plan 供应商改走百炼（DashScope）通道
 - **问题**：v2.8.3 新增的 `qwen-token-plan` / `qwen-token-plan-cn` 供应商（视频 + 生图）误用 Token Plan OpenAI 兼容网关（`token-plan.*.maas.aliyuncs.com/compatible-mode/v1`），而非百炼（DashScope）通道。参考官方文档 [配置 API Key](https://platform.qianwenai.com/docs/api-reference/preparation/export-api-key-env)：Qwen 平台即百炼，API Key = `DASHSCOPE_API_KEY`，Base URL = `https://dashscope.aliyuncs.com`
 - **视频修复**：`VIDEO_PROVIDERS` / `VIDEO_PROVIDERS_UI` 中 `qwen-token-plan` / `qwen-token-plan-cn` 协议由 `openai-videos` 改为 `dashscope-video`（原生异步任务），端点改为 `https://dashscope.aliyuncs.com`，`fixedUrl` 改为 `false`（支持 workspace 专属域名，同 `dashscope` 供应商）；applyPatch 端点预填条件泛化为所有 `fixedUrl:false` 供应商
