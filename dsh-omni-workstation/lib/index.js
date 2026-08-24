@@ -374,7 +374,7 @@ function buildVideoSubmit(cfg, args, image) {
   const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
   const isAgnes = cfg.provider === 'agnes' || cfg.provider === 'agnes-cn'
   const size = VIDEO_ASPECT_RATIOS[aspectRatio] || { width: 1280, height: 720 }
-  const imageDataUrl = image ? (image.kind === 'dataUrl' ? image.value : (image.kind === 'url' ? image.value : 'data:image/png;base64,' + image.value)) : ''
+  const imageDataUrl = image ? (image.kind === 'dataUrl' ? image.value : (image.kind === 'url' ? image.value : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)) : ''
   switch (protocol) {
     case 'openai-videos': {
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
@@ -398,8 +398,10 @@ function buildVideoSubmit(cfg, args, image) {
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
       headers['X-DashScope-Async'] = 'enable'
       const input = { prompt }
-      // wan i2v：img_url 支持公网 URL 或裸 Base64（DashScope 原生口径）
-      if (image) input.img_url = image.kind === 'url' ? image.value : (image.kind === 'dataUrl' ? image.value : image.value)
+      // wan i2v：img_url 支持公网 URL 或 data:{mime};base64,...（DashScope 原生口径）
+      if (image) input.img_url = image.kind === 'url' ? image.value
+        : (image.kind === 'dataUrl' ? image.value
+          : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)
       const body = { model: cfg.model, input, parameters: {} }
       const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/generation'
       return { url, method: 'POST', headers, body, i2v: !!image }
@@ -2387,7 +2389,8 @@ async function runVideoGeneration(cfg, args, exec) {
       if (cwd && !/^[A-Za-z]:[\\/]/.test(p) && !p.startsWith('/') && !p.startsWith('\\\\')) p = join(cwd, p)
       try {
         const buf = readFileSync(p)
-        image = { kind: 'b64', value: buf.toString('base64') }
+        const mime = sniffMediaType(new Uint8Array(buf)) || mimeFor(p)
+        image = { kind: 'b64', value: buf.toString('base64'), mime }
       } catch (e) {
         throw new Error('generate_video: 无法读取首帧图片 ' + rawImage + '：' + (e && e.message || e))
       }

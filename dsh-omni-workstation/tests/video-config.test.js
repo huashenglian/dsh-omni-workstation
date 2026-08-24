@@ -239,7 +239,7 @@ test('buildVideoSubmit dashscope-video: X-DashScope-Async + native path + img_ur
   assert.equal(s.headers['X-DashScope-Async'], 'enable')
   assert.equal(s.headers.Authorization, 'Bearer sk-ds')
   assert.equal(s.body.input.prompt, 'p')
-  assert.equal(s.body.input.img_url, 'AAAA')
+  assert.equal(s.body.input.img_url, 'data:image/png;base64,AAAA')
   // t2v 无 img_url
   const t = buildVideoSubmit(dash(), { prompt: 'p' }, null)
   assert.equal(t.body.input.img_url, undefined)
@@ -291,6 +291,26 @@ test('buildVideoSubmit async-task: custom submitPath + taskIdField not in body',
   const s = buildVideoSubmit(c, { prompt: 'p' }, { kind: 'url', value: 'https://img/u.png' })
   assert.equal(s.url, 'https://relay.example.com/api/v1/gens')
   assert.equal(s.body.image, 'https://img/u.png')
+})
+
+test('buildVideoSubmit dashscope-video i2v: img_url is data URL with mime', () => {
+  const r = buildVideoSubmit(dash(), { prompt: 'p' }, { kind: 'b64', value: 'AAAA', mime: 'image/png' })
+  assert.equal(r.body.input.img_url, 'data:image/png;base64,AAAA')
+})
+
+test('buildVideoSubmit dashscope-video i2v: url image passes through', () => {
+  const r = buildVideoSubmit(dash(), { prompt: 'p' }, { kind: 'url', value: 'https://example.com/a.png' })
+  assert.equal(r.body.input.img_url, 'https://example.com/a.png')
+})
+
+test('buildVideoSubmit kling-video i2v: raw base64 (no prefix)', () => {
+  const r = buildVideoSubmit(kling(), { prompt: 'p' }, { kind: 'b64', value: 'AAAA', mime: 'image/png' })
+  assert.equal(r.body.image, 'AAAA') // Kling 发裸 Base64（无 data: 前缀）
+})
+
+test('buildVideoSubmit openai-videos i2v: data URL uses actual mime', () => {
+  const r = buildVideoSubmit(agnes(), { prompt: 'p' }, { kind: 'b64', value: 'AAAA', mime: 'image/jpeg' })
+  assert.equal(r.body.image_url, 'data:image/jpeg;base64,AAAA')
 })
 
 // ---- poll URLs ----
