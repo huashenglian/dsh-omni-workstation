@@ -37,10 +37,10 @@ const minimax = () => normalizeVideoConfig({
   provider: 'minimax', apiKey: 'sk-mm', model: 'MiniMax-Hailuo-2.3'
 })
 const qwen = () => normalizeVideoConfig({
-  provider: 'qwen-token-plan', apiKey: 'sk-qw', model: 'qwen-video'
+  provider: 'qwen-token-plan', endpoint: 'https://dashscope.aliyuncs.com', apiKey: 'sk-qw', model: 'qwen-video'
 })
 const qwenCn = () => normalizeVideoConfig({
-  provider: 'qwen-token-plan-cn', apiKey: 'sk-qw-cn', model: 'qwen-video'
+  provider: 'qwen-token-plan-cn', endpoint: 'https://dashscope.aliyuncs.com', apiKey: 'sk-qw-cn', model: 'qwen-video'
 })
 
 // ---- normalize / mask ----
@@ -81,8 +81,8 @@ test('normalizeVideoConfig locks protocol for built-in providers, allows custom'
   assert.equal(dash().protocol, 'dashscope-video')
   assert.equal(volc().protocol, 'volc-video')
   assert.equal(minimax().protocol, 'minimax-video')
-  assert.equal(qwen().protocol, 'openai-videos')
-  assert.equal(qwenCn().protocol, 'openai-videos')
+  assert.equal(qwen().protocol, 'dashscope-video')
+  assert.equal(qwenCn().protocol, 'dashscope-video')
   // custom 可以切协议
   assert.equal(custom({ protocol: 'async-task' }).protocol, 'async-task')
   // 未知协议回退 openai-videos
@@ -118,14 +118,15 @@ test('isVideoConfigValid: kling apiKey must contain |', () => {
   assert.equal(isVideoConfigValid(bad), false)
 })
 
-test('buildVideoSubmit qwen-token-plan: openai-videos at token-plan endpoint (Sora style)', () => {
+test('buildVideoSubmit qwen-token-plan: dashscope-video at DashScope endpoint (百炼通道)', () => {
   const r = buildVideoSubmit(qwen(), { prompt: 'a cat', seconds: 5, aspectRatio: '16:9' }, null)
-  assert.equal(r.url, 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/videos')
+  assert.equal(r.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/generation')
   assert.equal(r.body.model, 'qwen-video')
-  assert.equal(r.body.size, '1280x720')
+  assert.equal(r.body.input.prompt, 'a cat')
   assert.equal(r.method, 'POST')
-  const poll = videoPollUrl('openai-videos', qwen(), 'VID1', false)
-  assert.equal(poll, 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/videos/VID1')
+  assert.equal(r.headers['X-DashScope-Async'], 'enable')
+  const poll = videoPollUrl('dashscope-video', qwen(), 'VID1', false)
+  assert.equal(poll, 'https://dashscope.aliyuncs.com/api/v1/tasks/VID1')
 })
 
 // ---- applyPatch ----
@@ -163,6 +164,12 @@ test('applyPatch handles videoEnabled + videoConfig fields + videoReset', () => 
 
 test('applyPatch: dashscope provider seeds editable default endpoint', () => {
   const cfg = applyPatch(applyPatch({}, {}), { videoConfig: { field: 'provider', value: 'dashscope' } })
+  assert.equal(cfg.videoConfig.endpoint, 'https://dashscope.aliyuncs.com')
+  assert.equal(cfg.videoConfig.protocol, 'dashscope-video')
+})
+
+test('applyPatch: qwen-token-plan seeds DashScope endpoint (百炼通道)', () => {
+  const cfg = applyPatch(applyPatch({}, {}), { videoConfig: { field: 'provider', value: 'qwen-token-plan' } })
   assert.equal(cfg.videoConfig.endpoint, 'https://dashscope.aliyuncs.com')
   assert.equal(cfg.videoConfig.protocol, 'dashscope-video')
 })
