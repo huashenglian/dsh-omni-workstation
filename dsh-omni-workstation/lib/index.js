@@ -336,16 +336,16 @@ function videoBase(cfg) {
   return base
 }
 
-// DashScope native base for video: rewrite workspace/compatible-mode hosts to
-// /api/v1 (same rule as image generation; ws-*.maas.aliyuncs.com 拒绝原生路径).
+// DashScope native base for video: 必须使用 /api/v1 原生路径。workspace 专属域名
+// (ws-*.maas.aliyuncs.com) 与公网域名 (dashscope.aliyuncs.com) 均支持该路径；
+// 切勿把 workspace 域名改写成 dashscope.aliyuncs.com（那是无 workspace 的公网域名，
+// 会拒绝 workspace 级 key，导致"非法 URL / url error"）。仅做 /api/v1 后缀归一。
 function dashscopeVideoBase(cfg) {
   const meta = VIDEO_PROVIDERS[cfg.provider]
   const ep = (meta && meta.fixedUrl) ? meta.endpoint : cfg.endpoint
   const base = String(ep || '').trim().replace(/\/+$/, '')
-  const wsHost = /^(https?:\/\/)[^/]+\.maas\.aliyuncs\.com(?:[/?#]|$)/i.exec(base)
-  if (wsHost) return wsHost[1] + 'dashscope.aliyuncs.com/api/v1'
-  if (/\/compatible-mode\/v[0-9]+$/.test(base)) return base.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
   if (/\/api\/v[0-9]+$/.test(base)) return base
+  if (/\/compatible-mode\/v[0-9]+$/.test(base)) return base.replace(/\/compatible-mode\/v[0-9]+$/, '/api/v1')
   if (/\/v[0-9]+$/.test(base)) return base.replace(/\/v[0-9]+$/, '/api/v1')
   return base + '/api/v1'
 }
@@ -398,12 +398,26 @@ function buildVideoSubmit(cfg, args, image) {
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
       headers['X-DashScope-Async'] = 'enable'
       const input = { prompt }
-      // wan i2v：img_url 支持公网 URL 或 data:{mime};base64,...（DashScope 原生口径）
-      if (image) input.img_url = image.kind === 'url' ? image.value
-        : (image.kind === 'dataUrl' ? image.value
-          : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)
-      const body = { model: cfg.model, input, parameters: {} }
-      const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/generation'
+      // wan i2v：media[].url 支持公网 URL 或 data:{mime};base64,...（DashScope 原生口径）
+      if (image) input.media = [{
+        type: 'first_frame',
+        url: image.kind === 'url' ? image.value
+          : (image.kind === 'dataUrl' ? image.value
+            : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)
+      }]
+      const resDash = res === '1080p' ? '1080P' : '720P'
+      const dur = Math.max(2, Math.min(Number(seconds) || 5, 15))
+      const body = {
+        model: cfg.model,
+        input,
+        parameters: {
+          resolution: resDash,
+          duration: dur,
+          prompt_extend: true,
+          watermark: false
+        }
+      }
+      const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/video-synthesis'
       return { url, method: 'POST', headers, body, i2v: !!image }
     }
     case 'kling-video': {

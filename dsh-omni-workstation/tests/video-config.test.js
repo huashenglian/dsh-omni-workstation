@@ -120,7 +120,7 @@ test('isVideoConfigValid: kling apiKey must contain |', () => {
 
 test('buildVideoSubmit qwen-token-plan: dashscope-video at DashScope endpoint (百炼通道)', () => {
   const r = buildVideoSubmit(qwen(), { prompt: 'a cat', seconds: 5, aspectRatio: '16:9' }, null)
-  assert.equal(r.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/generation')
+  assert.equal(r.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
   assert.equal(r.body.model, 'qwen-video')
   assert.equal(r.body.input.prompt, 'a cat')
   assert.equal(r.method, 'POST')
@@ -233,26 +233,28 @@ test('buildVideoSubmit openai-videos i2v passes image_url', () => {
   assert.equal(s.i2v, true)
 })
 
-test('buildVideoSubmit dashscope-video: X-DashScope-Async + native path + img_url', () => {
+test('buildVideoSubmit dashscope-video: X-DashScope-Async + native path + media[].url', () => {
   const s = buildVideoSubmit(dash(), { prompt: 'p' }, { kind: 'b64', value: 'AAAA' })
-  assert.equal(s.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/generation')
+  assert.equal(s.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
   assert.equal(s.headers['X-DashScope-Async'], 'enable')
   assert.equal(s.headers.Authorization, 'Bearer sk-ds')
   assert.equal(s.body.input.prompt, 'p')
-  assert.equal(s.body.input.img_url, 'data:image/png;base64,AAAA')
-  // t2v 无 img_url
+  assert.deepEqual(s.body.input.media, [{ type: 'first_frame', url: 'data:image/png;base64,AAAA' }])
+  assert.equal(s.body.parameters.resolution, '720P')
+  assert.equal(s.body.parameters.duration, 5)
+  // t2v 无 media
   const t = buildVideoSubmit(dash(), { prompt: 'p' }, null)
-  assert.equal(t.body.input.img_url, undefined)
+  assert.equal(t.body.input.media, undefined)
 })
 
-test('buildVideoSubmit dashscope-video rewrites ws-*.maas.aliyuncs.com workspace endpoint', () => {
+test('buildVideoSubmit dashscope-video: workspace endpoint host preserved', () => {
   const wsCfg = normalizeVideoConfig({
     provider: 'dashscope',
     endpoint: 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
     apiKey: 'sk', model: 'wan2.7-i2v'
   })
   const s = buildVideoSubmit(wsCfg, { prompt: 'p' }, null)
-  assert.equal(s.url, 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/generation')
+  assert.equal(s.url, 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
 })
 
 test('buildVideoSubmit kling-video: JWT auth + text2video/image2video + duration/aspect', () => {
@@ -293,14 +295,14 @@ test('buildVideoSubmit async-task: custom submitPath + taskIdField not in body',
   assert.equal(s.body.image, 'https://img/u.png')
 })
 
-test('buildVideoSubmit dashscope-video i2v: img_url is data URL with mime', () => {
+test('buildVideoSubmit dashscope-video i2v: media[].url is data URL with mime', () => {
   const r = buildVideoSubmit(dash(), { prompt: 'p' }, { kind: 'b64', value: 'AAAA', mime: 'image/png' })
-  assert.equal(r.body.input.img_url, 'data:image/png;base64,AAAA')
+  assert.deepEqual(r.body.input.media, [{ type: 'first_frame', url: 'data:image/png;base64,AAAA' }])
 })
 
 test('buildVideoSubmit dashscope-video i2v: url image passes through', () => {
   const r = buildVideoSubmit(dash(), { prompt: 'p' }, { kind: 'url', value: 'https://example.com/a.png' })
-  assert.equal(r.body.input.img_url, 'https://example.com/a.png')
+  assert.deepEqual(r.body.input.media, [{ type: 'first_frame', url: 'https://example.com/a.png' }])
 })
 
 test('buildVideoSubmit kling-video i2v: raw base64 (no prefix)', () => {

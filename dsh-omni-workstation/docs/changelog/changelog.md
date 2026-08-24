@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.6 — dashscope-video 协议修正（百炼 wan2.7-i2v 真正跑通）
+- **关键 bug 修复**：原 dashscope-video 实现有两个致命问题，导致百炼 wan2.7-i2v 始终无法调用：
+  1. `dashscopeVideoBase` 把 `ws-*.maas.aliyuncs.com` workspace 域名**静默改写为** `dashscope.aliyuncs.com/api/v1`（公网域名，拒绝 workspace 级 key，表现为"非法 URL / url error"）。现已移除该改写，仅做 `/api/v1` 后缀归一，保留原 workspace 域名。
+  2. 提交路径 `/services/aigc/video-generation/generation` 应为 `/video-synthesis`；请求体 `input.img_url` 应为 `input.media=[{type:"first_frame",url}]`（公网 URL 或 `data:{mime};base64,…`），并补 `parameters`（resolution / duration / prompt_extend / watermark）。依据官方文档 `百炼wan2.7-i2v图生视频技术实现.md` 修正。
+- 同步更新单测：提交路径改为 `video-synthesis`；`img_url` 断言改为 `media[0].url`；"ws 改写"测试改为断言**保留原 workspace 域名**；全套 155 例通过。
+- 验证：浏览器自动化 E2E 经百炼（dashscope-video）跑通 i2v —— 参考图 `img_mt65jeyo_0.png` 成功生成火车飞向太空视频 `video_mt7brktj.mp4`（4.8MB），确认 URL 修正 + 请求体修正 + i2v Base64 修正三者共同生效，无 url error。
+- 注：上一条 v2.8.5 的 dashscope-video 描述（img_url）为误诊断下的实现，以本次修正为准。
+
 ## v2.8.5 — 视频供应商分组合并 + i2v Base64 格式修复
 - **视频面板供应商分组合并**：下拉由「通用 / 内置供应商·海外 / 内置供应商·国内」三组合并为「通用 / 内置供应商」两组（新增 i18n key `videoGroupBuiltin`，保留旧 key 向后兼容）
 - **i2v Base64 格式修复（dashscope-video）**：原 `input.img_url` 对本地图片发裸 Base64（DashScope 报 `InvalidParameter: url error`）；改为 `data:{mime};base64,…`（`runVideoGeneration` 读取本地文件时通过 `sniffMediaType` + `mimeFor` 携带 mime）
