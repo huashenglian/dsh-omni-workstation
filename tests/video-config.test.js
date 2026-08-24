@@ -36,6 +36,12 @@ const volc = () => normalizeVideoConfig({
 const minimax = () => normalizeVideoConfig({
   provider: 'minimax', apiKey: 'sk-mm', model: 'MiniMax-Hailuo-2.3'
 })
+const qwen = () => normalizeVideoConfig({
+  provider: 'qwen-token-plan', apiKey: 'sk-qw', model: 'qwen-video'
+})
+const qwenCn = () => normalizeVideoConfig({
+  provider: 'qwen-token-plan-cn', apiKey: 'sk-qw-cn', model: 'qwen-video'
+})
 
 // ---- normalize / mask ----
 
@@ -75,6 +81,8 @@ test('normalizeVideoConfig locks protocol for built-in providers, allows custom'
   assert.equal(dash().protocol, 'dashscope-video')
   assert.equal(volc().protocol, 'volc-video')
   assert.equal(minimax().protocol, 'minimax-video')
+  assert.equal(qwen().protocol, 'openai-videos')
+  assert.equal(qwenCn().protocol, 'openai-videos')
   // custom 可以切协议
   assert.equal(custom({ protocol: 'async-task' }).protocol, 'async-task')
   // 未知协议回退 openai-videos
@@ -96,6 +104,8 @@ test('maskedVideo hides apiKey but reports apiKeySet', () => {
 test('isVideoConfigValid: fixed providers ignore empty stored endpoint; custom needs all', () => {
   assert.equal(isVideoConfigValid(agnes()), true)      // fixedUrl -> endpoint 来自内置
   assert.equal(isVideoConfigValid(kling()), true)
+  assert.equal(isVideoConfigValid(qwen()), true)
+  assert.equal(isVideoConfigValid(qwenCn()), true)
   assert.equal(isVideoConfigValid(custom()), true)
   assert.equal(isVideoConfigValid(custom({ endpoint: '' })), false)
   assert.equal(isVideoConfigValid(custom({ apiKey: '' })), false)
@@ -106,6 +116,16 @@ test('isVideoConfigValid: fixed providers ignore empty stored endpoint; custom n
 test('isVideoConfigValid: kling apiKey must contain |', () => {
   const bad = normalizeVideoConfig({ provider: 'kling', apiKey: 'AKONLY', model: 'x' })
   assert.equal(isVideoConfigValid(bad), false)
+})
+
+test('buildVideoSubmit qwen-token-plan: openai-videos at token-plan endpoint (Sora style)', () => {
+  const r = buildVideoSubmit(qwen(), { prompt: 'a cat', seconds: 5, aspectRatio: '16:9' }, null)
+  assert.equal(r.url, 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/videos')
+  assert.equal(r.body.model, 'qwen-video')
+  assert.equal(r.body.size, '1280x720')
+  assert.equal(r.method, 'POST')
+  const poll = videoPollUrl('openai-videos', qwen(), 'VID1', false)
+  assert.equal(poll, 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/videos/VID1')
 })
 
 // ---- applyPatch ----

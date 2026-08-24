@@ -12,7 +12,7 @@
 - **JPEG→PNG 重编码兜底**:当服务端对 JPEG 载荷报 400/415 解码错误(如 llama.cpp `stb_image`)时,自动解码(vendored jpeg-js)并重编码为 PNG,同卡重试一次。
 - **自动保存的设置面板**:每次修改即时保存、立即生效,无需"保存"按钮;支持从端点拉取可用模型列表、拖拽排序卡片。
 - **Tab + 模块开关**:VLM / 生图 / 视频 三个 Tab,各自带模块开关;关闭 VLM 即注销 `analyze_image` 工具但保留配置;关闭视频即停止注入 `generate_video` 工具(0 token 消耗)。
-- **`generate_video` 工具**(v2.8):文生视频(t2v)与图生视频(i2v),异步任务流水线(提交 → 轮询 → 下载 MP4 到工作区)。内置供应商:自定义(任意 Sora 兼容中转站)、Agnes AI / Agnes AI CN(Agnes Video V2.0,已实测)、阿里云百炼(DashScope wan,支持 workspace 专属端点)、可灵(AccessKey|SecretKey JWT)、火山方舟(Seedance)、MiniMax 海螺。设置页「视频」Tab 可配置协议/端点/Key/模型、超时/轮询间隔/重试、默认时长/画幅/分辨率、视频模型过滤与 async-task 字段;仅当视频模块开关开启且配置有效时注册工具。
+- **`generate_video` 工具**(v2.8):文生视频(t2v)与图生视频(i2v),异步任务流水线(提交 → 轮询 → 下载 MP4 到工作区)。内置供应商:自定义(任意 Sora 兼容中转站)、Agnes AI / Agnes AI CN(Agnes Video V2.0,已实测)、阿里云百炼(DashScope wan,支持 workspace 专属端点)、可灵(AccessKey|SecretKey JWT)、火山方舟(Seedance)、MiniMax 海螺、**通义千问 Token Plan / 通义千问 Token Plan CN**(OpenAI 兼容 `openai-videos`,Token Plan 网关)。设置页「视频」Tab 可配置协议/端点/Key/模型、超时/轮询间隔/重试、默认时长/画幅/分辨率、视频模型过滤与 async-task 字段;仅当视频模块开关开启且配置有效时注册工具。
 - **供应商预设**:自定义 / Ollama 之外内置 **28 家固定供应商**(OpenAI、Anthropic、Gemini、Groq、MiniMax、Moonshot、Z.AI、xAI 等)。固定供应商端点与协议内置不可改(只读展示),只需填 API Key、模型与超时。
 - **批量操作与删除确认**:"添加模型"右侧为批量按钮(收纳全部/展开全部/删除全部,删除需两次确认);单卡删除同样两次确认;页面底部时模型下拉自动向上展开。
 - **Web 路由**:宿主半提供 `/omni/config`、`/omni/models`、`/omni/key`。

@@ -2,6 +2,13 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.8.3 — 视频协议改名 + 生图/视频新增通义千问 (Qwen) Token Plan 供应商
+- **视频协议显示名修正**：`openai-videos` 协议在设置面板的显示名由「openai-videos（Sora 兼容中转站 / Agnes）」改为「openai-videos（openai兼容）」（en: "openai-videos (OpenAI-compatible)"），更准确反映其 OpenAI 兼容本质
+- **生图供应商新增 Qwen**：在 `IMGGEN_PROVIDER_IDS_UI` 过滤中加入 `qwen-token-plan` / `qwen-token-plan-cn`（复用 VLM 面板既有 Token Plan 端点，OpenAI 兼容网关；生图走 `openai-images` 协议，选中即锁定协议/端点）
+- **视频供应商新增 Qwen**：`VIDEO_PROVIDERS` / `VIDEO_PROVIDERS_UI` 增加 `qwen-token-plan`（海外 `token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`）与 `qwen-token-plan-cn`（国内 `token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`），协议锁定 `openai-videos`（Sora 风格，POST {base}/videos），端点/协议固定，仅填 API Key + 模型；下拉分组（海外 / 国内）
+- 配置参考 VLM 面板 qwen-token-plan 供应商与官方文档（DASHSCOPE_API_KEY + DashScope base url）；新增 qwen 视频归一化/校验/请求体单测；全套 150 例通过
+- 详见 [docs/plan/v2.8-video.md](../plan/v2.8-video.md)
+
 ## v2.8.2 — VLM 卡片菜单收纳修复 + 视频面板交互/筛选/布局修复
 - **修复 VLM 卡片菜单触发收纳**：ApiCard 的 '...' 菜单项（置顶/沉底/删除）补 `e.stopPropagation()`——此前点击菜单项冒泡到卡片头 `toggleCollapse` 导致卡片意外收纳；现点击菜单项后卡片收纳/展开状态保持不变
 - **视频面板外点关闭**：模型下拉/供应商下拉纳入主外点关闭 effect（此前漏了 `videoOpenDd/videoOpenProv`，点空白不关）；VideoPanel 补齐 reset 菜单与预设下拉的外点关闭（镜像生图面板）
