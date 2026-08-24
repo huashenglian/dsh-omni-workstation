@@ -622,8 +622,7 @@ const newCard = (overrides) => ({
   model: '',
   collapsed: false,
   timeoutMs: 120000,
-  contextWindow: 262144,
-  maxOutput: 32768,
+  // contextWindow/maxOutput 留空：UI 显示占位符，留空时运行时回退默认值（262144/32768）
   ...(overrides || {})
 })
 
@@ -733,8 +732,8 @@ function normalizeConfig(raw) {
         model: typeof a.model === 'string' ? a.model : '',
         collapsed: a.collapsed === true,
         timeoutMs: clampTimeout(a.timeoutMs),
-        contextWindow: Number.isFinite(Number(a.contextWindow)) && Number(a.contextWindow) > 0 ? Math.floor(Number(a.contextWindow)) : 262144,
-        maxOutput: Number.isFinite(Number(a.maxOutput)) && Number(a.maxOutput) > 0 ? Math.floor(Number(a.maxOutput)) : 32768
+        contextWindow: Number.isFinite(Number(a.contextWindow)) && Number(a.contextWindow) > 0 ? Math.floor(Number(a.contextWindow)) : null,
+        maxOutput: Number.isFinite(Number(a.maxOutput)) && Number(a.maxOutput) > 0 ? Math.floor(Number(a.maxOutput)) : null
       }
     })
   } else {
