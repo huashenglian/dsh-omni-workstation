@@ -15,7 +15,8 @@ const {
   VIDEO_PROVIDERS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS,
   buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId,
   klingJwt, agnesNumFrames, pathGet, pollVideoOnce, minimaxResolveUrl,
-  filterVideoModelIds, buildVideoToolDef
+  filterVideoModelIds, buildVideoToolDef,
+  dashscopeVideoBase, dashscopeModelsUrl, parseDashscopeModelList
 } = await import('../lib/index.js')
 
 const agnes = () => normalizeVideoConfig({
@@ -255,6 +256,52 @@ test('buildVideoSubmit dashscope-video: workspace endpoint host preserved', () =
   })
   const s = buildVideoSubmit(wsCfg, { prompt: 'p' }, null)
   assert.equal(s.url, 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
+})
+
+// ---- v2.8.7: 百炼视频模型列表拉取（文档第6章）+ URL 后缀替换 ----
+
+test('dashscopeVideoBase: URL 替换逻辑——把不适配视频接口的兼容后缀替换为原生 /api/v1', () => {
+  // 用户链接带 /compatible-mode/v1（OpenAI 兼容，不含视频模型）
+  const ws = normalizeVideoConfig({
+    provider: 'dashscope',
+    endpoint: 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+    apiKey: 'sk', model: 'wan2.7-i2v'
+  })
+  assert.equal(dashscopeVideoBase(ws), 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/api/v1')
+  // 已带 /api/v1 原样保留
+  assert.equal(dashscopeVideoBase({ provider: 'dashscope', endpoint: 'https://ws-x.maas.aliyuncs.com/api/v1' }), 'https://ws-x.maas.aliyuncs.com/api/v1')
+  // 仅 /v1 也归一到 /api/v1
+  assert.equal(dashscopeVideoBase({ provider: 'dashscope', endpoint: 'https://ws-x.maas.aliyuncs.com/v1' }), 'https://ws-x.maas.aliyuncs.com/api/v1')
+  // 无后缀补 /api/v1
+  assert.equal(dashscopeVideoBase({ provider: 'dashscope', endpoint: 'https://ws-x.maas.aliyuncs.com' }), 'https://ws-x.maas.aliyuncs.com/api/v1')
+})
+
+test('dashscopeModelsUrl: 使用原生 /api/v1/models?capabilities=VG（文档第6章）', () => {
+  const ws = normalizeVideoConfig({
+    provider: 'dashscope',
+    endpoint: 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+    apiKey: 'sk', model: 'wan2.7-i2v'
+  })
+  // URL 替换逻辑已生效：/compatible-mode/v1 → /api/v1，并拼接原生模型列表路径
+  assert.equal(dashscopeModelsUrl(ws), 'https://ws-w3rsho7z9lnqjk8p.cn-beijing.maas.aliyuncs.com/api/v1/models?capabilities=VG&page_size=100')
+})
+
+test('parseDashscopeModelList: 解析百炼原生 body.output.models（文档第6.4章）', () => {
+  const body = {
+    success: true,
+    output: {
+      total: 88,
+      models: [
+        { model: 'wan2.7-i2v', name: 'Wan2.7-I2V', capabilities: ['VG'] },
+        { model: 'wan2.7-t2v', name: 'Wan2.7-T2V' },
+        { model: 'wan3.0-video', name: 'Wan3.0-Video' }
+      ]
+    }
+  }
+  assert.deepEqual(parseDashscopeModelList(body), ['wan2.7-i2v', 'wan2.7-t2v', 'wan3.0-video'])
+  // 缺 output.models 时返回空数组
+  assert.deepEqual(parseDashscopeModelList({ output: {} }), [])
+  assert.deepEqual(parseDashscopeModelList(null), [])
 })
 
 test('buildVideoSubmit kling-video: JWT auth + text2video/image2video + duration/aspect', () => {
