@@ -798,7 +798,7 @@ voiceSovitsModel: "SoVITS model name",
 			".omni-toolview-copy { flex: 0 0 auto; padding: 2px 8px; font-size: 11px; }",
 			".omni-toolview-val { font-size: 12px; opacity: 0.9; word-break: break-all; min-width: 0; }",
 			".omni-tab-body { display: flex; flex-direction: column; gap: 14px; }",
-			".omni-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }",
+				".omni-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; white-space: nowrap; flex-wrap: nowrap; }",
 			".omni-tool-desc { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
 			".omni-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
 			".omni-switch input { opacity: 0; width: 0; height: 0; }",
@@ -2071,9 +2071,8 @@ voiceSovitsModel: "SoVITS model name",
 						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
 						React.createElement("span", { className: "omni-switch-slider" })
 					]),
-					React.createElement("span", { className: "omni-label" }, t("imggenFilterLabel")),
-					React.createElement("span", { className: "omni-status" }, t("imggenFilterHint"))
-				]),
+						React.createElement("span", { className: "omni-label" }, t("imggenFilterLabel"))
+					]),
 				React.createElement("div", { className: "omni-row" }, [
 					React.createElement(Field, {
 						label: t("imggenRetryLabel"),
@@ -2582,9 +2581,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
 						React.createElement("span", { className: "omni-switch-slider" })
 					]),
-					React.createElement("span", { className: "omni-label" }, t("videoFilterLabel")),
-					React.createElement("span", { className: "omni-status" }, t("videoFilterHint"))
-				]),
+						React.createElement("span", { className: "omni-label" }, t("videoFilterLabel"))
+					]),
 				// 6. 单行四字段：轮询间隔 (s)｜重试次数｜默认时长 (s)｜画幅
 				//（分辨率已移除 UI：由 AI 通过 generate_video 的 resolution 参数自行决定）
 				React.createElement("div", { className: "omni-row" }, [
@@ -2844,28 +2842,20 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 									]
 								])
 							]),
-							(function () {
-								var p = cfg.provider;
-								var text = "";
-								if (p === "minimax") text = t("voiceFetchVoices");
-								else if (p === "indextts" || p === "voxcpm") text = t("voiceFetchRefAudio");
-								else if (p === "tts-webui") text = t("voiceFetchModelsShort");
-								if (!text) return null;
-								return React.createElement("button", {
+								React.createElement("button", {
 									className: "omni-btn",
-									disabled: busy !== "",
+									disabled: busy !== "" || cfg.provider === "gptsovits",
+									title: cfg.provider === "gptsovits" ? "此供应商无模型拉取 API" : "",
 									onClick: props.onFetchModels
-								}, busy === "voice-mdl" ? t("fetching") : text);
-							})()
+								}, busy === "voice-mdl" ? t("fetching") : t("voiceFetchModels"))
 						]),
 						React.createElement("div", { className: "omni-module-row" }, [
 							React.createElement("label", { className: "omni-switch" }, [
 								React.createElement("input", { type: "checkbox", checked: cfg.filterVoiceModels !== false, onChange: props.onToggleFilter }),
 								React.createElement("span", { className: "omni-switch-slider" })
 							]),
-							React.createElement("span", { className: "omni-label" }, t("voiceFilterTts")),
-							React.createElement("span", { className: "omni-desc" }, t("voiceFilterTtsDesc"))
-						]),
+								React.createElement("span", { className: "omni-label" }, t("voiceFilterTts"))
+							]),
 						React.createElement("div", { className: "omni-voice-control" }, (function () {
 							var p = cfg.provider;
 							var m = cfg.model;
@@ -3858,16 +3848,26 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			}
 				function fetchVoiceModels() {
 					var vc = draft[0].voiceConfig || {};
-					if (vc.provider === "mimo") {
+					var p = vc.provider;
+					if (p === "mimo") {
 						var ms = ["mimo-v2.5-tts", "mimo-v2.5-tts-voicedesign", "mimo-v2.5-tts-voiceclone"];
 						voiceModelList[1](ms);
 						voiceModelCount[1](ms.length);
 						voiceOpenDd[1](true);
+						voiceVoiceList[1](MIMO_PRESET_VOICES.map(function (v) { return { id: v, name: v }; }));
+						showToast('success', t('fetchOkPrefix') + ms.length + t('fetchOkSuffix'), '');
 						return;
 					}
-					if (vc.provider === "doubao" || vc.provider === "gptsovits") {
-						return; // no fetch API
+					if (p === "doubao") {
+						var dbModels = ["seed-tts-2.0", "seed-icl-2.0", "seed-icl-1.0"];
+						voiceModelList[1](dbModels);
+						voiceModelCount[1](dbModels.length);
+						voiceOpenDd[1](true);
+						showToast('success', t('fetchOkPrefix') + dbModels.length + t('fetchOkSuffix'), '');
+						return;
 					}
+					if (p === "gptsovits") { return; }
+					var mmModels = ["speech-2.8-hd", "speech-2.8-turbo", "speech-2.6-hd", "speech-2.6-turbo", "speech-01-hd", "speech-01-turbo"];
 					voiceBusy[1]("voice-mdl");
 					voiceModelList[1]([]);
 					voiceVoiceList[1]([]);
@@ -3878,23 +3878,34 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						apiKey: voiceKeyDraft[0] || undefined
 					}).then(function (r) {
 						if (r && r.ok) {
+							if (p === "minimax") {
+								voiceModelList[1](mmModels);
+								voiceOpenDd[1](true);
+							}
 							if (r.voices && Array.isArray(r.voices) && r.voices.length > 0) {
-								// MiniMax/IndexTTS/VoxCPM: voice list
 								voiceVoiceList[1](r.voices);
 								voiceModelCount[1](r.voices.length);
 								showToast('success', t('fetchOkPrefix') + r.voices.length + t('fetchOkSuffix'), '');
 							} else if (r.models && Array.isArray(r.models) && r.models.length > 0) {
-								// TTS-WebUI: model list (OpenAI compatible)
 								voiceModelList[1](r.models);
 								voiceModelCount[1](r.models.length);
 								voiceOpenDd[1](true);
 								showToast('success', t('fetchOkPrefix') + r.models.length + t('fetchOkSuffix'), '');
+							} else if (p === "minimax") {
+								voiceModelCount[1](mmModels.length);
+								showToast('success', t('fetchOkPrefix') + mmModels.length + t('fetchOkSuffix'), '');
 							} else {
 								voiceModelCount[1](null);
 								setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
 							}
 						} else {
-							voiceModelCount[1](null);
+							if (p === "minimax") {
+								voiceModelList[1](mmModels);
+								voiceOpenDd[1](true);
+								voiceModelCount[1](mmModels.length);
+							} else {
+								voiceModelCount[1](null);
+							}
 							setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
 							showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
 						}
