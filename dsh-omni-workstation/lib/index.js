@@ -311,6 +311,12 @@ const VOICE_PROVIDERS = {
 const VOICE_PROVIDER_IDS = Object.keys(VOICE_PROVIDERS)
 const VOICE_PROTOCOLS = ['mimo-tts', 'minimax-tts', 'doubao-tts', 'indextts-tts', 'gptsovits-tts', 'voxcpm-tts', 'openai-speech']
 const MIMO_PRESET_VOICES = ['mimo_default', '冰糖', '茉莉', '苏打', '白桦', 'Mia', 'Chloe', 'Milo', 'Dean']
+const MINIMAX_PRESET_VOICES_FALLBACK = [
+  'English_Graceful_Lady', 'English_Insightful_Speaker', 'English_radiant_girl',
+  'English_Persuasive_Man', 'English_Lucky_Robot', 'Wise_Woman',
+  'cute_boy', 'lovely_girl', 'Friendly_Person', 'Inspirational_girl',
+  'Deep_Voice_Man', 'sweet_girl'
+]
 
 const defaultVoiceConfig = () => ({
   provider: 'mimo',
@@ -4121,6 +4127,68 @@ function apply(ctx) {
           else if (Array.isArray(body.models)) ids = body.models.map(m => (typeof m === 'string' ? m : (m && (m.id || m.name)) || '')).filter(Boolean)
           jsonOut(res, 200, { ok: true, models: ids.slice(0, 100) })
           return
+        }
+        if (args.voice === true) {
+          const vc = cfg.voiceConfig || defaultVoiceConfig()
+          const vmeta = VOICE_PROVIDERS[vc.provider]
+          const endpoint = (vmeta && vmeta.fixedUrl) ? vmeta.endpoint : (args.endpoint && typeof args.endpoint === 'string' && args.endpoint.trim() ? args.endpoint.trim() : vc.endpoint)
+          const apiKey = args.apiKey && typeof args.apiKey === 'string' && args.apiKey.length ? args.apiKey : vc.apiKey
+          const provider = vc.provider
+          if (!endpoint) return jsonOut(res, 400, { ok: false, error: '未配置 endpoint' })
+          if (provider === 'minimax') {
+            const base = String(endpoint).trim().replace(/\/+$/, '')
+            const h = { 'Content-Type': 'application/json', Accept: 'application/json' }
+            if (apiKey) h.Authorization = 'Bearer ' + apiKey
+            const r = await httpJson(base + '/v1/get_voice', 'POST', h, JSON.stringify({ voice_type: 'all' }), 30000)
+            if (!r.ok) {
+              return jsonOut(res, 200, { ok: true, voices: MINIMAX_PRESET_VOICES_FALLBACK.map(function (v) { return { id: v, name: v } }), note: 'fallback' })
+            }
+            const body = r.body && typeof r.body === 'object' ? r.body : {}
+            if (body.base_resp && body.base_resp.status_code !== 0) {
+              return jsonOut(res, 200, { ok: true, voices: MINIMAX_PRESET_VOICES_FALLBACK.map(function (v) { return { id: v, name: v } }), note: 'fallback: ' + (body.base_resp.status_msg || '') })
+            }
+            const voices = []
+            if (Array.isArray(body.system_voice)) body.system_voice.forEach(function (v) { voices.push({ id: v.voice_id, name: '[系统] ' + (v.voice_name || v.voice_id) }) })
+            if (Array.isArray(body.voice_generation)) body.voice_generation.forEach(function (v) { voices.push({ id: v.voice_id, name: '[生成] ' + v.voice_id }) })
+            if (Array.isArray(body.voice_cloning)) body.voice_cloning.forEach(function (v) { voices.push({ id: v.voice_id, name: '[复刻] ' + v.voice_id }) })
+            return jsonOut(res, 200, { ok: true, voices: voices.length > 0 ? voices : MINIMAX_PRESET_VOICES_FALLBACK.map(function (v) { return { id: v, name: v } }) })
+          }
+          if (provider === 'indextts') {
+            const base = String(endpoint).trim().replace(/\/+$/, '')
+            const h = { Accept: 'application/json' }
+            if (apiKey) h.Authorization = 'Bearer ' + apiKey
+            const r = await httpJson(base + '/api/v1/voices', 'GET', h, undefined, 30000)
+            if (!r.ok) return jsonOut(res, 200, { ok: false, error: 'HTTP ' + r.status + ': ' + r.message })
+            const body = r.body
+            let voices = []
+            if (Array.isArray(body)) {
+              voices = body.map(function (v) { return typeof v === 'string' ? { id: v, name: v } : (v && typeof v === 'object' ? { id: v.id || v.name || v.voice_id || String(v), name: v.name || v.id || v.voice_id || String(v) } : { id: String(v), name: String(v) }) })
+            } else if (body && typeof body === 'object') {
+              voices = Object.keys(body).map(function (k) { return { id: k, name: k } })
+            }
+            return jsonOut(res, 200, { ok: true, voices: voices })
+          }
+          if (provider === 'voxcpm') {
+            const base = String(endpoint).trim().replace(/\/+$/, '')
+            const h = { Accept: 'application/json' }
+            if (apiKey) h['X-API-Key'] = apiKey
+            const r = await httpJson(base + '/v1/audio/list', 'GET', h, undefined, 30000)
+            if (!r.ok) return jsonOut(res, 200, { ok: false, error: 'HTTP ' + r.status + ': ' + r.message })
+            const body = r.body && typeof r.body === 'object' ? r.body : {}
+            const files = Array.isArray(body.files) ? body.files : (Array.isArray(body) ? body : [])
+            const voices = files.map(function (f) { return typeof f === 'string' ? { id: f, name: f } : (f && typeof f === 'object' ? { id: f.id || f.name || f.path || String(f), name: f.name || f.id || f.path || String(f) } : { id: String(f), name: String(f) }) })
+            return jsonOut(res, 200, { ok: true, voices: voices })
+          }
+          if (provider === 'tts-webui') {
+            let base = String(endpoint).trim().replace(/\/+$/, '')
+            if (!/\/v[0-9]+$/.test(base)) base = base + '/v1'
+            const r = await httpJson(base + '/models', 'GET', { Accept: 'application/json' }, undefined, 30000)
+            if (!r.ok) return jsonOut(res, 200, { ok: false, error: 'HTTP ' + r.status + ': ' + r.message })
+            const body = r.body && typeof r.body === 'object' ? r.body : {}
+            const voices = Array.isArray(body.data) ? body.data.map(function (d) { return { id: d.id || d.name, name: d.id || d.name } }) : (Array.isArray(body.models) ? body.models.map(function (m) { return typeof m === 'string' ? { id: m, name: m } : { id: m.id || m.name, name: m.id || m.name } }) : [])
+            return jsonOut(res, 200, { ok: true, voices: voices })
+          }
+          return jsonOut(res, 200, { ok: true, voices: [], note: 'no fetch API for ' + provider })
         }
         const saved = (Array.isArray(cfg.apis) ? cfg.apis : []).find((a) => a.id === args.cardId) || null
         let provider = args.provider || (saved && saved.provider) || 'custom'

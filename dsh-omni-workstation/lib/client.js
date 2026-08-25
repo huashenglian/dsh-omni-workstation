@@ -227,6 +227,22 @@ ddHint: "选择模型",
 				voiceSttPlaceholder: "STT 模块尚在开发中",
 				voiceTtsModelsOnly: "仅显示 TTS 模型",
 				voiceFetchModels: "获取可用模型",
+voiceFetchBtn: "获取可用模型",
+voiceFetchVoices: "拉音色",
+voiceFetchRefAudio: "拉参考音频",
+voiceFetchModelsShort: "拉模型",
+voiceFilterTts: "仅显示 TTS 模型",
+voiceFilterTtsDesc: "获取模型时按关键词筛选（含 tts/speech 的模型），关闭则拉取全部",
+voiceRetryCount: "重试次数",
+voiceOutputFormat: "输出格式",
+voiceStreamOutput: "流式输出",
+voiceSpeaker: "speaker",
+voiceRefAudio: "参考音频",
+voiceRefAudioPath: "参考音频路径",
+voiceRefText: "参考文本",
+voiceUpload: "上传",
+voiceGptModel: "GPT 模型名",
+voiceSovitsModel: "SoVITS 模型名",
 				voiceReset: "重置语音配置",
 				voiceResetConfirm: "确认重置？",
 				voiceResetHint: "恢复默认语音配置",
@@ -549,6 +565,22 @@ ddHint: "Pick a model",
 				voiceSttPlaceholder: "STT module under development",
 				voiceTtsModelsOnly: "Show TTS models only",
 				voiceFetchModels: "Fetch available models",
+voiceFetchBtn: "Fetch models",
+voiceFetchVoices: "Fetch voices",
+voiceFetchRefAudio: "Fetch ref audio",
+voiceFetchModelsShort: "Fetch models",
+voiceFilterTts: "Show TTS models only",
+voiceFilterTtsDesc: "Filter models by keyword (tts/speech) when fetching; off = fetch all",
+voiceRetryCount: "Retry count",
+voiceOutputFormat: "Output format",
+voiceStreamOutput: "Stream output",
+voiceSpeaker: "speaker",
+voiceRefAudio: "Reference audio",
+voiceRefAudioPath: "Reference audio path",
+voiceRefText: "Reference text",
+voiceUpload: "Upload",
+voiceGptModel: "GPT model name",
+voiceSovitsModel: "SoVITS model name",
 				voiceReset: "Reset voice config",
 				voiceResetConfirm: "Confirm?",
 				voiceResetHint: "Restore default voice config",
@@ -974,8 +1006,8 @@ ddHint: "Pick a model",
 	  "  .omni-help-content-text { color: light-dark(#333, #bbb); }",
 	  "}",
 	  ".omni-subtab-row { display: flex; gap: 0; width: 100%; margin-bottom: 12px; }",
-	  ".omni-subtab-btn { display: flex; flex: 1; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-subtle, #333); background: transparent; color: var(--dsw-alias-text-secondary, #ccc); cursor: pointer; transition: all 0.15s; font-size: 13px; }",
-	  ".omni-subtab-btn.active { background: var(--dsw-alias-bg-layer-3, #2a2a2e); border-color: var(--dsw-alias-accent-primary, #4a9eff); color: var(--dsw-alias-text-primary, #fff); }",
+  ".omni-subtab-btn { display: flex; flex: 1; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid light-dark(#ddd, #333); background: light-dark(#f5f5f5, transparent); color: light-dark(#333, #ccc); cursor: pointer; transition: all 0.15s; font-size: 13px; }",
+  ".omni-subtab-btn.active { background: #2a2a2e; border-color: #4a9eff; color: #fff; }",
 	  ".omni-subtab-btn .omni-switch { transform: scale(0.8); margin: 0; }",
 	  ".omni-subtab-row .omni-subtab-btn:first-child { border-radius: 8px 0 0 8px; }",
 	  ".omni-subtab-row .omni-subtab-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }",
@@ -1146,14 +1178,14 @@ ddHint: "Pick a model",
 			];
 			var VOICE_PROVIDERS_UI = {
 				mimo: { group: "cloud", fixed: true, fixedUrl: true, endpoint: "https://api.xiaomimimo.com/v1", keyRequired: true },
-				minimax: { group: "cloud", fixed: false, fixedUrl: false, endpoint: "https://api.minimax.io/v1", keyRequired: true },
-				doubao: { group: "cloud", fixed: false, fixedUrl: false, endpoint: "https://openspeech.bytedance.com/api/v1/tts", keyRequired: true },
-				indextts: { group: "local", fixed: false, fixedUrl: false, endpoint: "http://127.0.0.1:8000", keyRequired: false },
-				gptsovits: { group: "local", fixed: false, fixedUrl: false, endpoint: "http://127.0.0.1:9880", keyRequired: false },
-				voxcpm: { group: "local", fixed: false, fixedUrl: false, endpoint: "http://127.0.0.1:8080", keyRequired: false },
-				"tts-webui": { group: "local", fixed: false, fixedUrl: false, endpoint: "http://127.0.0.1:5000", keyRequired: false }
+				minimax: { group: "cloud", fixed: true, fixedUrl: true, endpoint: "https://api.minimaxi.com", keyRequired: true },
+				doubao: { group: "cloud", fixed: true, fixedUrl: true, endpoint: "https://openspeech.bytedance.com", keyRequired: true },
+				indextts: { group: "local", fixed: true, fixedUrl: true, endpoint: "http://127.0.0.1:7880", keyRequired: false },
+				gptsovits: { group: "local", fixed: true, fixedUrl: true, endpoint: "http://127.0.0.1:9880", keyRequired: false },
+				voxcpm: { group: "local", fixed: true, fixedUrl: true, endpoint: "http://127.0.0.1:8000", keyRequired: false },
+				"tts-webui": { group: "local", fixed: false, fixedUrl: false, endpoint: "", keyRequired: false }
 			};
-			var MIMO_PRESET_VOICES = ["adhoc", "paimon", "guinaifen", "nahida", "hutao", "raiden", "zhongli", "neuvillette", "furina"];
+			var MIMO_PRESET_VOICES = ["mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean"];
 			function voiceProviderDisplay(id, t) {
 				if (id === "mimo") return t("voiceProviderMimo");
 				if (id === "minimax") return t("voiceProviderMinimax");
@@ -2779,93 +2811,173 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							])
 						])
 					]),
-					React.createElement("div", { className: "omni-row" }, [
-						React.createElement("div", { className: "omni-field omni-grow" }, [
-							React.createElement("span", { className: "omni-label" }, t("voiceModel")),
-							React.createElement("div", { className: "omni-model-wrap" }, [
-								cfg.provider === "mimo" ? React.createElement("select", {
-									className: "omni-input omni-select",
-									value: cfg.model || "mimo-v2.5-tts",
-									onChange: function (e) { props.onPatch("model", e.target.value); }
-								}, [
-									React.createElement("option", { value: "mimo-v2.5-tts" }, t("voiceModelTts")),
-									React.createElement("option", { value: "mimo-v2.5-tts-voicedesign" }, t("voiceModelVoicedesign")),
-									React.createElement("option", { value: "mimo-v2.5-tts-voiceclone" }, t("voiceModelVoiceclone"))
-								]) : [
-									React.createElement("input", {
-										className: "omni-input omni-model-input",
-										type: "text", value: cfg.model || "",
-										placeholder: "gpt-4o / minimax-speech-v1",
+						React.createElement("div", { className: "omni-row" }, [
+							React.createElement("div", { className: "omni-field omni-grow" }, [
+								React.createElement("span", { className: "omni-label" }, t("voiceModel")),
+								React.createElement("div", { className: "omni-model-wrap" }, [
+									cfg.provider === "mimo" ? React.createElement("select", {
+										className: "omni-input omni-select",
+										value: cfg.model || "mimo-v2.5-tts",
 										onChange: function (e) { props.onPatch("model", e.target.value); }
-									}),
-									React.createElement("button", {
-										className: "omni-eye-btn", type: "button",
-										title: t("ddHint"),
-										onClick: function (e) { e.preventDefault(); props.onToggleDd(); }
-									}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })),
-									isDdOpen && modelList.length > 0 ? React.createElement("div", { className: "omni-model-dropdown", ref: ddRef }, modelList.map(function (m) {
-										return React.createElement("div", {
-											key: m, className: "omni-dd-item" + (m === cfg.model ? " active" : ""),
-											onClick: function () { props.onPickModel(m); }
-										}, m);
-									})) : null
-								]
-							])
+									}, [
+										React.createElement("option", { value: "mimo-v2.5-tts" }, t("voiceModelTts")),
+										React.createElement("option", { value: "mimo-v2.5-tts-voicedesign" }, t("voiceModelVoicedesign")),
+										React.createElement("option", { value: "mimo-v2.5-tts-voiceclone" }, t("voiceModelVoiceclone"))
+									]) : [
+										React.createElement("input", {
+											className: "omni-input omni-model-input",
+											type: "text", value: cfg.model || "",
+											placeholder: "gpt-4o / minimax-speech-v1",
+											onChange: function (e) { props.onPatch("model", e.target.value); }
+										}),
+										React.createElement("button", {
+											className: "omni-eye-btn", type: "button",
+											title: t("ddHint"),
+											onClick: function (e) { e.preventDefault(); props.onToggleDd(); }
+										}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })),
+										isDdOpen && modelList.length > 0 ? React.createElement("div", { className: "omni-model-dropdown", ref: ddRef }, modelList.map(function (m) {
+											return React.createElement("div", {
+												key: m, className: "omni-dd-item" + (m === cfg.model ? " active" : ""),
+												onClick: function () { props.onPickModel(m); }
+											}, m);
+										})) : null
+									]
+								])
+							]),
+							(function () {
+								var p = cfg.provider;
+								var text = "";
+								if (p === "minimax") text = t("voiceFetchVoices");
+								else if (p === "indextts" || p === "voxcpm") text = t("voiceFetchRefAudio");
+								else if (p === "tts-webui") text = t("voiceFetchModelsShort");
+								if (!text) return null;
+								return React.createElement("button", {
+									className: "omni-btn",
+									disabled: busy !== "",
+									onClick: props.onFetchModels
+								}, busy === "voice-mdl" ? t("fetching") : text);
+							})()
 						]),
-						cfg.provider !== "mimo" ? React.createElement("button", {
-							className: "omni-btn",
-							disabled: busy !== "",
-							onClick: props.onFetchModels
-						}, busy === "voice-mdl" ? t("fetching") : t("voiceFetchBtn")) : null
-					]),
-					React.createElement("div", { className: "omni-voice-control" }, (function () {
-						if (cfg.model === "mimo-v2.5-tts-voicedesign") {
-							return React.createElement(Field, {
-								label: t("voiceVoiceDesc"), value: cfg.voiceDescription || "",
-								placeholder: "成熟稳重的男声，带有一点磁性...",
-								onChange: function (e) { props.onPatch("voiceDescription", e.target.value); }
-							});
-						} else if (cfg.model === "mimo-v2.5-tts-voiceclone") {
-							return React.createElement(Field, {
-								label: t("voiceSamplePath"), value: cfg.samplePath || "",
-								placeholder: "C:\\Users\\...\\sample.wav",
-								onChange: function (e) { props.onPatch("samplePath", e.target.value); }
-							});
-						} else if (cfg.model === "mimo-v2.5-tts" || !cfg.model) {
-							return React.createElement(SelectField, {
-								label: t("voicePresetVoice"), value: cfg.voiceId || "adhoc",
-								options: MIMO_PRESET_VOICES.map(function (v) { return { value: v, label: v }; }),
-								onChange: function (e) { props.onPatch("voiceId", e.target.value); }
-							});
-						}
-						return null;
-					})()),
-					React.createElement("div", { className: "omni-field" }, [
-						React.createElement("span", { className: "omni-label" }, t("voiceStyleInstruction")),
-						React.createElement("textarea", {
-							className: "omni-input", rows: 2,
-							value: cfg.styleInstruction || "",
-							placeholder: "温柔地、充满感情地...",
-							onChange: function (e) { props.onPatch("styleInstruction", e.target.value); }
-						})
-					]),
-					React.createElement("div", { className: "omni-row" }, [
-						cfg.model === "mimo-v2.5-tts" ? React.createElement("div", { className: "omni-module-row" }, [
+						React.createElement("div", { className: "omni-module-row" }, [
 							React.createElement("label", { className: "omni-switch" }, [
-								React.createElement("input", { type: "checkbox", checked: !!cfg.singMode, onChange: function (e) { props.onPatch("singMode", e.target.checked); } }),
+								React.createElement("input", { type: "checkbox", checked: cfg.filterVoiceModels !== false, onChange: props.onToggleFilter }),
 								React.createElement("span", { className: "omni-switch-slider" })
 							]),
-							React.createElement("span", { className: "omni-label" }, t("voiceSingMode"))
-						]) : null,
-						cfg.model === "mimo-v2.5-tts-voicedesign" ? React.createElement("div", { className: "omni-module-row" }, [
-							React.createElement("label", { className: "omni-switch" }, [
-								React.createElement("input", { type: "checkbox", checked: !!cfg.optimizeText, onChange: function (e) { props.onPatch("optimizeText", e.target.checked); } }),
-								React.createElement("span", { className: "omni-switch-slider" })
-							]),
-							React.createElement("span", { className: "omni-label" }, t("voiceOptimizeText"))
-						]) : null
-					]),
-					// Voice library section
+							React.createElement("span", { className: "omni-label" }, t("voiceFilterTts")),
+							React.createElement("span", { className: "omni-desc" }, t("voiceFilterTtsDesc"))
+						]),
+						React.createElement("div", { className: "omni-voice-control" }, (function () {
+							var p = cfg.provider;
+							var m = cfg.model;
+
+							// MiMo: 3 model forms
+							if (p === "mimo") {
+								if (m === "mimo-v2.5-tts-voicedesign") {
+									return React.createElement(Field, { label: t("voiceVoiceDesc"), value: cfg.voiceDescription || "", placeholder: "成熟稳重的男声...", onChange: function (e) { props.onPatch("voiceDescription", e.target.value); } });
+								} else if (m === "mimo-v2.5-tts-voiceclone") {
+									return React.createElement(Field, { label: t("voiceSamplePath"), value: cfg.voiceSamplePath || "", placeholder: "C:\\...\\sample.wav", onChange: function (e) { props.onPatch("voiceSamplePath", e.target.value); } });
+								} else {
+									// mimo-v2.5-tts: preset dropdown
+									return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || "mimo_default", options: MIMO_PRESET_VOICES.map(function (v) { return { value: v, label: v }; }), onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
+								}
+							}
+
+							// MiniMax: voice dropdown from API (3 groups) or fallback
+							if (p === "minimax") {
+								var vlist = props.voiceVoiceList || [];
+								var opts = (Array.isArray(vlist) && vlist.length > 0) ? vlist : [];
+								if (opts.length === 0) opts = ["English_Graceful_Lady", "Wise_Woman", "cute_boy", "sweet_girl"].map(function (v) { return { id: v, name: v }; });
+								return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || (opts[0] && opts[0].id) || "", options: opts.map(function (v) { return { value: v.id, label: v.name }; }), onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
+							}
+
+							// Doubao: speaker text input
+							if (p === "doubao") {
+								return React.createElement(Field, { label: t("voiceSpeaker"), value: cfg.voiceId || "zh_female_vv_uranus_bigtts", placeholder: "zh_female_vv_uranus_bigtts", onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
+							}
+
+							// IndexTTS: reference audio dropdown from API + upload button
+							if (p === "indextts") {
+								var vlist2 = props.voiceVoiceList || [];
+								var opts2 = Array.isArray(vlist2) ? vlist2 : [];
+								return React.createElement("div", { className: "omni-field" }, [
+									React.createElement("span", { className: "omni-label" }, t("voiceRefAudio")),
+									React.createElement("div", { className: "omni-model-wrap" }, [
+										React.createElement("select", { className: "omni-input omni-select", value: cfg.voiceId || "", onChange: function (e) { props.onPatch("voiceId", e.target.value); } },
+											React.createElement("option", { value: "" }, "— 选择参考音频 —"),
+											opts2.map(function (v) { return React.createElement("option", { key: v.id, value: v.id }, v.name); })
+										),
+										React.createElement("button", { className: "omni-btn", type: "button", title: t("voiceUpload") }, t("voiceUpload"))
+									])
+								]);
+							}
+
+							// GPT-SoVITS: ref audio path + ref text + gpt model + sovits model
+							if (p === "gptsovits") {
+								return React.createElement("div", null, [
+									React.createElement(Field, { label: t("voiceRefAudioPath"), value: cfg.voiceId || "", placeholder: "custom_refs/xxx.wav", onChange: function (e) { props.onPatch("voiceId", e.target.value); } }),
+									React.createElement(Field, { label: t("voiceRefText"), value: cfg.refText || "", placeholder: "参考文本...", onChange: function (e) { props.onPatch("refText", e.target.value); } }),
+									React.createElement(Field, { label: t("voiceGptModel"), value: cfg.gptModel || "", placeholder: "gpt-xxx", onChange: function (e) { props.onPatch("gptModel", e.target.value); } }),
+									React.createElement(Field, { label: t("voiceSovitsModel"), value: cfg.sovitsModel || "", placeholder: "sovits-xxx", onChange: function (e) { props.onPatch("sovitsModel", e.target.value); } })
+								]);
+							}
+
+							// VoxCPM: reference audio dropdown from API + upload button
+							if (p === "voxcpm") {
+								var vlist3 = props.voiceVoiceList || [];
+								var opts3 = Array.isArray(vlist3) ? vlist3 : [];
+								return React.createElement("div", { className: "omni-field" }, [
+									React.createElement("span", { className: "omni-label" }, t("voiceRefAudio")),
+									React.createElement("div", { className: "omni-model-wrap" }, [
+										React.createElement("select", { className: "omni-input omni-select", value: cfg.voiceId || "", onChange: function (e) { props.onPatch("voiceId", e.target.value); } },
+											React.createElement("option", { value: "" }, "— 选择参考音频 —"),
+											opts3.map(function (v) { return React.createElement("option", { key: v.id, value: v.id }, v.name); })
+										),
+										React.createElement("button", { className: "omni-btn", type: "button", title: t("voiceUpload") }, t("voiceUpload"))
+									])
+								]);
+							}
+
+							// TTS-WebUI: voice follows model (no separate voice control)
+							if (p === "tts-webui") {
+								return null;
+							}
+
+							return null;
+						})()),
+
+						React.createElement("div", { className: "omni-field" }, [
+							React.createElement("span", { className: "omni-label" }, t("voiceStyleInstruction")),
+							React.createElement("textarea", {
+								className: "omni-input", rows: 2,
+								value: cfg.styleInstruction || "",
+								placeholder: "温柔地、充满感情地...",
+								onChange: function (e) { props.onPatch("styleInstruction", e.target.value); }
+							})
+						]),
+						// 重试次数 | 输出格式
+						React.createElement("div", { className: "omni-row" }, [
+							React.createElement(Field, { label: t("voiceRetryCount"), number: true, min: 1, value: String(cfg.retryCount || 1), onChange: function (e) { props.onPatch("retryCount", e.target.value); } }),
+							React.createElement(Field, { label: t("voiceOutputFormat"), value: cfg.outputFormat || "wav", onChange: function (e) { props.onPatch("outputFormat", e.target.value); } })
+						]),
+						// 流式输出 | 唱歌模式
+						React.createElement("div", { className: "omni-row" }, [
+							cfg.provider === "mimo" ? React.createElement("div", { className: "omni-module-row" }, [
+								React.createElement("label", { className: "omni-switch" }, [
+									React.createElement("input", { type: "checkbox", checked: !!cfg.streamOutput, onChange: function (e) { props.onPatch("streamOutput", e.target.checked); } }),
+									React.createElement("span", { className: "omni-switch-slider" })
+								]),
+								React.createElement("span", { className: "omni-label" }, t("voiceStreamOutput"))
+							]) : null,
+							(cfg.provider === "mimo" && cfg.model === "mimo-v2.5-tts") ? React.createElement("div", { className: "omni-module-row" }, [
+								React.createElement("label", { className: "omni-switch" }, [
+									React.createElement("input", { type: "checkbox", checked: !!cfg.singMode, onChange: function (e) { props.onPatch("singMode", e.target.checked); } }),
+									React.createElement("span", { className: "omni-switch-slider" })
+								]),
+								React.createElement("span", { className: "omni-label" }, t("voiceSingMode"))
+							]) : null
+						]),
+						// Voice library section
+
 					cfg.model === "mimo-v2.5-tts-voiceclone" ? React.createElement("div", { className: "omni-voice-library", style: { marginTop: "10px" } }, [
 						React.createElement("span", { className: "omni-label" }, t("voiceLibraryTitle")),
 						React.createElement("div", { className: "omni-list-container" }, [
@@ -3173,7 +3285,9 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var voiceOpenProv = React.useState(false);
 			var voiceBusy = React.useState("");
 			var voiceConfirmReset = React.useState(false);
-			var voiceModelList = React.useState([]);
+				var voiceModelList = React.useState([]);
+				var voiceVoiceList = React.useState([]);
+
 			var voiceModelCount = React.useState(null);
 			var voicePresetDdOpen = React.useState(false);
 			var voicePresetDeleteConfirm = React.useState(false);
@@ -3742,36 +3856,51 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				if (!willShow) voiceKeyDraft[1]("");
 				voiceRevealed[1](willShow);
 			}
-			function fetchVoiceModels() {
-				var vc = draft[0].voiceConfig || {};
-				if (vc.provider === "mimo") {
-					var ms = ["mimo-v2.5-tts", "mimo-v2.5-tts-voicedesign", "mimo-v2.5-tts-voiceclone"];
-					voiceModelList[1](ms);
-					voiceModelCount[1](ms.length);
-					voiceOpenDd[1](true);
-					return;
-				}
-				voiceBusy[1]("voice-mdl");
-				voiceModelList[1]([]);
-				setMsg("", false);
-				call("models", {
-					voice: true,
-					endpoint: vc.endpoint || undefined,
-					protocol: vc.protocol,
-					apiKey: voiceKeyDraft[0] || undefined
-				}).then(function (r) {
-					if (r && r.ok && Array.isArray(r.models) && r.models.length > 0) {
-						voiceModelList[1](r.models);
-						voiceModelCount[1](r.models.length);
+				function fetchVoiceModels() {
+					var vc = draft[0].voiceConfig || {};
+					if (vc.provider === "mimo") {
+						var ms = ["mimo-v2.5-tts", "mimo-v2.5-tts-voicedesign", "mimo-v2.5-tts-voiceclone"];
+						voiceModelList[1](ms);
+						voiceModelCount[1](ms.length);
 						voiceOpenDd[1](true);
-						showToast('success', t('fetchOkPrefix') + r.models.length + t('fetchOkSuffix'), '');
-					} else {
-						voiceModelCount[1](null);
-						setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
-						showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
+						return;
 					}
-				}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { voiceBusy[1](""); });
-			}
+					if (vc.provider === "doubao" || vc.provider === "gptsovits") {
+						return; // no fetch API
+					}
+					voiceBusy[1]("voice-mdl");
+					voiceModelList[1]([]);
+					voiceVoiceList[1]([]);
+					setMsg("", false);
+					call("models", {
+						voice: true,
+						endpoint: vc.endpoint || undefined,
+						apiKey: voiceKeyDraft[0] || undefined
+					}).then(function (r) {
+						if (r && r.ok) {
+							if (r.voices && Array.isArray(r.voices) && r.voices.length > 0) {
+								// MiniMax/IndexTTS/VoxCPM: voice list
+								voiceVoiceList[1](r.voices);
+								voiceModelCount[1](r.voices.length);
+								showToast('success', t('fetchOkPrefix') + r.voices.length + t('fetchOkSuffix'), '');
+							} else if (r.models && Array.isArray(r.models) && r.models.length > 0) {
+								// TTS-WebUI: model list (OpenAI compatible)
+								voiceModelList[1](r.models);
+								voiceModelCount[1](r.models.length);
+								voiceOpenDd[1](true);
+								showToast('success', t('fetchOkPrefix') + r.models.length + t('fetchOkSuffix'), '');
+							} else {
+								voiceModelCount[1](null);
+								setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+							}
+						} else {
+							voiceModelCount[1](null);
+							setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true);
+							showToast('error', t("fetchFail"), (r && r.error) || t("unknown"));
+						}
+					}).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { voiceBusy[1](""); });
+				}
+
 			function pickVoiceModel(m) {
 				patchVoice("model", m);
 				voiceOpenDd[1](false);
@@ -3779,11 +3908,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			function toggleVoiceFilter() {
 				patchVoice("filterVoiceModels", !((draft[0].voiceConfig || {}).filterVoiceModels !== false));
 			}
-			function changeVoiceProvider(v) {
-				if (!VOICE_PROVIDERS_UI[v]) return;
-				patchVoice("provider", v);
-				voiceModelList[1]([]);
-			}
+				function changeVoiceProvider(v) {
+					if (!VOICE_PROVIDERS_UI[v]) return;
+					patchVoice("provider", v);
+					voiceModelList[1]([]);
+					voiceVoiceList[1]([]);
+					voiceModelCount[1](null);
+					voiceOpenDd[1](false);
+					voiceKeyDraft[1]("");
+					voiceRevealed[1](false);
+				}
+
 			function resetVoice() {
 				if (!voiceConfirmReset[0]) { voiceConfirmReset[1](true); return; }
 				voiceConfirmReset[1](false);
@@ -4200,51 +4335,53 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					null
 				]);
 
-				// v2.8.1: voice tab body
-				var voiceBody = React.createElement("div", { className: "omni-tab-body" }, [
-					React.createElement(VoicePanel, {
-						t: t,
-						cfg: draft[0].voiceConfig || {},
-						visible: voiceVisible,
-						busy: voiceBusy[0],
-						keyDraft: voiceKeyDraft[0],
-						revealed: voiceRevealed[0],
-						openDd: voiceOpenDd[0],
-						openProv: voiceOpenProv[0],
-						confirmReset: voiceConfirmReset[0],
-						modelList: voiceModelList[0],
-						modelCount: voiceModelCount[0],
-						presets: voicePresets || [],
-						activePresetId: activeVoicePresetId,
-						activePresetName: activeVoicePresetName,
-						presetDdOpen: voicePresetDdOpen[0],
-						presetDeleteConfirm: voicePresetDeleteConfirm[0],
-						onSwitchPreset: switchVoicePreset,
-						onAddPreset: addVoicePreset,
-						onDeletePreset: deleteVoicePreset,
-						onRenamePreset: renameVoicePreset,
-						onTogglePresetDd: toggleVoicePresetDd,
-						onConfirmDeletePreset: function () { voicePresetDeleteConfirm[1](true); },
-						onCancelDeletePreset: function () { voicePresetDeleteConfirm[1](false); },
-						onConfirmDelete: function () { deleteVoicePreset(activeVoicePresetId || ""); },
-						onPatch: patchVoice,
-						onSaveKey: saveVoiceKey,
-						onToggleReveal: toggleVoiceReveal,
-						onFetchModels: fetchVoiceModels,
-						onPickModel: pickVoiceModel,
-						onToggleDd: function () { var n = !voiceOpenDd[0]; voiceOpenDd[1](n); if (n && voiceModelList[0].length === 0) fetchVoiceModels(); },
-						onPickProvider: function (v) { changeVoiceProvider(v); voiceOpenProv[1](false); },
-						onToggleProv: function () { voiceOpenProv[1](!voiceOpenProv[0]); },
-						onToggleFilter: toggleVoiceFilter,
-						onResetClick: resetVoice,
-						onCloseMenu: function () { voiceConfirmReset[1](false); },
-						ttsEnabled: draft[0].ttsEnabled !== false,
-						sttEnabled: draft[0].sttEnabled === true,
-						onToggleTts: function () { commitStructure({ ttsEnabled: !(draft[0].ttsEnabled !== false) }, function(d) { d.ttsEnabled = !(d.ttsEnabled !== false); return d; }); },
-						onToggleStt: function () { commitStructure({ sttEnabled: !(draft[0].sttEnabled === true) }, function(d) { d.sttEnabled = !(d.sttEnabled === true); return d; }); }
-					}),
-					null
-				]);
+					// v2.8.1: voice tab body
+					var voiceBody = React.createElement("div", { className: "omni-tab-body" }, [
+						React.createElement(VoicePanel, {
+							t: t,
+							cfg: draft[0].voiceConfig || {},
+							visible: voiceVisible,
+							busy: voiceBusy[0],
+							keyDraft: voiceKeyDraft[0],
+							revealed: voiceRevealed[0],
+							openDd: voiceOpenDd[0],
+							openProv: voiceOpenProv[0],
+							confirmReset: voiceConfirmReset[0],
+							modelList: voiceModelList[0],
+							voiceVoiceList: voiceVoiceList[0],
+							modelCount: voiceModelCount[0],
+							presets: voicePresets || [],
+							activePresetId: activeVoicePresetId,
+							activePresetName: activeVoicePresetName,
+							presetDdOpen: voicePresetDdOpen[0],
+							presetDeleteConfirm: voicePresetDeleteConfirm[0],
+							onSwitchPreset: switchVoicePreset,
+							onAddPreset: addVoicePreset,
+							onDeletePreset: deleteVoicePreset,
+							onRenamePreset: renameVoicePreset,
+							onTogglePresetDd: toggleVoicePresetDd,
+							onConfirmDeletePreset: function () { voicePresetDeleteConfirm[1](true); },
+							onCancelDeletePreset: function () { voicePresetDeleteConfirm[1](false); },
+							onConfirmDelete: function () { deleteVoicePreset(activeVoicePresetId || ""); },
+							onPatch: patchVoice,
+							onSaveKey: saveVoiceKey,
+							onToggleReveal: toggleVoiceReveal,
+							onFetchModels: fetchVoiceModels,
+							onPickModel: pickVoiceModel,
+							onToggleDd: function () { var n = !voiceOpenDd[0]; voiceOpenDd[1](n); if (n && voiceModelList[0].length === 0) fetchVoiceModels(); },
+							onPickProvider: function (v) { changeVoiceProvider(v); voiceOpenProv[1](false); },
+							onToggleProv: function () { voiceOpenProv[1](!voiceOpenProv[0]); },
+							onToggleFilter: toggleVoiceFilter,
+							onResetClick: resetVoice,
+							onCloseMenu: function () { voiceConfirmReset[1](false); },
+							ttsEnabled: draft[0].ttsEnabled !== false,
+							sttEnabled: draft[0].sttEnabled === true,
+							onToggleTts: function () { commitStructure({ ttsEnabled: !(draft[0].ttsEnabled !== false) }, function(d) { d.ttsEnabled = !(d.ttsEnabled !== false); return d; }); },
+							onToggleStt: function () { commitStructure({ sttEnabled: !(draft[0].sttEnabled === true) }, function(d) { d.sttEnabled = !(d.sttEnabled === true); return d; }); }
+						}),
+						null
+					]);
+
 
 			var settingsBody = React.createElement("div", { className: "omni-tab-body" }, [
 				React.createElement(SettingsPanel, {
