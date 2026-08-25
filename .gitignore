@@ -1,0 +1,19 @@
+# 只追踪 dsh-omni-workstation 插件源码；工作区其他文件（harness 源码、参考插件、截图、临时产物等）不入库
+/*
+
+# 放行插件源码目录及其所有内容
+!/dsh-omni-workstation/
+!/dsh-omni-workstation/**
+
+# 排除插件的 node_modules（junction 到 dsh CLI 的 node_modules，非源码）
+/dsh-omni-workstation/node_modules/
+
+# 运行时配置（含真实 API key，勿提交）
+/dsh-omni-workstation/omni-vision.json
+
+# E2E 测试脚本（保留）
+!/tests/
+!/tests/**
+
+# E2E 测试产生的 WAV 音频产物（勿提交）
+/tests/*.wav
