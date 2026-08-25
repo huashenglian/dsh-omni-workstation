@@ -705,7 +705,20 @@ const newCard = (overrides) => ({
   ...(overrides || {})
 })
 
-const defaultConfig = () => ({ retryCount: 3, apis: [newCard()] })
+const defaultConfig = () => {
+  const voicePresets = [{ id: genPresetId(), name: '默认', config: defaultVoiceConfig() }]
+  return {
+    retryCount: 3,
+    apis: [newCard()],
+    voiceEnabled: false,
+    ttsEnabled: true,
+    sttEnabled: false,
+    voiceConfig: defaultVoiceConfig(),
+    voicePresets,
+    activeVoicePreset: voicePresets[0].id,
+    voiceLibrary: []
+  }
+}
 
 // v1.9: mirror model config — controls twin routes in /model picker.
 // autoVisionEnabled: register the single `auto-vision` twin (v1.8 behavior).
@@ -891,7 +904,39 @@ function normalizeConfig(raw) {
     } catch (e) { /* invalid JSON → skip migration silently */ }
   }
   const activeComfyWorkflow = typeof src.activeComfyWorkflow === 'string' && comfyWorkflows.some((w) => w.id === src.activeComfyWorkflow) ? src.activeComfyWorkflow : (comfyWorkflows.length > 0 ? comfyWorkflows[0].id : '')
-  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
+  // ---- voice module (v2.8.1): preset is source of truth; voiceConfig = active preset's config ----
+  const voiceEnabled = src.voiceEnabled === true
+  const ttsEnabled = src.ttsEnabled === true
+  const sttEnabled = src.sttEnabled === true
+  const voiceConfigRaw = normalizeVoiceConfig(src.voiceConfig)
+  let voicePresets = []
+  if (Array.isArray(src.voicePresets)) {
+    voicePresets = src.voicePresets
+      .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
+      .map((p) => ({
+        id: typeof p.id === 'string' && p.id.length > 0 ? p.id : genPresetId(),
+        name: typeof p.name === 'string' && p.name.length > 0 ? String(p.name).slice(0, 60) : '默认',
+        config: normalizeVoiceConfig(p.config)
+      }))
+  }
+  if (voicePresets.length === 0) {
+    // 无预设 → 从 voiceConfig 创建 '默认' 预设（含清空所有预设后自动重建）
+    voicePresets = [{ id: genPresetId(), name: '默认', config: voiceConfigRaw }]
+  }
+  let activeVoicePreset = typeof src.activeVoicePreset === 'string' && src.activeVoicePreset.length > 0 && voicePresets.some((p) => p.id === src.activeVoicePreset) ? src.activeVoicePreset : voicePresets[0].id
+  const activeVoiceP = voicePresets.find((p) => p.id === activeVoicePreset) || voicePresets[0]
+  const voiceConfig = normalizeVoiceConfig(activeVoiceP.config)
+  const voiceLibrary = Array.isArray(src.voiceLibrary) ? src.voiceLibrary
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => ({
+      id: typeof e.id === 'string' ? e.id : 'vl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+      name: typeof e.name === 'string' ? e.name : '未命名',
+      provider: typeof e.provider === 'string' ? e.provider : 'mimo',
+      type: typeof e.type === 'string' ? e.type : 'clone',
+      samplePath: typeof e.samplePath === 'string' ? e.samplePath : '',
+      createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now()
+    })) : []
+  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceLibrary, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
@@ -902,6 +947,13 @@ const masked = (cfg) => ({
   videoConfig: maskedVideo(cfg.videoConfig || defaultVideoConfig()),
   videoPresets: (Array.isArray(cfg.videoPresets) ? cfg.videoPresets : []).map((p) => ({ id: p.id, name: p.name, config: maskedVideo(p.config || defaultVideoConfig()) })),
   activeVideoPreset: cfg.activeVideoPreset || (Array.isArray(cfg.videoPresets) && cfg.videoPresets.length > 0 ? cfg.videoPresets[0].id : ''),
+  voiceEnabled: cfg.voiceEnabled === true,
+  ttsEnabled: cfg.ttsEnabled === true,
+  sttEnabled: cfg.sttEnabled === true,
+  voiceConfig: maskedVoice(cfg.voiceConfig || defaultVoiceConfig()),
+  voicePresets: (Array.isArray(cfg.voicePresets) ? cfg.voicePresets : []).map((p) => ({ id: p.id, name: p.name, config: maskedVoice(p.config || defaultVoiceConfig()) })),
+  activeVoicePreset: cfg.activeVoicePreset || (Array.isArray(cfg.voicePresets) && cfg.voicePresets.length > 0 ? cfg.voicePresets[0].id : ''),
+  voiceLibrary: cfg.voiceLibrary || [],
   visionToolsEnabled: cfg.visionToolsEnabled !== false,
     visionToolToggles: cfg.visionToolToggles || {},
   mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
@@ -2581,6 +2633,77 @@ async function runVideoGeneration(cfg, args, exec) {
   throw new Error('generate_video: 视频任务轮询超时（' + Math.round(maxPolls * pollIntervalMs / 1000) + ' 秒未完成，最后状态: ' + lastStatus + '）')
 }
 
+async function runMimoTts(vc, args, exec) {
+  const text = String(args && args.text || '').trim()
+  if (!text) throw new Error('runMimoTts: 缺少参数 text（要合成的文本）')
+  const model = vc.model || 'mimo-v2.5-tts'
+  const style = String(args && args.style || vc.styleInstruction || '').trim()
+  const messages = []
+  if (model === 'mimo-v2.5-tts-voicedesign') {
+    const desc = String(args && args.voice || style || '').trim()
+    if (!desc) throw new Error('runMimoTts: voicedesign 模型需要音色描述（通过 voice 参数或 styleInstruction 配置）')
+    messages.push({ role: 'user', content: desc })
+  } else {
+    messages.push({ role: 'user', content: style })
+  }
+  messages.push({ role: 'assistant', content: text })
+  const audio = { format: 'wav' }
+  if (model === 'mimo-v2.5-tts') {
+    audio.voice = vc.voiceId || 'mimo_default'
+  } else if (model === 'mimo-v2.5-tts-voicedesign') {
+    audio.optimize_text_preview = vc.optimizeText === true
+  } else if (model === 'mimo-v2.5-tts-voiceclone') {
+    const samplePath = String(args && args.voice_sample_path || vc.voiceSamplePath || '').trim()
+    if (!samplePath) throw new Error('runMimoTts: voiceclone 模型需要参考音频文件路径（voice_sample_path 参数）')
+    const { readFileSync } = await import('node:fs')
+    const { extname } = await import('node:path')
+    const buf = readFileSync(samplePath)
+    const ext = extname(samplePath).toLowerCase()
+    const mime = ext === '.mp3' ? 'audio/mpeg' : ext === '.wav' ? 'audio/wav' : 'audio/mpeg'
+    const b64 = buf.toString('base64')
+    if (b64.length > 10 * 1024 * 1024) throw new Error('runMimoTts: 参考音频文件过大（base64 后超过 10MB 限制）')
+    audio.voice = 'data:' + mime + ';base64,' + b64
+  }
+  const endpoint = (vc.endpoint || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
+  const url = endpoint + '/chat/completions'
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), vc.timeoutMs || 120000)
+  let resp
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + vc.apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ model, messages, audio, stream: false }),
+      signal: controller.signal
+    })
+  } catch (e) {
+    clearTimeout(timeout)
+    throw new Error('runMimoTts: 请求失败 — ' + String(e && e.message || e))
+  }
+  clearTimeout(timeout)
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '')
+    throw new Error('runMimoTts: HTTP ' + resp.status + ' — ' + errText.slice(0, 200))
+  }
+  const body = await resp.json()
+  const audioData = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.audio && body.choices[0].message.audio.data
+  if (!audioData) throw new Error('runMimoTts: MiMo API 未返回音频数据')
+  const wavBuffer = Buffer.from(audioData, 'base64')
+  if (!wavBuffer || wavBuffer.length === 0) throw new Error('runMimoTts: base64 解码后为空')
+  const ts = Date.now().toString(36)
+  const fileName = 'voice_' + ts + '.wav'
+  const cwd = sessionCwd(exec)
+  const base = cwd || process.cwd()
+  const dir = join(base, '.omni-workstation', 'artifacts')
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, fileName)
+  writeFileSync(path, wavBuffer)
+  return { ok: true, path, model, format: 'wav' }
+}
+
 const buildVideoToolDef = (vc) => defineTool({
   name: 'generate_video',
   description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区根目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。',
@@ -2624,6 +2747,92 @@ const buildVideoToolDef = (vc) => defineTool({
       throw new Error('generate_video: 视频配置无效。请在设置页「视频」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
     }
     return runVideoGeneration(vc, args, exec)
+  }
+})
+
+const buildSpeakToolDef = (vc) => defineTool({
+  name: 'speak',
+  description: '将文本转为语音并保存为 WAV 文件，返回文件路径。text 是要朗读的文本；voice 可选——指定预置音色 ID（当前: ' + (vc && vc.voiceId ? vc.voiceId : 'mimo_default') + '，可选: ' + MIMO_PRESET_VOICES.join('/') + '）或音色描述文本（voicedesign 模型）；style 可选——自然语言风格指令（如"温柔但疲惫，语速偏慢"），也可用音频标签如(唱歌)前缀。当前模型: ' + (vc && vc.model ? vc.model : 'mimo-v2.5-tts') + '。',
+  parameters: {
+    text: { type: 'string', required: true, description: '要转为语音的文本' },
+    voice: { type: 'string', description: '音色：预置音色 ID（如 mimo_default/冰糖/Chloe）或音色描述文本（voicedesign 模型下用）' },
+    style: { type: 'string', description: '自然语言风格指令，如"温柔但疲惫，语速偏慢"。也可用 (风格) 标签和 [细粒度标签] 嵌入文本' },
+    output_dir: { type: 'string', description: '保存目录，不指定则保存到工作区 artifacts 目录' }
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        ok: { type: 'boolean', required: true },
+        path: { type: 'string' },
+        model: { type: 'string' },
+        format: { type: 'string' },
+        detail: { type: 'string' }
+      }
+    },
+    render: (args, value) => {
+      if (!value || !value.ok) {
+        return [{ type: 'text', text: '语音合成失败：' + (value && value.detail ? value.detail : JSON.stringify(value || {})) }]
+      }
+      var p = String(value.path || '').replace(/\\/g, '/')
+      return [{ type: 'text', text: '## 语音合成结果\n\n文件: ' + p + '\n\n— 模型: ' + (value.model || '未知') + ' · 格式: ' + (value.format || 'wav') + '\n\n<audio controls src="file:///' + p + '">语音播放器</audio>' }]
+    }
+  },
+  async execute(args, exec) {
+    const text = String(args && args.text || '').trim()
+    if (!text) throw new Error('speak: 缺少参数 text（要合成的文本）')
+    const ctx = appCtx
+    const cfg = await loadConfig(ctx)
+    const vc = cfg.voiceConfig || defaultVoiceConfig()
+    if (!isVoiceConfigValid(vc)) {
+      throw new Error('speak: 语音配置无效。请在设置页「语音」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
+    }
+    return runMimoTts(vc, args, exec)
+  }
+})
+
+const buildCloneVoiceToolDef = (vc) => defineTool({
+  name: 'clone_voice',
+  description: '使用音频样本克隆音色并合成语音。传入要合成的文本和参考音频文件路径（.wav 或 .mp3），生成克隆音色的语音。voice_sample_path 是参考音频文件的本地路径。',
+  parameters: {
+    text: { type: 'string', required: true, description: '要合成的文本' },
+    voice_sample_path: { type: 'string', required: true, description: '参考音频文件路径（本地 .wav 或 .mp3 文件，base64 后不超过 10MB）' },
+    style: { type: 'string', description: '风格指令（可选）' }
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        ok: { type: 'boolean', required: true },
+        path: { type: 'string' },
+        model: { type: 'string' },
+        format: { type: 'string' },
+        detail: { type: 'string' }
+      }
+    },
+    render: (args, value) => {
+      if (!value || !value.ok) {
+        return [{ type: 'text', text: '音色克隆合成失败：' + (value && value.detail ? value.detail : JSON.stringify(value || {})) }]
+      }
+      var p = String(value.path || '').replace(/\\/g, '/')
+      return [{ type: 'text', text: '## 音色克隆合成结果\n\n文件: ' + p + '\n\n— 模型: ' + (value.model || 'mimo-v2.5-tts-voiceclone') + ' · 格式: ' + (value.format || 'wav') + '\n\n<audio controls src="file:///' + p + '">语音播放器</audio>' }]
+    }
+  },
+  async execute(args, exec) {
+    const text = String(args && args.text || '').trim()
+    if (!text) throw new Error('clone_voice: 缺少参数 text（要合成的文本）')
+    const samplePath = String(args && args.voice_sample_path || '').trim()
+    if (!samplePath) throw new Error('clone_voice: 缺少参数 voice_sample_path（参考音频文件路径）')
+    const ctx = appCtx
+    const cfg = await loadConfig(ctx)
+    const vc = cfg.voiceConfig || defaultVoiceConfig()
+    if (!isVoiceConfigValid(vc)) {
+      throw new Error('clone_voice: 语音配置无效。请在设置页「语音」面板配置完整的 API。')
+    }
+    const cloneVc = Object.assign({}, vc, { model: 'mimo-v2.5-tts-voiceclone' })
+    return runMimoTts(cloneVc, { text: text, voice_sample_path: samplePath, style: args.style }, exec)
   }
 })
 
@@ -3188,6 +3397,97 @@ function applyPatch(cfg, patch) {
     const vp = (c.videoPresets || []).find((pr) => pr.id === c.activeVideoPreset)
     if (vp) vp.name = String(p.videoPresetRename).slice(0, 60)
   }
+  // v2.8.1: voice toggles
+  if (p.voiceEnabled !== undefined) c.voiceEnabled = p.voiceEnabled === true
+  if (p.ttsEnabled !== undefined) c.ttsEnabled = p.ttsEnabled === true
+  if (p.sttEnabled !== undefined) c.sttEnabled = p.sttEnabled === true
+  // v2.8.1: voice config patch
+  if (p.voiceReset === true) c.voiceConfig = defaultVoiceConfig()
+  if (p.voiceConfig) {
+    if (p.voiceConfig === 'reset' || p.voiceConfig.reset === true) {
+      c.voiceConfig = defaultVoiceConfig()
+    } else if (p.voiceConfig.field && p.voiceConfig.value !== undefined) {
+      const { field, value } = p.voiceConfig
+      if (field === 'provider' && VOICE_PROVIDER_IDS.includes(value)) {
+        c.voiceConfig.provider = value
+        const vmeta = VOICE_PROVIDERS[value]
+        if (vmeta) {
+          c.voiceConfig.protocol = vmeta.protocol
+          if (vmeta.fixedUrl) c.voiceConfig.endpoint = vmeta.endpoint
+          else if (!vmeta.fixedUrl && !String(c.voiceConfig.endpoint || '').trim()) c.voiceConfig.endpoint = vmeta.endpoint
+        }
+      } else if (field === 'protocol' && VOICE_PROTOCOLS.includes(value)) c.voiceConfig.protocol = value
+      else if (field === 'endpoint') c.voiceConfig.endpoint = String(value || '').trim()
+      else if (field === 'model') c.voiceConfig.model = String(value || '').trim()
+      else if (field === 'voiceId') c.voiceConfig.voiceId = String(value || '').trim()
+      else if (field === 'apiKey') {
+        if (typeof value === 'string' && value.length > 0) c.voiceConfig.apiKey = value
+        else if (value === null) c.voiceConfig.apiKey = ''
+      } else if (field === 'timeoutMs') c.voiceConfig.timeoutMs = clampTimeout(value, 120000)
+      else if (field === 'styleInstruction') c.voiceConfig.styleInstruction = String(value || '').trim()
+      else if (field === 'singMode') c.voiceConfig.singMode = value === true
+      else if (field === 'optimizeText') c.voiceConfig.optimizeText = value === true
+      else if (field === 'voiceSamplePath') c.voiceConfig.voiceSamplePath = String(value || '').trim()
+    }
+  }
+  // sync voiceConfig patches to active preset (preset is source of truth)
+  if (p.voiceConfig || p.voiceReset === true) {
+    const vp = (c.voicePresets || []).find((pr) => pr.id === c.activeVoicePreset)
+    if (vp) vp.config = Object.assign({}, c.voiceConfig)
+  }
+  // ---- voice preset management (v2.8.1) ----
+  if (p.voicePresetSwitch && typeof p.voicePresetSwitch === 'string') {
+    const target = (c.voicePresets || []).find((pr) => pr.id === p.voicePresetSwitch)
+    if (target) {
+      c.activeVoicePreset = target.id
+      c.voiceConfig = Object.assign({}, target.config)
+    }
+  }
+  if (p.voicePresetAdd === true) {
+    let max = 0
+    for (const pr of (c.voicePresets || [])) {
+      const m = /^新预设(?:\s(\d+))?$/.exec(pr.name || '')
+      if (m) max = Math.max(max, m[1] ? Number(m[1]) : 1)
+    }
+    const np = { id: genPresetId(), name: '新预设 ' + (max + 1), config: defaultVoiceConfig() }
+    c.voicePresets = (c.voicePresets || []).concat([np])
+    c.activeVoicePreset = np.id
+    c.voiceConfig = Object.assign({}, np.config)
+  }
+  if (p.voicePresetDelete && typeof p.voicePresetDelete === 'string') {
+    c.voicePresets = (c.voicePresets || []).filter((pr) => pr.id !== p.voicePresetDelete)
+    if (c.voicePresets.length === 0) {
+      const dp = { id: genPresetId(), name: '默认', config: defaultVoiceConfig() }
+      c.voicePresets = [dp]
+      c.activeVoicePreset = dp.id
+      c.voiceConfig = Object.assign({}, dp.config)
+    } else {
+      if (c.activeVoicePreset === p.voicePresetDelete || !c.voicePresets.some((pr) => pr.id === c.activeVoicePreset)) {
+        c.activeVoicePreset = c.voicePresets[0].id
+      }
+      const active = c.voicePresets.find((pr) => pr.id === c.activeVoicePreset)
+      if (active) c.voiceConfig = Object.assign({}, active.config)
+    }
+  }
+  if (p.voicePresetRename && typeof p.voicePresetRename === 'string') {
+    const vp = (c.voicePresets || []).find((pr) => pr.id === c.activeVoicePreset)
+    if (vp) vp.name = String(p.voicePresetRename).slice(0, 60)
+  }
+  // ---- voice library management (v2.8.1) ----
+  if (p.voiceLibraryAdd) {
+    const entry = {
+      id: typeof p.voiceLibraryAdd.id === 'string' ? p.voiceLibraryAdd.id : 'vl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+      name: typeof p.voiceLibraryAdd.name === 'string' ? p.voiceLibraryAdd.name : '未命名',
+      provider: typeof p.voiceLibraryAdd.provider === 'string' ? p.voiceLibraryAdd.provider : 'mimo',
+      type: typeof p.voiceLibraryAdd.type === 'string' ? p.voiceLibraryAdd.type : 'clone',
+      samplePath: typeof p.voiceLibraryAdd.samplePath === 'string' ? p.voiceLibraryAdd.samplePath : '',
+      createdAt: typeof p.voiceLibraryAdd.createdAt === 'number' ? p.voiceLibraryAdd.createdAt : Date.now()
+    }
+    c.voiceLibrary = (c.voiceLibrary || []).concat([entry])
+  }
+  if (p.voiceLibraryRemove && typeof p.voiceLibraryRemove === 'string') {
+    c.voiceLibrary = (c.voiceLibrary || []).filter((e) => e.id !== p.voiceLibraryRemove)
+  }
   if (p.imggenConfig) {
     // reset (full or flag)
     if (p.imggenConfig === 'reset' || p.imggenConfig.reset === true) {
@@ -3601,6 +3901,9 @@ function apply(ctx) {
           twinVisible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)),
           imggenVisible: cfg.imggenEnabled !== false && isImggenConfigValid(cfg.imggenConfig),
           videoVisible: cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig),
+          voiceVisible: cfg.voiceEnabled === true && cfg.ttsEnabled === true && isVoiceConfigValid(cfg.voiceConfig),
+          ttsVisible: cfg.voiceEnabled === true && cfg.ttsEnabled === true && isVoiceConfigValid(cfg.voiceConfig),
+          sttVisible: false,
           fallbackConfig: masked(cfg).fallbackConfig,
           fallbackVisible: !!(cfg.fallbackConfig && cfg.fallbackConfig.models && cfg.fallbackConfig.models.length > 0),
           globalConfig: masked(cfg).globalConfig
