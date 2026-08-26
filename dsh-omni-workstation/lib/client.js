@@ -778,7 +778,7 @@ voiceSovitsModel: "SoVITS model name",
 			".omni-mirror-mappings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }",
 			// ---- card body ----
 			".omni-card-body { display: flex; flex-direction: column; gap: 10px; }",
-			".omni-select { appearance: auto; }",
+			".omni-select { appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23e6e6e6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 4l4 4-4 4'/%3E%3C/svg%3E\"); background-repeat: no-repeat; background-position: right 8px center; background-size: 14px; padding-right: 28px; cursor: pointer; }",
 			".omni-input::-ms-reveal, .omni-input::-ms-clear { display: none; }",
 			// ---- key eye toggle ----
 			".omni-key-wrap { position: relative; }",
@@ -851,7 +851,7 @@ voiceSovitsModel: "SoVITS model name",
 			".omni-preset-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; position: relative; }",
 		".omni-preset-input-wrap { position: relative; flex: 1; min-width: 120px; }",
 		".omni-preset-name-input { width: 100%; padding-right: 36px !important; box-sizing: border-box; }",
-		".omni-preset-dd-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; color: var(--dsh-fg-muted, #888); padding: 0; flex: 0 0 auto; }",
+		".omni-preset-dd-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; color: var(--dsh-fg, #e6e6e6); padding: 0; flex: 0 0 auto; }",
 		".omni-preset-dd-btn:hover { color: var(--dsh-fg, #eee); }",
 		".omni-preset-menu { position: absolute; left: 0; top: calc(100% + 2px); right: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
 			".omni-preset-menu-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }",
@@ -930,7 +930,7 @@ voiceSovitsModel: "SoVITS model name",
 			"  .omni-tab:active { background-color: light-dark(rgba(0,0,0,0.15), rgba(255,255,255,0.15)); }",
 			"  .omni-dd-group { color: light-dark(#666, #888); }",
 			// ---- preset dropdown + confirm/tool modal light theme (white bg + dark text) ----
-			"  .omni-preset-dd-btn { color: light-dark(#666, #ccc); }",
+			"  .omni-preset-dd-btn { color: light-dark(#fff, #eee); }",
 			"  .omni-preset-dd-btn:hover { color: light-dark(#333, #fff); }",
 			"  .omni-preset-menu { background-color: light-dark(#fff, #262626); border-color: light-dark(#ccc, #555); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }",
 			"  .omni-preset-menu-item { color: light-dark(#222, #eee); }",
@@ -2730,7 +2730,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						React.createElement("button", {
 							className: "omni-preset-dd-btn", type: "button",
 							onClick: props.onTogglePresetDd
-						}, React.createElement("span", { className: "omni-chev" }, props.presetDdOpen ? "⌄" : ">")),
+						}, React.createElement(SvgIcon, { d: props.presetDdOpen ? I_COLLAPSE : I_EXPAND })),
 						props.presetDdOpen ? React.createElement("div", { className: "omni-preset-menu", ref: menuDdRef },
 							presets.map(function (p) {
 								return React.createElement("div", {
@@ -2796,7 +2796,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 									onClick: function () { props.onToggleProv(); }
 								}, [
 									React.createElement("span", { className: "omni-provider-label" }, voiceProviderDisplay(cfg.provider, t)),
-								React.createElement("span", { className: "omni-provider-arrow omni-chev" }, provOpen ? "⌄" : ">")
+								React.createElement("span", { className: "omni-provider-arrow" }, provOpen ? "▴" : "▾")
 								]),
 								provOpen ? React.createElement("div", { className: "omni-provider-dropdown", ref: provDdRef }, providerGroups.map(function (g) {
 									return [React.createElement("div", { key: "g-" + g.label, className: "omni-dd-group" }, g.label)].concat(g.options.map(function (o) {
@@ -2852,7 +2852,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 										className: "omni-eye-btn", type: "button",
 										title: t("ddHint"),
 										onClick: function (e) { e.preventDefault(); props.onToggleDd(); }
-									}, React.createElement("span", { className: "omni-chev" }, isDdOpen ? "⌄" : ">")),
+									}, React.createElement(SvgIcon, { d: isDdOpen ? I_COLLAPSE : I_EXPAND })),
 									isDdOpen && modelList.length > 0 ? React.createElement("div", { className: "omni-model-dropdown", ref: ddRef }, modelList.map(function (m) {
 										return React.createElement("div", {
 											key: m, className: "omni-dd-item" + (m === cfg.model ? " active" : ""),
@@ -2863,8 +2863,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							]),
 								React.createElement("button", {
 									className: "omni-btn",
-									disabled: busy !== "" || cfg.provider === "gptsovits" || cfg.provider === "minimax" || cfg.provider === "doubao" || cfg.provider === "indextts" || cfg.provider === "voxcpm",
-									title: (cfg.provider === "gptsovits" || cfg.provider === "minimax" || cfg.provider === "doubao" || cfg.provider === "indextts" || cfg.provider === "voxcpm") ? "此供应商无模型拉取 API" : "",
+									disabled: busy !== "" || cfg.provider === "gptsovits",
+									title: cfg.provider === "gptsovits" ? "此供应商无模型拉取 API" : "",
 									onClick: props.onFetchModels
 								}, busy === "voice-mdl" ? t("fetching") : t("voiceFetchModels"))
 						]),
@@ -3402,7 +3402,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					if (!tgt.closest(".omni-model-wrap")) { openDd[1](null); igOpenDd[1](false); fbOpenDd[1](false); mirrorOpenDd[1](null); videoOpenDd[1](false); voiceOpenDd[1](false); }
 					if (!tgt.closest(".omni-provider-wrap")) { openProv[1](null); igOpenProv[1](false); videoOpenProv[1](false); voiceOpenProv[1](false); }
 					if (!tgt.closest(".omni-batch-wrap")) { batchOpen[1](false); confirmDelAll[1](false); }
-					if (!tgt.closest(".omni-preset-dd-wrap")) { videoPresetDdOpen[1](false); voicePresetDdOpen[1](false); }
+					if (!tgt.closest(".omni-preset-bar")) { videoPresetDdOpen[1](false); voicePresetDdOpen[1](false); }
 				}
 				document.addEventListener("click", close);
 				return function () { document.removeEventListener("click", close); };
