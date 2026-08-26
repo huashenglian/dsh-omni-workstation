@@ -11,7 +11,7 @@
 // card is configured).
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -989,9 +989,10 @@ function normalizeConfig(raw) {
     .map((e) => ({
       id: typeof e.id === 'string' ? e.id : 'vl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
       name: typeof e.name === 'string' ? e.name : '未命名',
-      provider: typeof e.provider === 'string' ? e.provider : 'mimo',
-      type: typeof e.type === 'string' ? e.type : 'clone',
-      samplePath: typeof e.samplePath === 'string' ? e.samplePath : '',
+      path: typeof e.path === 'string' ? e.path : (typeof e.samplePath === 'string' ? e.samplePath : ''),
+      ext: typeof e.ext === 'string' ? e.ext : '',
+      size: typeof e.size === 'number' ? e.size : 0,
+      mime: typeof e.mime === 'string' ? e.mime : '',
       createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now()
     })) : []
   return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
@@ -4324,7 +4325,91 @@ function apply(ctx) {
       if (req.method !== 'POST') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
       // v1.3 无持久活动状态，保留为 no-op 兼容
       const cfg = await loadConfig(ctx)
-      jsonOut(res, 200, { ok: true, visible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)) })
+      jsonOut(res, 200, { ok: true,       visible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)) })
+    }
+  })
+
+  // v2.9.2: local voice library — unified reference-audio storage for the
+  // 参考音频 row. Stores uploaded samples as files under <configDir>/voice-library/
+  // and a manifest in cfg.voiceLibrary (persisted via storeConfig). No cloud
+  // clone API: mimo voiceclone reads the local sample path → base64 inline
+  // (runMimoTts). ponytail: per-provider cloud clone is a follow-up.
+  function voiceLibraryDir() { return join(dirname(configFile()), 'voice-library') }
+  function sanitizeRefName(name) {
+    return String(name == null ? '' : name).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 64) || 'reference'
+  }
+  function dedupRefName(base, existing) {
+    const taken = Array.isArray(existing) ? existing : []
+    if (taken.indexOf(base) < 0) return base
+    let n = 1
+    while (taken.indexOf(base + '（' + n + '）') >= 0) n++
+    return base + '（' + n + '）'
+  }
+  function refExtForMime(mime) {
+    const m = String(mime || '').toLowerCase()
+    if (m.indexOf('mpeg') >= 0 || m.indexOf('mp3') >= 0) return '.mp3'
+    if (m.indexOf('wav') >= 0) return '.wav'
+    if (m.indexOf('ogg') >= 0) return '.ogg'
+    if (m.indexOf('flac') >= 0) return '.flac'
+    if (m.indexOf('m4a') >= 0) return '.m4a'
+    return '.wav'
+  }
+  webServer.register({
+    kind: 'exact',
+    path: '/omni/voice-library',
+    handler: async (req, res) => {
+      try {
+        const cfg = await loadConfig(ctx)
+        let lib = Array.isArray(cfg.voiceLibrary) ? cfg.voiceLibrary.filter(e => e && typeof e === 'object') : []
+        if (req.method === 'GET') return jsonOut(res, 200, { ok: true, library: lib })
+        if (req.method !== 'POST') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
+        const raw = await readBody(req)
+        const args = raw ? JSON.parse(raw) : {}
+        const dir = voiceLibraryDir()
+        mkdirSync(dir, { recursive: true })
+        // list query
+        if (args.list === true) return jsonOut(res, 200, { ok: true, library: lib })
+        // delete by name
+        if (args.delete) {
+          const name = String(args.delete)
+          const entry = lib.find(e => e.name === name)
+          if (entry && entry.path) { try { unlinkSync(entry.path) } catch (e2) { /* best-effort */ } }
+          cfg.voiceLibrary = lib.filter(e => e.name !== name)
+          await storeConfig(ctx, cfg)
+          return jsonOut(res, 200, { ok: true, library: cfg.voiceLibrary })
+        }
+        // rename by name
+        if (args.rename && args.rename.from) {
+          const from = String(args.rename.from)
+          const entry = lib.find(e => e.name === from)
+          if (!entry) return jsonOut(res, 404, { ok: false, error: 'entry not found' })
+          const to = dedupRefName(sanitizeRefName(args.rename.to), lib.filter(e => e.name !== from).map(e => e.name))
+          const ext = entry.ext || refExtForMime(entry.mime)
+          const newPath = join(dir, to + ext)
+          try { renameSync(entry.path, newPath) } catch (e2) { /* fall through */ }
+          entry.name = to; entry.path = newPath; entry.ext = ext
+          cfg.voiceLibrary = lib
+          await storeConfig(ctx, cfg)
+          return jsonOut(res, 200, { ok: true, entry: entry, library: cfg.voiceLibrary })
+        }
+        // upload (base64 + name + mime)
+        const base64 = String(args.base64 || '')
+        if (!base64) return jsonOut(res, 400, { ok: false, error: 'missing base64 audio data' })
+        const mime = String(args.mime || 'audio/wav')
+        const ext = refExtForMime(mime)
+        const name = dedupRefName(sanitizeRefName(args.name || 'reference'), lib.map(e => e.name))
+        let buf
+        try { buf = Buffer.from(base64, 'base64') } catch (e) { return jsonOut(res, 400, { ok: false, error: 'base64 decode failed' }) }
+        if (!buf || buf.length === 0) return jsonOut(res, 400, { ok: false, error: 'decoded audio is empty' })
+        const path = join(dir, name + ext)
+        writeFileSync(path, buf)
+        const entry = { id: 'vl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, path: path, ext: ext, size: buf.length, mime: mime, createdAt: Date.now() }
+        cfg.voiceLibrary = lib.concat([entry])
+        await storeConfig(ctx, cfg)
+        return jsonOut(res, 200, { ok: true, entry: entry, library: cfg.voiceLibrary })
+      } catch (e) {
+        jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
+      }
     }
   })
 
