@@ -2,6 +2,19 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.3 — MiniMax 音色克隆（AI 工具 + 面板）
+- **新增 MiniMax 语音分支**：`speak` 工具按 `voiceConfig.provider` 路由——mimo→`runMimoTts`，minimax→`runMinimaxTts`（`POST {base}/v1/t2a_v2`，`audio_setting.format:'mp3'` 固定，响应 `data.audio` 为 hex，hex→mp3 落 `<cwd>/.omni-workstation/artifacts/voice_<ts>.mp3`，`sessionCwd` 空则抛错**不回退** `process.cwd()`，镜像 `generate_video`）
+- **新增 `POST /omni/minimax/clone` 路由**（面板 + AI 工具共用）：clone-only，支持 `ref_audio_path`（服务端路径直传）或 `base64+mime`（面板文件输入，服务端落 `<configDir>/voice-library/` 后克隆）；前置校验 `provider==='minimax'` + `isVoiceConfigValid`；返回 `{ok, voice_id, file_id, demo_audio}`
+- **新增 `minimax_clone_voice` AI 工具**（`buildMinimaxCloneVoiceToolDef`）：一次调用完成「上传参考音频→克隆→合成文本」，参 `text`(必填)/`voice_sample_path`(必填)/`voice_id`(可选, 缺省 `hutao_<ts>`)/`style`(可选)；minimax 下**替代** mimo `clone_voice`（后者硬编码 MiMo endpoint 在 minimax 上必坏）
+- **`syncToolRegistration` provider-gated 注册**：`voiceSig` 加入 `provider`，minimax↔mimo 切换即重注册；`else` 分支独立清理 `minimaxCloneDisposer`（与 `voiceDisposer`/`cloneDisposer` 三 disposer 各自独立）
+- **新增面板 `MinimaxCloneSection`**（client.js）：仅 `provider==='minimax'` 时渲染——隐藏文件输入（audio/*）→base64 + voice_id 输入 + 克隆按钮 → POST `/omni/minimax/clone` → 成功则 `patchVoice('voiceId')` 自动选中 + toast；en/zh 6 条 i18n keys
+- **helper 函数**：`minimaxBase(region)`（cn→`https://api.minimaxi.com`，global→`https://api.minimax.io`）+ `doMinimaxClone`（两步：multipart `/v1/files/upload` purpose=voice_clone→`file_id` → `/v1/voice_clone` JSON）；**关键**：`httpJson` 只 JSON.stringify body，multipart 必须用原生 `fetch`+`FormData`+`new Blob([buf])`
+- **新增单测**：`tests/voice.test.js` +3 例（`runMinimaxTts` 请求体快照 / `doMinimaxClone` 两步）；全套 **189** 例通过
+- **验证**：直接路由 `POST /omni/minimax/clone`（`vo_hutao_draw_appear.wav` 19.1s，`voice_id=hutao_e2e`）→ `{ok:true, voice_id, file_id, demo_audio}` ✓；t2a_v2 直连合成用克隆出的 voice_id → 64500 字节 mp3 ✓；bailian-LLM agent e2e FAILED（`"本轮运行失败 Connection error"`——bailian 端点环境不可达，非代码问题）
+- **关键坑**：voice key 写入走 `POST /omni/config {voiceConfig:{field:'apiKey',value:'…'}}`（applyPatch 写回），**勿用** `/omni/key {voice:true}`（该路由只读且无 voice 分支）
+- **约束**：MiMo `runMimoTts`/`buildCloneVoiceToolDef` 源码未改（仅注册门控）；非 mimo/minimax 合成（doubao/indextts/voxcpm/gptsovits）留待后续；`VOICE_PROVIDERS` 端点未改；minimax key 不提交
+- 详见 [docs/plan/v2.9.3-minimax-clone.md](../plan/v2.9.3-minimax-clone.md)
+
 ## v2.8.6 — dashscope-video 协议修正（百炼 wan2.7-i2v 真正跑通）
 - **关键 bug 修复**：原 dashscope-video 实现有两个致命问题，导致百炼 wan2.7-i2v 始终无法调用：
   1. `dashscopeVideoBase` 把 `ws-*.maas.aliyuncs.com` workspace 域名**静默改写为** `dashscope.aliyuncs.com/api/v1`（公网域名，拒绝 workspace 级 key，表现为"非法 URL / url error"）。现已移除该改写，仅做 `/api/v1` 后缀归一，保留原 workspace 域名。
