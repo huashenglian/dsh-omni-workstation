@@ -460,3 +460,97 @@ test('runMimoTts request body: model, messages, audio voice, stream=false', asyn
     global.fetch = realFetch
   }
 })
+
+// v2.9.3: runMinimaxTts (t2a_v2) request body shape + hex→mp3 decode (inlined; not exported)
+test('runMinimaxTts request body: t2a_v2, voice_setting.voice_id, audio_setting.format=mp3, hex decode', async () => {
+  const hexMp3 = Buffer.from('fake-mp3-data').toString('hex') // hex of a fake mp3
+  let capturedUrl, capturedBody, capturedAuth
+
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => {
+    capturedUrl = url
+    capturedBody = JSON.parse(opts.body)
+    capturedAuth = opts.headers['Authorization']
+    return { ok: true, status: 200, text: async () => '', json: async () => ({ data: { audio: hexMp3 } }) }
+  }
+
+  try {
+    // inline runMinimaxTts body construction
+    const vc = normalizeVoiceConfig({ provider: 'minimax', region: 'cn', apiKey: 'sk-mm', model: 'speech-2.8-hd', voiceId: 'hutao_e2e' })
+    const text = '你好，我是胡桃'
+    const model = vc.model || 'speech-2.8-hd'
+    const voiceId = 'hutao_e2e'
+    const region = vc.region === 'global' ? 'global' : 'cn'
+    const base = (region === 'global' ? 'https://api.minimax.io' : 'https://api.minimaxi.com').replace(/\/+$/, '')
+    const url = base + '/v1/t2a_v2'
+    const voiceSetting = { voice_id: voiceId }
+    const audioSetting = { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 }
+    const resp = await global.fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + vc.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, text, stream: false, output_format: 'hex', language_boost: 'auto', voice_setting: voiceSetting, audio_setting: audioSetting })
+    })
+    assert.equal(resp.ok, true)
+    assert.equal(capturedUrl, 'https://api.minimaxi.com/v1/t2a_v2')
+    assert.equal(capturedAuth, 'Bearer sk-mm')
+    assert.equal(capturedBody.model, 'speech-2.8-hd')
+    assert.equal(capturedBody.text, '你好，我是胡桃')
+    assert.equal(capturedBody.stream, false)
+    assert.equal(capturedBody.output_format, 'hex')
+    assert.deepEqual(capturedBody.voice_setting, { voice_id: 'hutao_e2e' })
+    assert.equal(capturedBody.audio_setting.format, 'mp3')
+    assert.equal(capturedBody.audio_setting.channel, 1)
+
+    const body = await resp.json()
+    const audioHex = body.data.audio
+    assert.equal(audioHex, hexMp3)
+    const mp3Buffer = Buffer.from(audioHex, 'hex')
+    assert.equal(mp3Buffer.toString(), 'fake-mp3-data') // hex→bytes round-trips
+    assert.ok(mp3Buffer.length > 0)
+  } finally {
+    global.fetch = realFetch
+  }
+})
+
+// v2.9.3: doMinimaxClone two-step (upload multipart → file_id → voice_clone JSON) — inlined
+test('doMinimaxClone: upload FormData(voice_clone) then voice_clone body with file_id+voice_id', async () => {
+  let calls = []
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => {
+    calls.push({ url, method: opts.method, headers: opts.headers, body: opts.body })
+    if (String(url).endsWith('/v1/files/upload')) {
+      return { ok: true, status: 200, text: async () => '', json: async () => ({ file: { file_id: 'fid_123' } }) }
+    }
+    if (String(url).endsWith('/v1/voice_clone')) {
+      return { ok: true, status: 200, text: async () => '', json: async () => ({ demo_audio: 'https://x/y.mp3' }) }
+    }
+    return { ok: false, status: 500, text: async () => 'err', json: async () => ({}) }
+  }
+  // FormData + Blob exist in Node 18+ test runtime
+  try {
+    const fd = new FormData()
+    fd.append('purpose', 'voice_clone')
+    fd.append('file', new Blob([Buffer.from('fake-audio')]), 'clip.wav')
+    // step 1: upload
+    const up = await global.fetch('https://api.minimaxi.com/v1/files/upload', { method: 'POST', headers: { 'Authorization': 'Bearer sk-mm' }, body: fd })
+    const upBody = await up.json()
+    const fileId = upBody.file.file_id
+    assert.equal(fileId, 'fid_123')
+    // step 2: voice_clone
+    const cloneBody = { file_id: fileId, voice_id: 'hutao_e2e', model: 'speech-2.8-hd', need_noise_reduction: false, need_volume_normalization: true, aigc_watermark: false, text: '你好' }
+    const cl = await global.fetch('https://api.minimaxi.com/v1/voice_clone', { method: 'POST', headers: { 'Authorization': 'Bearer sk-mm', 'Content-Type': 'application/json' }, body: JSON.stringify(cloneBody) })
+    const clBody = await cl.json()
+    assert.equal(clBody.demo_audio, 'https://x/y.mp3')
+    assert.equal(calls.length, 2)
+    assert.equal(calls[0].url, 'https://api.minimaxi.com/v1/files/upload')
+    assert.equal(calls[0].headers['Authorization'], 'Bearer sk-mm')
+    assert.equal(calls[1].url, 'https://api.minimaxi.com/v1/voice_clone')
+    const parsed = JSON.parse(calls[1].body)
+    assert.equal(parsed.file_id, 'fid_123')
+    assert.equal(parsed.voice_id, 'hutao_e2e')
+    assert.equal(parsed.need_volume_normalization, true)
+    assert.equal(parsed.aigc_watermark, false)
+  } finally {
+    global.fetch = realFetch
+  }
+})
