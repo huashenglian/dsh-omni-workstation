@@ -323,13 +323,23 @@ const defaultVoiceConfig = () => ({
   protocol: 'mimo-tts',
   endpoint: 'https://api.xiaomimimo.com/v1',
   apiKey: '',
-  model: 'mimo-v2.5-tts',
+  model: '',
   voiceId: 'mimo_default',
   timeoutMs: 120000,
   styleInstruction: '',
   singMode: false,
   optimizeText: false,
-  voiceSamplePath: ''
+  voiceSamplePath: '',
+  outputFormat: 'wav',
+  streamOutput: false,
+  filterVoiceModels: true,
+  retryCount: 1,
+  appId: '',
+  accessKey: '',
+  emoStrategy: '',
+  emoWeight: '',
+  mode: 'clone',
+  region: 'cn'
 })
 
 function normalizeVoiceConfig(raw) {
@@ -344,13 +354,23 @@ function normalizeVoiceConfig(raw) {
     protocol,
     endpoint: typeof raw.endpoint === 'string' ? raw.endpoint : '',
     apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : '',
-    model: typeof raw.model === 'string' ? raw.model : 'mimo-v2.5-tts',
+    model: typeof raw.model === 'string' ? raw.model : '',
     voiceId: typeof raw.voiceId === 'string' ? raw.voiceId : 'mimo_default',
     timeoutMs: clampTimeout(raw.timeoutMs, 120000),
     styleInstruction: typeof raw.styleInstruction === 'string' ? raw.styleInstruction : '',
     singMode: raw.singMode === true,
     optimizeText: raw.optimizeText === true,
-    voiceSamplePath: typeof raw.voiceSamplePath === 'string' ? raw.voiceSamplePath : ''
+    voiceSamplePath: typeof raw.voiceSamplePath === 'string' ? raw.voiceSamplePath : '',
+    outputFormat: typeof raw.outputFormat === 'string' ? raw.outputFormat : 'wav',
+    streamOutput: raw.streamOutput === true,
+    filterVoiceModels: raw.filterVoiceModels === false ? false : true,
+    retryCount: Number.isFinite(Number(raw.retryCount)) && Number(raw.retryCount) >= 1 ? Math.floor(Number(raw.retryCount)) : 1,
+    appId: typeof raw.appId === 'string' ? raw.appId : '',
+    accessKey: typeof raw.accessKey === 'string' ? raw.accessKey : '',
+    emoStrategy: typeof raw.emoStrategy === 'string' ? raw.emoStrategy : '',
+    emoWeight: typeof raw.emoWeight === 'string' ? raw.emoWeight : '',
+    mode: typeof raw.mode === 'string' ? raw.mode : 'clone',
+    region: typeof raw.region === 'string' ? raw.region : 'cn'
   }
 }
 
@@ -365,6 +385,16 @@ const maskedVoice = (c) => ({
   singMode: c.singMode,
   optimizeText: c.optimizeText,
   voiceSamplePath: c.voiceSamplePath,
+  outputFormat: c.outputFormat,
+  streamOutput: c.streamOutput === true,
+  filterVoiceModels: c.filterVoiceModels === false ? false : true,
+  retryCount: c.retryCount,
+  appId: c.appId,
+  accessKey: c.accessKey,
+  emoStrategy: c.emoStrategy,
+  emoWeight: c.emoWeight,
+  mode: c.mode,
+  region: c.region,
   apiKeySet: c.apiKey !== ''
 })
 
@@ -713,6 +743,7 @@ const newCard = (overrides) => ({
 
 const defaultConfig = () => {
   const voicePresets = [{ id: genPresetId(), name: '默认', config: defaultVoiceConfig() }]
+  const voicePresetsStt = [{ id: genPresetId(), name: '默认', config: defaultVoiceConfig() }]
   return {
     retryCount: 3,
     apis: [newCard()],
@@ -722,6 +753,9 @@ const defaultConfig = () => {
     voiceConfig: defaultVoiceConfig(),
     voicePresets,
     activeVoicePreset: voicePresets[0].id,
+    voiceConfigStt: defaultVoiceConfig(),
+    voicePresetsStt,
+    activeVoicePresetStt: voicePresetsStt[0].id,
     voiceLibrary: []
   }
 }
@@ -932,6 +966,24 @@ function normalizeConfig(raw) {
   let activeVoicePreset = typeof src.activeVoicePreset === 'string' && src.activeVoicePreset.length > 0 && voicePresets.some((p) => p.id === src.activeVoicePreset) ? src.activeVoicePreset : voicePresets[0].id
   const activeVoiceP = voicePresets.find((p) => p.id === activeVoicePreset) || voicePresets[0]
   const voiceConfig = normalizeVoiceConfig(activeVoiceP.config)
+  // ---- voice STT namespace (v2.9.1): placeholders; independent presets from TTS ----
+  const voiceConfigSttRaw = normalizeVoiceConfig(src.voiceConfigStt)
+  let voicePresetsStt = []
+  if (Array.isArray(src.voicePresetsStt)) {
+    voicePresetsStt = src.voicePresetsStt
+      .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
+      .map((p) => ({
+        id: typeof p.id === 'string' && p.id.length > 0 ? p.id : genPresetId(),
+        name: typeof p.name === 'string' && p.name.length > 0 ? String(p.name).slice(0, 60) : '默认',
+        config: normalizeVoiceConfig(p.config)
+      }))
+  }
+  if (voicePresetsStt.length === 0) {
+    voicePresetsStt = [{ id: genPresetId(), name: '默认', config: voiceConfigSttRaw }]
+  }
+  let activeVoicePresetStt = typeof src.activeVoicePresetStt === 'string' && src.activeVoicePresetStt.length > 0 && voicePresetsStt.some((p) => p.id === src.activeVoicePresetStt) ? src.activeVoicePresetStt : voicePresetsStt[0].id
+  const activeVoicePStt = voicePresetsStt.find((p) => p.id === activeVoicePresetStt) || voicePresetsStt[0]
+  const voiceConfigStt = normalizeVoiceConfig(activeVoicePStt.config)
   const voiceLibrary = Array.isArray(src.voiceLibrary) ? src.voiceLibrary
     .filter((e) => e && typeof e === 'object')
     .map((e) => ({
@@ -942,7 +994,7 @@ function normalizeConfig(raw) {
       samplePath: typeof e.samplePath === 'string' ? e.samplePath : '',
       createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now()
     })) : []
-  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceLibrary, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
+  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
@@ -959,6 +1011,9 @@ const masked = (cfg) => ({
   voiceConfig: maskedVoice(cfg.voiceConfig || defaultVoiceConfig()),
   voicePresets: (Array.isArray(cfg.voicePresets) ? cfg.voicePresets : []).map((p) => ({ id: p.id, name: p.name, config: maskedVoice(p.config || defaultVoiceConfig()) })),
   activeVoicePreset: cfg.activeVoicePreset || (Array.isArray(cfg.voicePresets) && cfg.voicePresets.length > 0 ? cfg.voicePresets[0].id : ''),
+  voiceConfigStt: maskedVoice(cfg.voiceConfigStt || defaultVoiceConfig()),
+  voicePresetsStt: (Array.isArray(cfg.voicePresetsStt) ? cfg.voicePresetsStt : []).map((p) => ({ id: p.id, name: p.name, config: maskedVoice(p.config || defaultVoiceConfig()) })),
+  activeVoicePresetStt: cfg.activeVoicePresetStt || (Array.isArray(cfg.voicePresetsStt) && cfg.voicePresetsStt.length > 0 ? cfg.voicePresetsStt[0].id : ''),
   voiceLibrary: cfg.voiceLibrary || [],
   visionToolsEnabled: cfg.visionToolsEnabled !== false,
     visionToolToggles: cfg.visionToolToggles || {},
@@ -3430,76 +3485,90 @@ function applyPatch(cfg, patch) {
   if (p.voiceEnabled !== undefined) c.voiceEnabled = p.voiceEnabled === true
   if (p.ttsEnabled !== undefined) c.ttsEnabled = p.ttsEnabled === true
   if (p.sttEnabled !== undefined) c.sttEnabled = p.sttEnabled === true
-  // v2.8.1: voice config patch
-  if (p.voiceReset === true) c.voiceConfig = defaultVoiceConfig()
+  // v2.9.1: voice config patch — namespaced by active subtab (TTS/STT presets independent)
+  const vst = p.voiceSubtab === 'stt' ? 'Stt' : ''
+  const vcKey = 'voiceConfig' + vst
+  const vpKey = 'voicePresets' + vst
+  const vaKey = 'activeVoicePreset' + vst
+  if (p.voiceReset === true) c[vcKey] = defaultVoiceConfig()
   if (p.voiceConfig) {
     if (p.voiceConfig === 'reset' || p.voiceConfig.reset === true) {
-      c.voiceConfig = defaultVoiceConfig()
+      c[vcKey] = defaultVoiceConfig()
     } else if (p.voiceConfig.field && p.voiceConfig.value !== undefined) {
       const { field, value } = p.voiceConfig
       if (field === 'provider' && VOICE_PROVIDER_IDS.includes(value)) {
-        c.voiceConfig.provider = value
+        c[vcKey].provider = value
         const vmeta = VOICE_PROVIDERS[value]
         if (vmeta) {
-          c.voiceConfig.protocol = vmeta.protocol
-          if (vmeta.fixedUrl) c.voiceConfig.endpoint = vmeta.endpoint
-          else if (!vmeta.fixedUrl && !String(c.voiceConfig.endpoint || '').trim()) c.voiceConfig.endpoint = vmeta.endpoint
+          c[vcKey].protocol = vmeta.protocol
+          if (vmeta.fixedUrl) c[vcKey].endpoint = vmeta.endpoint
+          else if (!vmeta.fixedUrl && !String(c[vcKey].endpoint || '').trim()) c[vcKey].endpoint = vmeta.endpoint
         }
-      } else if (field === 'protocol' && VOICE_PROTOCOLS.includes(value)) c.voiceConfig.protocol = value
-      else if (field === 'endpoint') c.voiceConfig.endpoint = String(value || '').trim()
-      else if (field === 'model') c.voiceConfig.model = String(value || '').trim()
-      else if (field === 'voiceId') c.voiceConfig.voiceId = String(value || '').trim()
+      } else if (field === 'protocol' && VOICE_PROTOCOLS.includes(value)) c[vcKey].protocol = value
+      else if (field === 'endpoint') c[vcKey].endpoint = String(value || '').trim()
+      else if (field === 'model') c[vcKey].model = String(value || '').trim()
+      else if (field === 'voiceId') c[vcKey].voiceId = String(value || '').trim()
       else if (field === 'apiKey') {
-        if (typeof value === 'string' && value.length > 0) c.voiceConfig.apiKey = value
-        else if (value === null) c.voiceConfig.apiKey = ''
-      } else if (field === 'timeoutMs') c.voiceConfig.timeoutMs = clampTimeout(value, 120000)
-      else if (field === 'styleInstruction') c.voiceConfig.styleInstruction = String(value || '').trim()
-      else if (field === 'singMode') c.voiceConfig.singMode = value === true
-      else if (field === 'optimizeText') c.voiceConfig.optimizeText = value === true
-      else if (field === 'voiceSamplePath') c.voiceConfig.voiceSamplePath = String(value || '').trim()
+        if (typeof value === 'string' && value.length > 0) c[vcKey].apiKey = value
+        else if (value === null) c[vcKey].apiKey = ''
+      } else if (field === 'timeoutMs') c[vcKey].timeoutMs = clampTimeout(value, 120000)
+      else if (field === 'styleInstruction') c[vcKey].styleInstruction = String(value || '').trim()
+      else if (field === 'singMode') c[vcKey].singMode = value === true
+      else if (field === 'optimizeText') c[vcKey].optimizeText = value === true
+      else if (field === 'voiceSamplePath') c[vcKey].voiceSamplePath = String(value || '').trim()
+      else if (field === 'outputFormat' && typeof value === 'string') c[vcKey].outputFormat = value.trim()
+      else if (field === 'streamOutput') c[vcKey].streamOutput = value === true
+      else if (field === 'filterVoiceModels') c[vcKey].filterVoiceModels = value === true
+      else if (field === 'retryCount') c[vcKey].retryCount = Math.max(1, Math.min(Math.floor(Number(value) || 1), 10))
+      else if (field === 'appId') c[vcKey].appId = String(value || '').trim()
+      else if (field === 'accessKey') c[vcKey].accessKey = String(value || '').trim()
+      else if (field === 'emoStrategy') c[vcKey].emoStrategy = String(value || '').trim()
+      else if (field === 'emoWeight') c[vcKey].emoWeight = String(value || '').trim()
+      else if (field === 'mode' && (value === 'clone' || value === 'design')) c[vcKey].mode = value
+      else if (field === 'region' && (value === 'cn' || value === 'global')) c[vcKey].region = value
     }
   }
   // sync voiceConfig patches to active preset (preset is source of truth)
   if (p.voiceConfig || p.voiceReset === true) {
-    const vp = (c.voicePresets || []).find((pr) => pr.id === c.activeVoicePreset)
-    if (vp) vp.config = Object.assign({}, c.voiceConfig)
+    const vp = (c[vpKey] || []).find((pr) => pr.id === c[vaKey])
+    if (vp) vp.config = Object.assign({}, c[vcKey])
   }
-  // ---- voice preset management (v2.8.1) ----
+  // ---- voice preset management (v2.8.1, namespaced by subtab) ----
   if (p.voicePresetSwitch && typeof p.voicePresetSwitch === 'string') {
-    const target = (c.voicePresets || []).find((pr) => pr.id === p.voicePresetSwitch)
+    const target = (c[vpKey] || []).find((pr) => pr.id === p.voicePresetSwitch)
     if (target) {
-      c.activeVoicePreset = target.id
-      c.voiceConfig = Object.assign({}, target.config)
+      c[vaKey] = target.id
+      c[vcKey] = Object.assign({}, target.config)
     }
   }
   if (p.voicePresetAdd === true) {
     let max = 0
-    for (const pr of (c.voicePresets || [])) {
+    for (const pr of (c[vpKey] || [])) {
       const m = /^新预设(?:\s(\d+))?$/.exec(pr.name || '')
       if (m) max = Math.max(max, m[1] ? Number(m[1]) : 1)
     }
     const np = { id: genPresetId(), name: '新预设 ' + (max + 1), config: defaultVoiceConfig() }
-    c.voicePresets = (c.voicePresets || []).concat([np])
-    c.activeVoicePreset = np.id
-    c.voiceConfig = Object.assign({}, np.config)
+    c[vpKey] = (c[vpKey] || []).concat([np])
+    c[vaKey] = np.id
+    c[vcKey] = Object.assign({}, np.config)
   }
   if (p.voicePresetDelete && typeof p.voicePresetDelete === 'string') {
-    c.voicePresets = (c.voicePresets || []).filter((pr) => pr.id !== p.voicePresetDelete)
-    if (c.voicePresets.length === 0) {
+    c[vpKey] = (c[vpKey] || []).filter((pr) => pr.id !== p.voicePresetDelete)
+    if (c[vpKey].length === 0) {
       const dp = { id: genPresetId(), name: '默认', config: defaultVoiceConfig() }
-      c.voicePresets = [dp]
-      c.activeVoicePreset = dp.id
-      c.voiceConfig = Object.assign({}, dp.config)
+      c[vpKey] = [dp]
+      c[vaKey] = dp.id
+      c[vcKey] = Object.assign({}, dp.config)
     } else {
-      if (c.activeVoicePreset === p.voicePresetDelete || !c.voicePresets.some((pr) => pr.id === c.activeVoicePreset)) {
-        c.activeVoicePreset = c.voicePresets[0].id
+      if (c[vaKey] === p.voicePresetDelete || !c[vpKey].some((pr) => pr.id === c[vaKey])) {
+        c[vaKey] = c[vpKey][0].id
       }
-      const active = c.voicePresets.find((pr) => pr.id === c.activeVoicePreset)
-      if (active) c.voiceConfig = Object.assign({}, active.config)
+      const active = c[vpKey].find((pr) => pr.id === c[vaKey])
+      if (active) c[vcKey] = Object.assign({}, active.config)
     }
   }
   if (p.voicePresetRename && typeof p.voicePresetRename === 'string') {
-    const vp = (c.voicePresets || []).find((pr) => pr.id === c.activeVoicePreset)
+    const vp = (c[vpKey] || []).find((pr) => pr.id === c[vaKey])
     if (vp) vp.name = String(p.voicePresetRename).slice(0, 60)
   }
   // ---- voice library management (v2.8.1) ----
