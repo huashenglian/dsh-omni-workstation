@@ -1895,6 +1895,7 @@ let videoVisible = false
 // v2.9: voice tools (speak + clone_voice) gate — registered only when voiceEnabled + ttsEnabled + valid voice config
 let voiceDisposer = null, voiceVisible = false, voiceSigSeen = ''
 let cloneDisposer = null, cloneVisible = false
+let minimaxCloneDisposer = null
 // v2.8.x: track the panel-default signature injected into the tool description;
 // changing seconds/aspectRatio/retryCount re-registers so the model sees fresh
 // initial defaults (user prompt overrides always win).
@@ -2769,6 +2770,105 @@ async function runMimoTts(vc, args, exec) {
   return { ok: true, path, model, format: 'wav' }
 }
 
+// v2.9.3: minimax synthesis engine — POST /v1/t2a_v2, hex→mp3. Region-aware.
+// t2a_v2 is mp3-only; the panel outputFormat selector is silently ignored under minimax.
+function minimaxBase(region) {
+  return region === 'global' ? 'https://api.minimax.io' : 'https://api.minimaxi.com'
+}
+async function runMinimaxTts(vc, args, exec) {
+  const text = String(args && args.text || '').trim()
+  if (!text) throw new Error('runMinimaxTts: 缺少参数 text（要合成的文本）')
+  const model = vc.model || 'speech-2.8-hd'
+  const voiceId = String(args && args.voice || vc.voiceId || '').trim()
+  if (!voiceId) throw new Error('runMinimaxTts: 缺少 voice_id（预置或克隆音色 id）')
+  const region = vc.region === 'global' ? 'global' : 'cn'
+  const url = minimaxBase(region).replace(/\/+$/, '') + '/v1/t2a_v2'
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), vc.timeoutMs || 120000)
+  const voiceSetting = { voice_id: voiceId }
+  const audioSetting = { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 }
+  let resp
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + vc.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, text, stream: false, output_format: 'hex', language_boost: 'auto', voice_setting: voiceSetting, audio_setting: audioSetting }),
+      signal: controller.signal
+    })
+  } catch (e) {
+    clearTimeout(timeout)
+    throw new Error('runMinimaxTts: 请求失败 — ' + String(e && e.message || e))
+  }
+  clearTimeout(timeout)
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '')
+    throw new Error('runMinimaxTts: HTTP ' + resp.status + ' — ' + errText.slice(0, 200))
+  }
+  const body = await resp.json()
+  const audioHex = body && body.data && body.data.audio
+  if (!audioHex || typeof audioHex !== 'string') throw new Error('runMinimaxTts: MiniMax t2a_v2 未返回音频数据')
+  let mp3Buffer
+  try { mp3Buffer = Buffer.from(audioHex, 'hex') } catch (e) { throw new Error('runMinimaxTts: hex 解码失败 — ' + String(e && e.message || e)) }
+  if (!mp3Buffer || mp3Buffer.length === 0) throw new Error('runMinimaxTts: hex 解码后为空')
+  const cwd = sessionCwd(exec)
+  if (!cwd) throw new Error('runMinimaxTts: 无法确定输出目录（会话工作区未打开）')
+  const dir = join(cwd, '.omni-workstation', 'artifacts')
+  mkdirSync(dir, { recursive: true })
+  const ts = Date.now().toString(36)
+  const fileName = 'voice_' + ts + '.mp3'
+  const path = join(dir, fileName)
+  writeFileSync(path, mp3Buffer)
+  return { ok: true, path, model, format: 'mp3' }
+}
+
+// v2.9.3: minimax two-step clone — multipart /v1/files/upload → file_id → /v1/voice_clone.
+// Reused by the /omni/minimax/clone route (panel) and the minimax_clone_voice tool.
+// Uses native fetch+FormData+Blob (httpJson is JSON-only and cannot do multipart).
+async function doMinimaxClone(vc, refPath, voiceId, text, model) {
+  const region = vc.region === 'global' ? 'global' : 'cn'
+  const base = minimaxBase(region).replace(/\/+$/, '')
+  const auth = 'Bearer ' + vc.apiKey
+  const buf = readFileSync(refPath)
+  const fname = String(refPath.replace(/^.*[\\/]/, '') || 'clone_input.wav')
+  const fd = new FormData()
+  fd.append('purpose', 'voice_clone')
+  fd.append('file', new Blob([buf]), fname)
+  let up
+  try {
+    up = await fetch(base + '/v1/files/upload', { method: 'POST', headers: { 'Authorization': auth }, body: fd })
+  } catch (e) {
+    throw new Error('doMinimaxClone: 上传请求失败 — ' + String(e && e.message || e))
+  }
+  if (!up.ok) {
+    const t = await up.text().catch(() => '')
+    throw new Error('doMinimaxClone: 上传 HTTP ' + up.status + ' — ' + t.slice(0, 200))
+  }
+  const upBody = await up.json()
+  const fileId = upBody && upBody.file && upBody.file.file_id
+  if (!fileId) throw new Error('doMinimaxClone: 上传未返回 file_id')
+  const cloneBody = {
+    file_id: fileId,
+    voice_id: voiceId,
+    model: model || vc.model || 'speech-2.8-hd',
+    need_noise_reduction: false,
+    need_volume_normalization: true,
+    aigc_watermark: false
+  }
+  if (text) cloneBody.text = text
+  let cl
+  try {
+    cl = await fetch(base + '/v1/voice_clone', { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify(cloneBody) })
+  } catch (e) {
+    throw new Error('doMinimaxClone: 克隆请求失败 — ' + String(e && e.message || e))
+  }
+  if (!cl.ok) {
+    const t = await cl.text().catch(() => '')
+    throw new Error('doMinimaxClone: 克隆 HTTP ' + cl.status + ' — ' + t.slice(0, 200))
+  }
+  const clBody = await cl.json()
+  return { voice_id: voiceId, file_id: fileId, demo_audio: (clBody && clBody.demo_audio) || null, raw: clBody }
+}
+
 const buildVideoToolDef = (vc) => defineTool({
   name: 'generate_video',
   description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区根目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。',
@@ -2817,7 +2917,7 @@ const buildVideoToolDef = (vc) => defineTool({
 
 const buildSpeakToolDef = (vc) => defineTool({
   name: 'speak',
-  description: '将文本转为语音并保存为 WAV 文件，返回文件路径。text 是要朗读的文本；voice 可选——指定预置音色 ID（当前: ' + (vc && vc.voiceId ? vc.voiceId : 'mimo_default') + '，可选: ' + MIMO_PRESET_VOICES.join('/') + '）或音色描述文本（voicedesign 模型）；style 可选——自然语言风格指令（如"温柔但疲惫，语速偏慢"），也可用音频标签如(唱歌)前缀。当前模型: ' + (vc && vc.model ? vc.model : 'mimo-v2.5-tts') + '。',
+  description: '将文本转为语音并保存为音频文件，返回文件路径。text 是要朗读的文本；voice 可选——指定预置音色 ID（当前: ' + (vc && vc.voiceId ? vc.voiceId : 'mimo_default') + '，可选: ' + MIMO_PRESET_VOICES.join('/') + '）或音色描述文本（voicedesign 模型）；style 可选——自然语言风格指令（如"温柔但疲惫，语速偏慢"），也可用音频标签如(唱歌)前缀。当前模型: ' + (vc && vc.model ? vc.model : 'mimo-v2.5-tts') + '。minimax 供应商下 voice 为 voice_id（可用 minimax_clone_voice 克隆得到的音色 id 复用）。',
   parameters: {
     text: { type: 'string', required: true, description: '要转为语音的文本' },
     voice: { type: 'string', description: '音色：预置音色 ID（如 mimo_default/冰糖/Chloe）或音色描述文本（voicedesign 模型下用）' },
@@ -2853,7 +2953,7 @@ const buildSpeakToolDef = (vc) => defineTool({
     if (!isVoiceConfigValid(vc)) {
       throw new Error('speak: 语音配置无效。请在设置页「语音」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
     }
-    return runMimoTts(vc, args, exec)
+    return vc.provider === 'minimax' ? runMinimaxTts(vc, args, exec) : runMimoTts(vc, args, exec)
   }
 })
 
@@ -2898,6 +2998,60 @@ const buildCloneVoiceToolDef = (vc) => defineTool({
     }
     const cloneVc = Object.assign({}, vc, { model: 'mimo-v2.5-tts-voiceclone' })
     return runMimoTts(cloneVc, { text: text, voice_sample_path: samplePath, style: args.style }, exec)
+  }
+})
+
+// v2.9.3: minimax clone + synthesize (one-shot). Uploads ref audio → clones voice_id
+// → synthesizes the given text with the cloned voice_id → returns mp3. Registered only
+// under provider==='minimax' (mimo clone_voice is gated OFF in that case — see syncToolRegistration).
+const buildMinimaxCloneVoiceToolDef = (vc) => defineTool({
+  name: 'minimax_clone_voice',
+  description: '用参考音频克隆 MiniMax 音色并用克隆音色合成语音（一次完成）。text 要合成的文本；voice_sample_path 参考音频本地路径（.wav/.mp3，≥10s≤5min≤20MB）；voice_id 可选（自定义音色 id，不填自动生成 hutao_<ts>）；style 可选。当前模型: ' + (vc && vc.model ? vc.model : 'speech-2.8-hd') + '。',
+  parameters: {
+    text: { type: 'string', required: true, description: '要合成的文本' },
+    voice_sample_path: { type: 'string', required: true, description: '参考音频文件本地路径（.wav/.mp3，≥10s≤5min≤20MB）' },
+    voice_id: { type: 'string', description: '自定义音色 id（可选，不填自动生成 hutao_<ts>）' },
+    style: { type: 'string', description: '风格指令（可选）' }
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        ok: { type: 'boolean', required: true },
+        path: { type: 'string' },
+        model: { type: 'string' },
+        format: { type: 'string' },
+        voice_id: { type: 'string' },
+        detail: { type: 'string' }
+      }
+    },
+    render: (args, value) => {
+      if (!value || !value.ok) {
+        return [{ type: 'text', text: 'minimax 克隆合成失败：' + (value && value.detail ? value.detail : JSON.stringify(value || {})) }]
+      }
+      var p = String(value.path || '').replace(/\\/g, '/')
+      return [{ type: 'text', text: '## minimax 克隆合成结果\n\n文件: ' + p + '\n\n— 模型: ' + (value.model || 'speech-2.8-hd') + ' · 格式: ' + (value.format || 'mp3') + ' · voice_id: ' + (value.voice_id || '') + '\n\n<audio controls src="file:///' + p + '">语音播放器</audio>' }]
+    }
+  },
+  async execute(args, exec) {
+    const text = String(args && args.text || '').trim()
+    if (!text) throw new Error('minimax_clone_voice: 缺少参数 text（要合成的文本）')
+    const samplePath = String(args && args.voice_sample_path || '').trim()
+    if (!samplePath) throw new Error('minimax_clone_voice: 缺少参数 voice_sample_path（参考音频文件路径）')
+    const ctx = appCtx
+    const cfg = await loadConfig(ctx)
+    const vc = cfg.voiceConfig || defaultVoiceConfig()
+    if (!isVoiceConfigValid(vc)) {
+      throw new Error('minimax_clone_voice: 语音配置无效。请在设置页「语音」面板配置完整的 API。')
+    }
+    const voiceId = String(args && args.voice_id || '').trim() || ('hutao_' + Date.now().toString(36))
+    // 1. clone (upload + voice_clone) — text passed so MiniMax may return demo_audio too
+    await doMinimaxClone(vc, samplePath, voiceId, text, vc.model)
+    // 2. synthesize with the cloned voice_id
+    const synthVc = Object.assign({}, vc, { voiceId: voiceId })
+    const result = await runMinimaxTts(synthVc, { text: text, voice: voiceId, style: args && args.style }, exec)
+    return Object.assign({}, result, { voice_id: voiceId })
   }
 })
 
@@ -3332,18 +3486,30 @@ async function syncToolRegistration() {
   // switch is ON, TTS sub-switch is ON, and the voice config is valid.
   // Switch OFF / sub-switch OFF / invalid config => 0 token cost.
   const shouldVoice = cfg.voiceEnabled === true && cfg.ttsEnabled === true && isVoiceConfigValid(cfg.voiceConfig)
-  const voiceSig = shouldVoice ? [cfg.voiceConfig.model, cfg.voiceConfig.voiceId, cfg.voiceConfig.voiceSamplePath].join('|') : ''
+  // v2.9.3: include provider in the sig so mimo↔minimax flips re-register, gating the
+  // mimo clone_voice OFF under minimax and the minimax_clone_voice ON under minimax.
+  const voiceSig = shouldVoice ? [cfg.voiceConfig.provider, cfg.voiceConfig.model, cfg.voiceConfig.voiceId, cfg.voiceConfig.voiceSamplePath].join('|') : ''
   if (shouldVoice && (!voiceVisible || voiceSig !== voiceSigSeen)) {
     if (voiceDisposer) { try { voiceDisposer() } catch { /* best-effort */ } }
     if (cloneDisposer) { try { cloneDisposer() } catch { /* best-effort */ } }
+    if (minimaxCloneDisposer) { try { minimaxCloneDisposer() } catch { /* best-effort */ } }
     voiceDisposer = appCtx.tools.register(buildSpeakToolDef(cfg.voiceConfig))
-    cloneDisposer = appCtx.tools.register(buildCloneVoiceToolDef(cfg.voiceConfig))
+    if (cfg.voiceConfig.provider === 'minimax') {
+      // minimax: register the minimax clone tool; do NOT register the mimo clone_voice (it would break on the minimax endpoint)
+      minimaxCloneDisposer = appCtx.tools.register(buildMinimaxCloneVoiceToolDef(cfg.voiceConfig))
+      cloneDisposer = null
+    } else {
+      // mimo/other: register the mimo base64-inline clone_voice
+      cloneDisposer = appCtx.tools.register(buildCloneVoiceToolDef(cfg.voiceConfig))
+      minimaxCloneDisposer = null
+    }
     voiceVisible = true
     cloneVisible = true
     voiceSigSeen = voiceSig
   } else if (!shouldVoice && voiceVisible) {
     if (voiceDisposer) { try { voiceDisposer() } catch { /* best-effort */ } voiceDisposer = null }
     if (cloneDisposer) { try { cloneDisposer() } catch { /* best-effort */ } cloneDisposer = null }
+    if (minimaxCloneDisposer) { try { minimaxCloneDisposer() } catch { /* best-effort */ } minimaxCloneDisposer = null }
     voiceVisible = false
     cloneVisible = false
     voiceSigSeen = ''
@@ -4407,6 +4573,33 @@ function apply(ctx) {
         cfg.voiceLibrary = lib.concat([entry])
         await storeConfig(ctx, cfg)
         return jsonOut(res, 200, { ok: true, entry: entry, library: cfg.voiceLibrary })
+      } catch (e) {
+        jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
+      }
+    }
+  })
+
+  // v2.9.3: minimax voice clone — two-step (upload + voice_clone). Clone-only: the
+  // panel calls this to register a voice_id; the AI tool (minimax_clone_voice) also
+  // calls doMinimaxClone then synthesizes separately. Region-aware (cn/global).
+  webServer.register({
+    kind: 'exact',
+    path: '/omni/minimax/clone',
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
+      try {
+        const raw = await readBody(req)
+        const args = raw ? JSON.parse(raw) : {}
+        const cfg = await loadConfig(ctx)
+        const vc = cfg.voiceConfig || defaultVoiceConfig()
+        if (!isVoiceConfigValid(vc) || vc.provider !== 'minimax') return jsonOut(res, 400, { ok: false, error: '语音配置无效或非 minimax 供应商' })
+        const refPath = String(args.ref_audio_path || '').trim()
+        const voiceId = String(args.voice_id || '').trim()
+        if (!refPath) return jsonOut(res, 400, { ok: false, error: '缺少 ref_audio_path（参考音频文件路径）' })
+        if (!voiceId) return jsonOut(res, 400, { ok: false, error: '缺少 voice_id（自定义音色 id）' })
+        if (!existsSync(refPath)) return jsonOut(res, 400, { ok: false, error: '参考音频文件不存在: ' + refPath })
+        const r = await doMinimaxClone(vc, refPath, voiceId, args.text || '', args.model || '')
+        jsonOut(res, 200, { ok: true, voice_id: r.voice_id, file_id: r.file_id, demo_audio: r.demo_audio })
       } catch (e) {
         jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
       }
