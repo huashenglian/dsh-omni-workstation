@@ -38,13 +38,23 @@ const defaultVoiceConfig = () => ({
   protocol: 'mimo-tts',
   endpoint: 'https://api.xiaomimimo.com/v1',
   apiKey: '',
-  model: 'mimo-v2.5-tts',
+  model: '',
   voiceId: 'mimo_default',
   timeoutMs: 120000,
   styleInstruction: '',
   singMode: false,
   optimizeText: false,
-  voiceSamplePath: ''
+  voiceSamplePath: '',
+  outputFormat: 'wav',
+  streamOutput: false,
+  filterVoiceModels: true,
+  retryCount: 1,
+  appId: '',
+  accessKey: '',
+  emoStrategy: '',
+  emoWeight: '',
+  mode: 'clone',
+  region: 'cn'
 })
 
 function normalizeVoiceConfig(raw) {
@@ -59,13 +69,23 @@ function normalizeVoiceConfig(raw) {
     protocol,
     endpoint: typeof raw.endpoint === 'string' ? raw.endpoint : '',
     apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : '',
-    model: typeof raw.model === 'string' ? raw.model : 'mimo-v2.5-tts',
+    model: typeof raw.model === 'string' ? raw.model : '',
     voiceId: typeof raw.voiceId === 'string' ? raw.voiceId : 'mimo_default',
     timeoutMs: clampTimeout(raw.timeoutMs, 120000),
     styleInstruction: typeof raw.styleInstruction === 'string' ? raw.styleInstruction : '',
     singMode: raw.singMode === true,
     optimizeText: raw.optimizeText === true,
-    voiceSamplePath: typeof raw.voiceSamplePath === 'string' ? raw.voiceSamplePath : ''
+    voiceSamplePath: typeof raw.voiceSamplePath === 'string' ? raw.voiceSamplePath : '',
+    outputFormat: typeof raw.outputFormat === 'string' ? raw.outputFormat : 'wav',
+    streamOutput: raw.streamOutput === true,
+    filterVoiceModels: raw.filterVoiceModels === false ? false : true,
+    retryCount: Number.isFinite(Number(raw.retryCount)) && Number(raw.retryCount) >= 1 ? Math.floor(Number(raw.retryCount)) : 1,
+    appId: typeof raw.appId === 'string' ? raw.appId : '',
+    accessKey: typeof raw.accessKey === 'string' ? raw.accessKey : '',
+    emoStrategy: typeof raw.emoStrategy === 'string' ? raw.emoStrategy : '',
+    emoWeight: typeof raw.emoWeight === 'string' ? raw.emoWeight : '',
+    mode: typeof raw.mode === 'string' ? raw.mode : 'clone',
+    region: typeof raw.region === 'string' ? raw.region : 'cn'
   }
 }
 
@@ -89,7 +109,7 @@ test('defaultVoiceConfig returns expected shape', () => {
   assert.equal(d.protocol, 'mimo-tts')
   assert.equal(d.endpoint, 'https://api.xiaomimimo.com/v1')
   assert.equal(d.apiKey, '')
-  assert.equal(d.model, 'mimo-v2.5-tts')
+  assert.equal(d.model, '')
   assert.equal(d.voiceId, 'mimo_default')
   assert.equal(d.timeoutMs, 120000)
   assert.equal(d.styleInstruction, '')
@@ -106,7 +126,7 @@ test('normalizeVoiceConfig({}) returns defaults (endpoint/apiKey empty from miss
   assert.equal(c.protocol, 'mimo-tts')
   assert.equal(c.endpoint, '')       // raw.endpoint is undefined -> ''
   assert.equal(c.apiKey, '')         // raw.apiKey is undefined -> ''
-  assert.equal(c.model, 'mimo-v2.5-tts')
+  assert.equal(c.model, '')
   assert.equal(c.voiceId, 'mimo_default')
   assert.equal(c.timeoutMs, 120000)
 })
@@ -231,7 +251,7 @@ test('applyPatch: voiceConfig provider patch seeds fixedUrl + normalizes', () =>
   let cfg = applyPatch({}, {})
   // default voiceConfig should exist with defaultVoiceConfig values
   assert.equal(cfg.voiceConfig.provider, 'mimo')
-  assert.equal(cfg.voiceConfig.model, 'mimo-v2.5-tts')
+  assert.equal(cfg.voiceConfig.model, '')
   assert.equal(cfg.voiceConfig.voiceId, 'mimo_default')
 
   cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'minimax' } })
@@ -297,6 +317,7 @@ test('maskedVoice() reports apiKeySet=false when no key set', () => {
 test('voice gate: voiceEnabled=true + valid config -> gate passes', () => {
   let cfg = applyPatch({}, { voiceEnabled: true })
   cfg = applyPatch(cfg, { voiceConfig: { field: 'apiKey', value: 'sk-test' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'mimo-v2.5-tts' } })
   assert.equal(cfg.voiceEnabled === true && isVoiceConfigValid(cfg.voiceConfig), true)
 })
 
@@ -328,6 +349,52 @@ test('voice presets: voiceConfig patches sync into active preset', () => {
   cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'custom-tts' } })
   assert.equal(cfg.voiceConfig.model, 'custom-tts')
   assert.equal(cfg.voicePresets[0].config.model, 'custom-tts')
+})
+
+// ---- v2.9.1: subtab namespaced presets + extra fields ----
+
+test('voice subtab STT: patches target voiceConfigStt namespace, do not touch TTS', () => {
+  let cfg = applyPatch({}, { voiceSubtab: 'stt', voiceConfig: { field: 'model', value: 'stt-model' } })
+  assert.equal(cfg.voiceConfigStt.model, 'stt-model')
+  assert.equal(cfg.voiceConfig.model, '')           // TTS untouched
+  assert.equal(cfg.voicePresetsStt[0].config.model, 'stt-model')
+  assert.notEqual(cfg.activeVoicePresetStt, cfg.activeVoicePreset)
+
+  // default 'stt' namespace is a separate list from TTS
+  cfg = applyPatch(cfg, { voiceSubtab: 'stt', voicePresetAdd: true })
+  assert.equal(cfg.voicePresetsStt.length, 2)
+  assert.equal(cfg.voicePresets.length, 1)          // TTS presets unaffected
+})
+
+test('voice extra fields persist via applyPatch', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'outputFormat', value: 'pcm16' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'streamOutput', value: true } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'filterVoiceModels', value: false } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'retryCount', value: 3 } })
+  assert.equal(cfg.voiceConfig.outputFormat, 'pcm16')
+  assert.equal(cfg.voiceConfig.streamOutput, true)
+  assert.equal(cfg.voiceConfig.filterVoiceModels, false)
+  assert.equal(cfg.voiceConfig.retryCount, 3)
+})
+
+test('voice provider-specific fields persist via applyPatch', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'appId', value: 'abc' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'accessKey', value: 'secret-key' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'emoStrategy', value: '3' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'emoWeight', value: '0.8' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'mode', value: 'design' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'region', value: 'global' } })
+  assert.equal(cfg.voiceConfig.appId, 'abc')
+  assert.equal(cfg.voiceConfig.accessKey, 'secret-key')
+  assert.equal(cfg.voiceConfig.emoStrategy, '3')
+  assert.equal(cfg.voiceConfig.emoWeight, '0.8')
+  assert.equal(cfg.voiceConfig.mode, 'design')
+  assert.equal(cfg.voiceConfig.region, 'global')
+  // invalid mode/region are rejected
+  const bad = applyPatch(cfg, { voiceConfig: { field: 'mode', value: 'bogus' } })
+  assert.equal(bad.voiceConfig.mode, 'design')
 })
 
 // ---- runMimoTts: request construction logic (mocked) ----
