@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.4 — provider-gated 注册收窄（隐藏无效专用工具）
+- **严格按当前供应商注册**（`syncToolRegistration`）：`speak` 仅 mimo/minimax；`clone_voice`（mimo 专用）仅 mimo；`minimax_clone_voice` 仅 minimax。doubao/indextts/voxcpm/gptsovits/tts-webui 下**不注册任何语音工具**（合成未接入，防 AI 调到错端点）。
+- v2.9.3 旧版仅 minimax↔mimo 二分，doubao 等仍误注册 mimo `clone_voice`+`speak`（会打 MiMo 端点必坏）；v2.9.4 收窄为严格 provider 三元。
+- 面板状态新增 `voiceStatusNoSynth`（"该供应商合成未接入，仅 mimo/minimax 可用"），非 mimo/minimax 供应商显示此状态（而非误导性"已启用"）。
+- 验证：e2e 切换供应商读状态——minimax→"已启用"、doubao→"未接入"、mimo→"已启用"；189 单测通过。
+
 ## v2.9.3 — MiniMax 音色克隆（AI 工具 + 面板）
 - **新增 MiniMax 语音分支**：`speak` 工具按 `voiceConfig.provider` 路由——mimo→`runMimoTts`，minimax→`runMinimaxTts`（`POST {base}/v1/t2a_v2`，`audio_setting.format:'mp3'` 固定，响应 `data.audio` 为 hex，hex→mp3 落 `<cwd>/.omni-workstation/artifacts/voice_<ts>.mp3`，`sessionCwd` 空则抛错**不回退** `process.cwd()`，镜像 `generate_video`）
 - **新增 `POST /omni/minimax/clone` 路由**（面板 + AI 工具共用）：clone-only，支持 `ref_audio_path`（服务端路径直传）或 `base64+mime`（面板文件输入，服务端落 `<configDir>/voice-library/` 后克隆）；前置校验 `provider==='minimax'` + `isVoiceConfigValid`；返回 `{ok, voice_id, file_id, demo_audio}`
