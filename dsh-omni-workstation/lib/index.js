@@ -3493,16 +3493,17 @@ async function syncToolRegistration() {
     if (voiceDisposer) { try { voiceDisposer() } catch { /* best-effort */ } }
     if (cloneDisposer) { try { cloneDisposer() } catch { /* best-effort */ } }
     if (minimaxCloneDisposer) { try { minimaxCloneDisposer() } catch { /* best-effort */ } }
-    voiceDisposer = appCtx.tools.register(buildSpeakToolDef(cfg.voiceConfig))
-    if (cfg.voiceConfig.provider === 'minimax') {
-      // minimax: register the minimax clone tool; do NOT register the mimo clone_voice (it would break on the minimax endpoint)
-      minimaxCloneDisposer = appCtx.tools.register(buildMinimaxCloneVoiceToolDef(cfg.voiceConfig))
-      cloneDisposer = null
-    } else {
-      // mimo/other: register the mimo base64-inline clone_voice
-      cloneDisposer = appCtx.tools.register(buildCloneVoiceToolDef(cfg.voiceConfig))
-      minimaxCloneDisposer = null
-    }
+    const vp = cfg.voiceConfig.provider
+    // v2.9.4: provider-gated registration — only register tools whose synthesis is wired
+    // for the CURRENT provider. Prevents the AI from seeing/calling a tool that would
+    // route to the wrong upstream (mimo clone_voice under minimax; any voice tool under
+    // doubao/indextts/voxcpm/gptsovits/tts-webui where synthesis is not yet wired).
+    //   speak               -> mimo (runMimoTts) | minimax (runMinimaxTts)
+    //   clone_voice         -> mimo only (hardcodes mimo-v2.5-tts-voiceclone -> runMimoTts)
+    //   minimax_clone_voice -> minimax only (cloud upload+voice_clone+t2a_v2)
+    voiceDisposer = (vp === 'mimo' || vp === 'minimax') ? appCtx.tools.register(buildSpeakToolDef(cfg.voiceConfig)) : null
+    cloneDisposer = (vp === 'mimo') ? appCtx.tools.register(buildCloneVoiceToolDef(cfg.voiceConfig)) : null
+    minimaxCloneDisposer = (vp === 'minimax') ? appCtx.tools.register(buildMinimaxCloneVoiceToolDef(cfg.voiceConfig)) : null
     voiceVisible = true
     cloneVisible = true
     voiceSigSeen = voiceSig
