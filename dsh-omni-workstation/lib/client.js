@@ -1070,9 +1070,13 @@ voiceSovitsModel: "SoVITS model name",
 	  // ---- v2.9.1 voice panel fixes ----
 	  ".omni-voice-hint { font-size: 11px; opacity: 0.6; margin: 0; line-height: 1.4; }",
 	  ".omni-chev { font-family: monospace; font-size: 12px; line-height: 1; color: currentColor; flex: 0 0 auto; width: 14px; text-align: center; }",
-	  ".omni-voice-upload { display: flex; gap: 6px; }",
-	  ".omni-voice-upload .omni-select { flex: 1; min-width: 0; }",
-	  ".omni-voice-upload .omni-btn { flex: 0 0 auto; align-self: center; height: 32px; }",
+		".omni-voice-upload { display: flex; gap: 6px; align-items: center; }",
+		".omni-voice-upload .omni-select { flex: 1; min-width: 0; }",
+		".omni-voice-upload .omni-input { flex: 1; min-width: 0; }",
+		".omni-voice-upload .omni-btn { flex: 0 0 auto; height: 32px; }",
+		// v2.9.5 — minimax clone row: ensure upload button (height 32px) vertically centers with the
+		// input and the trailing 克隆 button aligns to the input row baseline (not the label row).
+		".omni-minimax-clone-bar .omni-btn { align-self: center; }",
 	  ".omni-vr-override + .omni-voice-hint { margin-top: 3px; }",
 	  ".omni-row > .omni-module-row { flex: 1; }",
 	  ".omni-row > .omni-module-row:empty { display: none; }",
@@ -2763,6 +2767,10 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		// Browser file picker can't expose a server path, so it sends base64; the /omni/minimax/clone
 		// route writes it to a temp file then does upload+voice_clone. On success auto-selects the
 		// cloned voice_id into cfg.voiceId (so speak / minimax_clone_voice can reuse it).
+		// v2.9.5: refactor layout — input + upload button share one row (same flex pattern as
+		// indextts/voxcpm via .omni-voice-upload). On file pick, the audio filename (sans extension)
+		// auto-fills the input as the suggested voice_id; the upload button itself no longer mutates
+		// its label, so the three controls (input / 上传 / 克隆) stay on a single visual baseline.
 		function MinimaxCloneSection(props) {
 			var t = props.t;
 			var vid = React.useState("");
@@ -2779,6 +2787,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					var head = c >= 0 ? du.slice(0, c) : ""; var b64 = c >= 0 ? du.slice(c + 1) : du;
 					var mime = "audio/wav"; var m = head.match(/data:([^;]+)/); if (m) mime = m[1];
 					refFile[1]({ base64: b64, mime: mime, name: f.name });
+					// Put the audio filename (sans extension) into the voice_id input as a starter;
+					// the user can still edit it. Mirrors expectations: filename shows up in the
+					// input box, NOT inside the upload button.
+					var nm = String(f.name || "");
+					var dot = nm.lastIndexOf(".");
+					vid[1](dot > 0 ? nm.slice(0, dot) : nm);
 				};
 				reader.onerror = function () { props.onFail && props.onFail(t("unknown")); };
 				reader.readAsDataURL(f);
@@ -2789,16 +2803,37 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				if (!rf || !id) return;
 				props.onClone({ base64: rf.base64, mime: rf.mime, voice_id: id });
 			};
+			var hasFile = !!refFile[0];
 			return React.createElement("div", { className: "omni-row omni-minimax-clone" }, [
 				React.createElement("div", { className: "omni-field omni-grow" }, [
 					React.createElement("span", { className: "omni-label" }, t("voiceCloneSection")),
-					React.createElement("div", { className: "omni-model-wrap" }, [
-						React.createElement("input", { className: "omni-input", type: "text", value: vid[0], placeholder: t("voiceCloneVoiceIdPh"), onChange: function (e) { vid[1](e.target.value); }, readOnly: busy }),
-						React.createElement("button", { className: "omni-btn", type: "button", title: t("voiceClonePickRef"), disabled: busy, onClick: onPick }, refFile[0] ? (refFile[0].name || "✓") : t("voiceClonePickRef")),
+					React.createElement("div", { className: "omni-model-wrap omni-voice-upload omni-minimax-clone-bar" }, [
+						React.createElement("input", {
+							className: "omni-input",
+							type: "text",
+							value: vid[0],
+							placeholder: hasFile ? "" : t("voiceCloneVoiceIdPh"),
+							title: hasFile ? String((refFile[0] && refFile[0].name) || "") : undefined,
+							readOnly: busy,
+							onChange: function (e) { vid[1](e.target.value); }
+						}),
+						React.createElement("button", {
+							className: "omni-btn",
+							type: "button",
+							title: t("voiceClonePickRef"),
+							disabled: busy,
+							onClick: onPick
+						}, t("voiceClonePickRef")),
 						React.createElement("input", { ref: fileInput, type: "file", accept: "audio/*", style: { display: "none" }, onChange: onFileChange })
 					])
 				]),
-				React.createElement("button", { className: "omni-btn", type: "button", title: t("voiceCloneBtn"), disabled: busy || !refFile[0] || !vid[0], onClick: onClone }, t("voiceCloneBtn"))
+				React.createElement("button", {
+					className: "omni-btn omni-minimax-clone-btn",
+					type: "button",
+					title: t("voiceCloneBtn"),
+					disabled: busy || !refFile[0] || !vid[0],
+					onClick: onClone
+				}, t("voiceCloneBtn"))
 			]);
 		}
 
