@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.5 — minimax 克隆音色区 UI 修复（文件名校入输入框 + 三控件同行）
+- **上传按钮不再被文件名替换**：此前上传音频后，按钮文本会变为音频文件名（`vo_xxx.wav`），按钮视觉"撑宽"且与输入框错位。现文件名（去扩展名）自动填入 voice_id 输入框作为建议值（用户可继续编辑），按钮文案恒定「选择参考音频」；输入框 `title` 保留完整文件名便于查看，有文件时隐藏 placeholder。
+- **三控件同一基线**：`MinimaxCloneSection` 内部容器由 `omni-model-wrap`（block，input 与按钮上下堆叠）改为 `omni-model-wrap omni-voice-upload omni-minimax-clone-bar`，复用 indextts/voxcpm 的 flex 横排规则——voice_id 输入框（`flex:1`）+「选择参考音频」按钮 + 右侧「克隆」按钮同一行垂直居中。
+- **CSS**：`.omni-voice-upload` 增加 `align-items:center`；新增 `.omni-voice-upload .omni-input { flex:1; min-width:0 }`；`.omni-voice-upload .omni-btn` 移 `align-self:center`（由父容器统一居中）；新增 `.omni-minimax-clone-bar .omni-btn { align-self:center }`。
+- 验证：浏览器自动化（agent-browser）打开设置→全模态→语音→MiniMax，上传 `vo_BZLQ001_4_hutao_03.wav`——快照确认输入框 value=`vo_BZLQ001_4_hutao_03`、按钮文本不变、三控件同组；截图视觉确认三控件同一行居中；189 单测通过。
+
 ## v2.9.4 — provider-gated 注册收窄（隐藏无效专用工具）
 - **严格按当前供应商注册**（`syncToolRegistration`）：`speak` 仅 mimo/minimax；`clone_voice`（mimo 专用）仅 mimo；`minimax_clone_voice` 仅 minimax。doubao/indextts/voxcpm/gptsovits/tts-webui 下**不注册任何语音工具**（合成未接入，防 AI 调到错端点）。
 - v2.9.3 旧版仅 minimax↔mimo 二分，doubao 等仍误注册 mimo `clone_voice`+`speak`（会打 MiMo 端点必坏）；v2.9.4 收窄为严格 provider 三元。
