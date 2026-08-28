@@ -12,7 +12,7 @@ import { join } from 'node:path'
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-workstation-voice-'))
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-workstation-vcfg-'))
 
-const { applyPatch } = await import('../lib/index.js')
+const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef } = await import('../lib/index.js')
 
 // ---- Reproduce pure voice helpers (not exported from index.js) ----
 
@@ -553,4 +553,85 @@ test('doMinimaxClone: upload FormData(voice_clone) then voice_clone body with fi
   } finally {
     global.fetch = realFetch
   }
+})
+
+// ---- v2.9.7: clone_voice tool definition (clone-only, mimo+minimax) ----
+
+test('buildCloneVoiceToolDef minimax: parameters + description + output schema', () => {
+  const vc = { provider: 'minimax', voiceId: 'test_vid', model: 'speech-2.8-hd' }
+  const def = buildCloneVoiceToolDef(vc)
+  assert.equal(def.name, 'clone_voice')
+  const props = def.parameters.properties
+  assert.ok(props.voice_sample_path, 'voice_sample_path param present')
+  // voice_id and text should exist too
+  assert.ok(props.voice_id, 'voice_id param present')
+  assert.ok(props.text, 'text param present')
+  assert.ok(def.description.indexOf('voice_id') >= 0)
+  assert.equal(def.output.schema.properties.ok.type, 'boolean')
+  assert.equal(def.output.schema.properties.voice_id.type, 'string')
+  assert.equal(def.output.schema.properties.demo_audio.type, 'string')
+})
+
+test('buildCloneVoiceToolDef mimo: description mentions voice_sample_path', () => {
+  const vc = { provider: 'mimo', voiceId: 'mimo_default', model: 'mimo-v2.5-tts' }
+  const def = buildCloneVoiceToolDef(vc)
+  assert.equal(def.name, 'clone_voice')
+  assert.ok(def.description.indexOf('voice_sample_path') >= 0)
+  assert.ok(def.description.indexOf('克隆') >= 0)
+})
+
+// ---- v2.9.7: speak tool definition (provider-aware params) ----
+
+test('buildSpeakToolDef mimo: has voice_sample_path param; minimax: does not', () => {
+  const mimoVc = { provider: 'mimo', voiceId: 'mimo_default', model: 'mimo-v2.5-tts' }
+  const mimoDef = buildSpeakToolDef(mimoVc)
+  const mimoProps = mimoDef.parameters.properties
+  assert.ok(mimoProps.voice_sample_path, 'mimo speak should have voice_sample_path')
+
+  const mmVc = { provider: 'minimax', voiceId: 'test_vid', model: 'speech-2.8-hd' }
+  const mmDef = buildSpeakToolDef(mmVc)
+  const mmProps = mmDef.parameters.properties
+  assert.equal(mmProps.voice_sample_path, undefined, 'minimax speak should NOT have voice_sample_path')
+  assert.ok(mmDef.description.indexOf('clone_voice') >= 0)
+  assert.equal(mmDef.description.indexOf('minimax_clone_voice'), -1)
+})
+
+// ---- v2.9.7: applyPatch voiceId reset on provider switch (except minimax) ----
+
+test('applyPatch provider switch resets voiceId: mimo→doubao→gptsovits', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'mimo' } })
+  assert.equal(cfg.voiceConfig.voiceId, 'mimo_default')
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'doubao' } })
+  assert.equal(cfg.voiceConfig.voiceId, 'zh_female_vv_uranus_bigtts')
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'gptsovits' } })
+  assert.equal(cfg.voiceConfig.voiceId, '')
+})
+
+test('applyPatch provider switch to minimax does NOT reset voiceId', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'mimo' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'minimax' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'voiceId', value: 'hutao_cloned' } })
+  assert.equal(cfg.voiceConfig.voiceId, 'hutao_cloned')
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'doubao' } })
+  assert.equal(cfg.voiceConfig.voiceId, 'zh_female_vv_uranus_bigtts')
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'minimax' } })
+  assert.notEqual(cfg.voiceConfig.voiceId, '')
+})
+
+test('applyPatch provider switch to indextts resets voiceId to empty', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'indextts' } })
+  assert.equal(cfg.voiceConfig.voiceId, '')
+})
+
+test('applyPatch provider switch to voxcpm resets voiceId to empty', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'voxcpm' } })
+  assert.equal(cfg.voiceConfig.voiceId, '')
+})
+
+test('applyPatch provider switch resets voiceId in active preset too', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'mimo' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'doubao' } })
+  const vp = (cfg.voicePresets || []).find(p => p.id === cfg.activeVoicePreset)
+  assert.ok(vp, 'active preset exists')
+  assert.equal(vp.config.voiceId, 'zh_female_vv_uranus_bigtts')
 })

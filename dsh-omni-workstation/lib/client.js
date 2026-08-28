@@ -1260,6 +1260,19 @@ voiceSovitsModel: "SoVITS model name",
 				"tts-webui": { group: "local", fixed: false, fixedUrl: false, endpoint: "", keyRequired: false }
 			};
 			var MIMO_PRESET_VOICES = ["mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean"];
+			// v2.9.7: doubao 10 built-in voices from 文档/豆包.txt (seed-tts-2.0)
+			var DOUBAO_PRESET_VOICES = [
+				{ id: "zh_female_vv_uranus_bigtts", name: "Vivi 2.0" },
+				{ id: "zh_female_xiaohe_uranus_bigtts", name: "小何 2.0" },
+				{ id: "zh_female_qingxinnvsheng_uranus_bigtts", name: "清新女声 2.0" },
+				{ id: "zh_male_m191_uranus_bigtts", name: "云舟 2.0" },
+				{ id: "zh_male_taocheng_uranus_bigtts", name: "小天 2.0" },
+				{ id: "zh_female_qinqienv_uranus_bigtts", name: "亲切女声 2.0" },
+				{ id: "zh_male_silang_uranus_bigtts", name: "四郎 2.0" },
+				{ id: "zh_female_peiqi_uranus_bigtts", name: "佩奇猪 2.0" },
+				{ id: "ICL_uranus_en_female_charlie_tob", name: "Charlie 2.0" },
+				{ id: "ICL_uranus_zh_female_nuanxinqianqian_tob", name: "暖心茜茜 2.0" }
+			];
 			function voiceProviderDisplay(id, t) {
 				if (id === "mimo") return t("voiceProviderMimo");
 				if (id === "minimax") return t("voiceProviderMinimax");
@@ -2772,7 +2785,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		// v2.9.3: minimax 克隆音色 section — ref-audio file picker (base64) + voice_id input + 克隆 button.
 		// Browser file picker can't expose a server path, so it sends base64; the /omni/minimax/clone
 		// route writes it to a temp file then does upload+voice_clone. On success auto-selects the
-		// cloned voice_id into cfg.voiceId (so speak / minimax_clone_voice can reuse it).
+		// cloned voice_id into cfg.voiceId (so speak / clone_voice can reuse it).
 		// v2.9.5: refactor layout — input + upload button share one row (same flex pattern as
 		// indextts/voxcpm via .omni-voice-upload). On file pick, the audio filename (sans extension)
 		// auto-fills the input as the suggested voice_id; the upload button itself no longer mutates
@@ -3189,9 +3202,15 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 								return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || (opts[0] && opts[0].id) || "", options: opts.map(function (v) { return { value: v.id, label: v.name }; }), onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
 							}
 
-							// Doubao: speaker text input
+							// Doubao: speaker dropdown (10 built-in voices + stale-value guard)
 							if (p === "doubao") {
-								return React.createElement(Field, { label: t("voiceSpeaker"), value: cfg.voiceId || "zh_female_vv_uranus_bigtts", placeholder: "zh_female_vv_uranus_bigtts", onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
+								var dbOpts = DOUBAO_PRESET_VOICES.map(function (v) { return { value: v.id, label: v.name }; });
+								// stale-value guard: if cfg.voiceId is a custom/cloned id not in the preset list,
+								// append it as an extra option so the <select> doesn't render blank
+								if (cfg.voiceId && !DOUBAO_PRESET_VOICES.some(function (v) { return v.id === cfg.voiceId; })) {
+									dbOpts.push({ value: cfg.voiceId, label: cfg.voiceId + " (自定义)" });
+								}
+								return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || "zh_female_vv_uranus_bigtts", options: dbOpts, onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
 							}
 
 							// IndexTTS: reference audio dropdown from API + upload button
@@ -4218,6 +4237,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						voiceModelList[1](dbModels);
 						voiceModelCount[1](dbModels.length);
 						voiceOpenDd[1](true);
+						voiceVoiceList[1](DOUBAO_PRESET_VOICES);
 						showToast('success', t('fetchOkPrefix') + dbModels.length + t('fetchOkSuffix'), '');
 						return;
 					}
@@ -4382,6 +4402,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				function changeVoiceProvider(v) {
 					if (!VOICE_PROVIDERS_UI[v]) return;
 					patchVoice("provider", v);
+					// v2.9.7: reset voiceId to provider default (except minimax — preserve cloned voice_id)
+					if (v !== "minimax") {
+						var defaultVid = v === "mimo" ? "mimo_default"
+							: v === "doubao" ? "zh_female_vv_uranus_bigtts"
+							: "";
+						updateDraft(function (d) {
+							d.voiceConfig = Object.assign({}, d.voiceConfig || {}, { voiceId: defaultVid });
+							return d;
+						});
+					}
 					voiceModelList[1]([]);
 					voiceVoiceList[1]([]);
 					voiceModelCount[1](null);
