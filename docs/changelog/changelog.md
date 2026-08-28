@@ -2,6 +2,17 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.7 — 统一 clone_voice（clone-only）+ 语音面板修复
+- **统一 `clone_voice`**（clone-only，不合成）：mimo+minimax 均注册，替代旧 mimo clone+synthesize（一步克隆+合成）和旧 `minimax_clone_voice`（一步克隆+合成）。AI 克隆→拿 voice_id（minimax 持久化）或 voice_sample_path（mimo 内联）→ 后续 `speak` 传 `voice`/`voice_sample_path` 复用，不写 config 防冲突。
+- **`speak` 工具更新**：加 `voice_sample_path` 参数（mimo-only，execute 覆写 model→`mimo-v2.5-tts-voiceclone`，`runMimoTts` line 2721 已处理 base64 inline）；description 改为 provider-aware（minimax 提示 voice_id，mimo 提示 voice_sample_path）。
+- **`syncToolRegistration`**：`cloneDisposer` 扩展到 mimo+minimax；`minimaxCloneDisposer` 移除（二 disposer）；旧 `buildMinimaxCloneVoiceToolDef` 删除。
+- **`/omni/key` 路由加 voice 分支**：`POST /omni/key {voice:true}` 返回 `voiceConfig.apiKey`，修复语音面板 key 眼睛按钮不显示问题（旧版无 voice 分支 → 404 card not found → `.catch` 吞掉 → key 永不显示）。
+- **provider 切换重置 voiceId**：`applyPatch` provider 变更时自动重置——mimo→`mimo_default`、doubao→`zh_female_vv_uranus_bigtts`、其余→空，**minimax 除外**（保留克隆 voice_id，防 `runMinimaxTts` 抛错）；客户端 `changeVoiceProvider` 同步更新本地 draft。
+- **豆包 10 内置音色**：`DOUBAO_PRESET_VOICES`（client.js 常量，来自 `文档/豆包.txt`），默认 Vivi 2.0；面板 `Field`→`SelectField` 下拉（含 stale-value 兜底——自定义 voiceId 追加为额外选项）；`fetchVoiceModels` doubao 分支填充 `voiceVoiceList`。
+- **导出**：`buildCloneVoiceToolDef`/`buildSpeakToolDef` 导出供测试直接调用（参照 `buildVideoToolDef` 模式）。
+- **测试**：新增 8 例（clone_voice 工具定义、speak provider-aware 参数、applyPatch voiceId 重置 5 例 + preset 同步），全套 **197** 例通过。
+- 验证：`node --check` + `node --test` 全通过；E2E 手动验证待用户启动 `dsh web` 后进行。
+
 ## v2.9.6 — minimax 克隆音色区：音色库下拉菜单 + 选择/删除（对齐 mimo RefAudioRow 交互）
 - **「选择参考音频」→「选择」**：上传按钮文案缩短为「选择」（`voiceClonePickRef`），完整提示移到 `voiceClonePickRefTitle`（按钮 title）。
 - **输入框内右侧指示键**：voice_id 输入框右侧新增 dropdown 按钮（`.omni-preset-dd-btn`，I_EXPAND/I_COLLAPSE 图标），点击展开**共享音色库菜单**（`voice-library` 列表，菜单项为库内音频名，active 高亮当前选中）。从菜单直接选择音频 → `refFile` 变 `{path,name}` 模式，克隆时走 `ref_audio_path` 直传（**无需重新上传**）。
