@@ -265,7 +265,10 @@ voiceRefAudioPath: "参考音频",
 			voiceCloneSection: "克隆音色",
 			voiceCloneVoiceIdPh: "voice_id（如 hutao）",
 			voiceCloneBtn: "克隆",
-			voiceClonePickRef: "选择参考音频",
+			voiceClonePickRef: "选择",
+			voiceClonePickRefTitle: "选择参考音频",
+			voiceCloneLibMenu: "音色库",
+			voiceCloneLibEmpty: "音色库为空，点击「选择」上传音频",
 			voiceCloneOk: "音色克隆成功",
 			voiceCloneFail: "音色克隆失败",
 voiceGptModel: "GPT 模型名",
@@ -630,7 +633,10 @@ voiceRefAudioPath: "Reference audio",
 			voiceCloneSection: "Voice clone",
 			voiceCloneVoiceIdPh: "voice_id (e.g. hutao)",
 			voiceCloneBtn: "Clone",
-			voiceClonePickRef: "Pick reference audio",
+			voiceClonePickRef: "Pick",
+			voiceClonePickRefTitle: "Pick reference audio",
+			voiceCloneLibMenu: "Voice library",
+			voiceCloneLibEmpty: "Voice library is empty — click \"Pick\" to upload",
 			voiceCloneOk: "Voice cloned",
 			voiceCloneFail: "Voice clone failed",
 voiceGptModel: "GPT model name",
@@ -2771,13 +2777,27 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		// indextts/voxcpm via .omni-voice-upload). On file pick, the audio filename (sans extension)
 		// auto-fills the input as the suggested voice_id; the upload button itself no longer mutates
 		// its label, so the three controls (input / 上传 / 克隆) stay on a single visual baseline.
+		// v2.9.6: mirror the mimo RefAudioRow interactions — the input gains an in-box dropdown
+		// indicator (opens the shared voice-library menu so previously uploaded audio can be reused
+		// directly without re-picking), the pick button text shortens to 选择, and a trash button
+		// (library delete with confirm) is added right of 克隆. Picked audio is imported into the
+		// shared voice-library on upload; the menu entries reuse them via ref_audio_path.
 		function MinimaxCloneSection(props) {
 			var t = props.t;
 			var vid = React.useState("");
-			var refFile = React.useState(null);
+			var refFile = React.useState(null); // {path,name} from library | {base64,mime,name} fallback
+			var delName = React.useState(null); // library name pending delete confirmation
 			var fileInput = React.useRef(null);
 			var busy = props.busy === true;
+			var lib = Array.isArray(props.library) ? props.library : [];
 			var onPick = function () { if (!busy && fileInput.current) fileInput.current.click(); };
+			var onPickFromLib = function (entry) {
+				if (!entry || !entry.path) return;
+				refFile[1]({ path: entry.path, name: entry.name });
+				var nm = String(entry.name || ""); var dot = nm.lastIndexOf(".");
+				vid[1](dot > 0 ? nm.slice(0, dot) : nm);
+				if (props.onToggleDd) props.onToggleDd(); // close the menu
+			};
 			var onFileChange = function (e) {
 				var f = e && e.target && e.target.files && e.target.files[0];
 				if (!f) return;
@@ -2786,13 +2806,27 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					var du = String(reader.result || ""); var c = du.indexOf(",");
 					var head = c >= 0 ? du.slice(0, c) : ""; var b64 = c >= 0 ? du.slice(c + 1) : du;
 					var mime = "audio/wav"; var m = head.match(/data:([^;]+)/); if (m) mime = m[1];
-					refFile[1]({ base64: b64, mime: mime, name: f.name });
-					// Put the audio filename (sans extension) into the voice_id input as a starter;
-					// the user can still edit it. Mirrors expectations: filename shows up in the
-					// input box, NOT inside the upload button.
-					var nm = String(f.name || "");
-					var dot = nm.lastIndexOf(".");
-					vid[1](dot > 0 ? nm.slice(0, dot) : nm);
+					var nm = String(f.name || ""); var dot = nm.lastIndexOf(".");
+					var base = dot > 0 ? nm.slice(0, dot) : nm;
+					// Import into the shared voice library so it shows up in the dropdown next time.
+					call("voice-library", { base64: b64, mime: mime, name: base }).then(function (r) {
+						if (r && r.ok && r.entry) {
+							refFile[1]({ path: r.entry.path, name: r.entry.name });
+							var en = String(r.entry.name || base); var ed = en.lastIndexOf(".");
+							vid[1](ed > 0 ? en.slice(0, ed) : en);
+							if (props.onLibReload) props.onLibReload();
+							if (props.onToast) props.onToast('success', t('voiceRefAudioUploadOk'), r.entry.name);
+						} else {
+							// Import failed — keep a local base64 fallback so cloning can still proceed.
+							refFile[1]({ base64: b64, mime: mime, name: f.name });
+							vid[1](base);
+							props.onFail && props.onFail((r && r.error) || t("unknown"));
+						}
+					}).catch(function (err) {
+						refFile[1]({ base64: b64, mime: mime, name: f.name });
+						vid[1](base);
+						props.onFail && props.onFail(et(err));
+					});
 				};
 				reader.onerror = function () { props.onFail && props.onFail(t("unknown")); };
 				reader.readAsDataURL(f);
@@ -2801,39 +2835,87 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var onClone = function () {
 				var rf = refFile[0]; var id = String(vid[0] || "").trim();
 				if (!rf || !id) return;
-				props.onClone({ base64: rf.base64, mime: rf.mime, voice_id: id });
+				var payload = rf.path
+					? { ref_audio_path: rf.path, voice_id: id }
+					: { base64: rf.base64, mime: rf.mime, voice_id: id };
+				props.onClone(payload);
+			};
+			var onDelete = function () {
+				var rf = refFile[0];
+				if (!rf) return;
+				if (rf.path && rf.name) delName[1](rf.name); // library entry → confirm modal
+				else { refFile[1](null); vid[1](""); }        // base64-only fallback → just clear
+			};
+			var onConfirmDelete = function () {
+				var nm = delName[0];
+				if (!nm) return;
+				call("voice-library", { delete: nm }).then(function (r) {
+					if (r && r.ok) {
+						refFile[1](null); vid[1]("");
+						if (props.onLibReload) props.onLibReload();
+						if (props.onToast) props.onToast('success', t('voiceRefAudioDeleteOk'), nm);
+					} else {
+						props.onFail && props.onFail((r && r.error) || t("unknown"));
+					}
+				}).catch(function (err) { props.onFail && props.onFail(et(err)); }).finally(function () { delName[1](null); });
 			};
 			var hasFile = !!refFile[0];
-			return React.createElement("div", { className: "omni-row omni-minimax-clone" }, [
-				React.createElement("div", { className: "omni-field omni-grow" }, [
-					React.createElement("span", { className: "omni-label" }, t("voiceCloneSection")),
-					React.createElement("div", { className: "omni-model-wrap omni-voice-upload omni-minimax-clone-bar" }, [
-						React.createElement("input", {
-							className: "omni-input",
-							type: "text",
-							value: vid[0],
-							placeholder: hasFile ? "" : t("voiceCloneVoiceIdPh"),
-							title: hasFile ? String((refFile[0] && refFile[0].name) || "") : undefined,
-							readOnly: busy,
-							onChange: function (e) { vid[1](e.target.value); }
-						}),
-						React.createElement("button", {
-							className: "omni-btn",
-							type: "button",
-							title: t("voiceClonePickRef"),
-							disabled: busy,
-							onClick: onPick
-						}, t("voiceClonePickRef")),
-						React.createElement("input", { ref: fileInput, type: "file", accept: "audio/*", style: { display: "none" }, onChange: onFileChange })
-					])
+			var bar = React.createElement("div", { className: "omni-preset-bar omni-ref-audio-bar omni-minimax-clone-bar" }, [
+				React.createElement("div", { className: "omni-preset-input-wrap omni-minimax-clone-inputwrap" }, [
+					React.createElement("input", {
+						className: "omni-input omni-preset-name-input",
+						type: "text",
+						value: vid[0],
+						placeholder: hasFile ? "" : t("voiceCloneVoiceIdPh"),
+						title: hasFile ? String((refFile[0] && refFile[0].name) || "") : t("voiceCloneVoiceIdPh"),
+						readOnly: busy,
+						onChange: function (e) { vid[1](e.target.value); }
+					}),
+					React.createElement("button", {
+						className: "omni-preset-dd-btn", type: "button",
+						title: t("voiceCloneLibMenu"),
+						onClick: props.onToggleDd
+					}, React.createElement(SvgIcon, { d: props.ddOpen ? I_COLLAPSE : I_EXPAND })),
+					props.ddOpen ? React.createElement("div", { className: "omni-preset-menu" },
+						lib.length > 0 ? lib.map(function (e) {
+							return React.createElement("div", {
+								key: e.id || e.name, className: "omni-preset-menu-item" + (refFile[0] && refFile[0].path === e.path ? " active" : ""),
+								onClick: function () { onPickFromLib(e); }
+							}, e.name);
+						}) : [React.createElement("div", { key: "empty", className: "omni-preset-menu-item", style: { opacity: 0.6, cursor: "default" } }, t("voiceCloneLibEmpty"))]
+					) : null
 				]),
 				React.createElement("button", {
-					className: "omni-btn omni-minimax-clone-btn",
-					type: "button",
-					title: t("voiceCloneBtn"),
-					disabled: busy || !refFile[0] || !vid[0],
+					className: "omni-btn", type: "button",
+					title: t("voiceClonePickRefTitle"), disabled: busy,
+					onClick: onPick
+				}, t("voiceClonePickRef")),
+				React.createElement("button", {
+					className: "omni-btn omni-minimax-clone-btn", type: "button",
+					title: t("voiceCloneBtn"), disabled: busy || !refFile[0] || !vid[0],
 					onClick: onClone
-				}, t("voiceCloneBtn"))
+				}, t("voiceCloneBtn")),
+				React.createElement("button", {
+					className: "omni-btn omni-del-btn", type: "button",
+					title: t("voiceRefAudioDelete"), disabled: busy || !refFile[0],
+					onClick: onDelete
+				}, React.createElement(SvgIcon, { d: I_TRASH }))
+			]);
+			var deleteModal = delName[0] ? React.createElement("div", { className: "omni-confirm-overlay", onClick: function () { delName[1](null); } }, [
+				React.createElement("div", { className: "omni-confirm-modal", onClick: function (e) { e.stopPropagation(); } }, [
+					React.createElement("span", { className: "omni-confirm-title" }, t("voiceRefAudioDeleteTitle")),
+					React.createElement("p", { className: "omni-confirm-msg" }, t("voiceRefAudioDeleteMsg")),
+					React.createElement("div", { className: "omni-confirm-btns" }, [
+						React.createElement("button", { className: "omni-btn", onClick: function () { delName[1](null); }, disabled: busy }, t("presetDeleteCancel")),
+						React.createElement("button", { className: "omni-btn omni-confirm-danger", onClick: onConfirmDelete, disabled: busy }, t("voiceRefAudioDeleteConfirm"))
+					])
+				])
+			]) : null;
+			return React.createElement("div", { className: "omni-field omni-minimax-clone" }, [
+				React.createElement("span", { className: "omni-label" }, t("voiceCloneSection")),
+				bar,
+				deleteModal,
+				React.createElement("input", { ref: fileInput, type: "file", accept: "audio/*", style: { display: "none" }, onChange: onFileChange })
 			]);
 		}
 
@@ -3190,7 +3272,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						cfg.provider === "minimax" ? React.createElement("div", { className: "omni-row" }, [
 							React.createElement(SelectField, { label: t("voiceMinimaxRegion"), value: cfg.region || "cn", options: [{ value: "cn", label: "cn" }, { value: "global", label: "global" }], onChange: function (e) { props.onPatch("region", e.target.value); } })
 						]) : null,
-						cfg.provider === "minimax" ? React.createElement(MinimaxCloneSection, { t: t, busy: props.voiceCloneBusy, onClone: props.onMinimaxClone, onFail: function (m) { props.showToast && props.showToast('error', t("voiceCloneFail"), m || t("unknown")); } }) : null,
+						cfg.provider === "minimax" ? React.createElement(MinimaxCloneSection, {
+							t: t,
+							busy: props.voiceCloneBusy,
+							onClone: props.onMinimaxClone,
+							library: props.voiceRefLibrary,
+							ddOpen: props.voiceRefDdOpen,
+							onToggleDd: props.onToggleRefDd,
+							onLibReload: props.onRefLibReload,
+							onToast: props.showToast,
+							onFail: function (m) { props.showToast && props.showToast('error', t("voiceCloneFail"), m || t("unknown")); }
+						}) : null,
 						// 重试次数 | 输出格式
 						React.createElement("div", { className: "omni-row" }, [
 							React.createElement(Field, { label: t("voiceRetryCount"), number: true, min: 1, value: String(cfg.retryCount || 1), onChange: function (e) { props.onPatch("retryCount", e.target.value); } }),
@@ -4269,10 +4361,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			if (e && e.target) e.target.value = "";
 		}
 		// v2.9.3: minimax clone (panel) — POST /omni/minimax/clone {base64, mime, voice_id} → auto-select voice_id
+		// v2.9.6: also accepts {ref_audio_path, voice_id} (voice-library entry picked from the dropdown).
 		function onMinimaxClone(payload) {
-			if (!payload || !payload.base64 || !payload.voice_id) return;
+			if (!payload || !payload.voice_id) return;
+			if (!payload.ref_audio_path && !payload.base64) return;
 			voiceCloneBusy[1](true);
-			call("minimax/clone", { base64: payload.base64, mime: payload.mime, voice_id: payload.voice_id }).then(function (r) {
+			call("minimax/clone", {
+				base64: payload.base64, mime: payload.mime,
+				ref_audio_path: payload.ref_audio_path,
+				voice_id: payload.voice_id
+			}).then(function (r) {
 				if (r && r.ok && r.voice_id) {
 					patchVoice("voiceId", r.voice_id);
 					showToast('success', t('voiceCloneOk'), r.voice_id);
@@ -4776,6 +4874,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						onConfirmRefDelete: confirmRefDelete,
 						onCancelRefDelete: cancelRefDelete,
 						onStartRefUpload: startRefUpload,
+						onRefLibReload: fetchVoiceLibrary,
 						voiceCloneBusy: voiceCloneBusy[0],
 						onMinimaxClone: onMinimaxClone,
 						showToast: showToast

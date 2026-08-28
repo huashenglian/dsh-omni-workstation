@@ -2,6 +2,16 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.6 — minimax 克隆音色区：音色库下拉菜单 + 选择/删除（对齐 mimo RefAudioRow 交互）
+- **「选择参考音频」→「选择」**：上传按钮文案缩短为「选择」（`voiceClonePickRef`），完整提示移到 `voiceClonePickRefTitle`（按钮 title）。
+- **输入框内右侧指示键**：voice_id 输入框右侧新增 dropdown 按钮（`.omni-preset-dd-btn`，I_EXPAND/I_COLLAPSE 图标），点击展开**共享音色库菜单**（`voice-library` 列表，菜单项为库内音频名，active 高亮当前选中）。从菜单直接选择音频 → `refFile` 变 `{path,name}` 模式，克隆时走 `ref_audio_path` 直传（**无需重新上传**）。
+- **「克隆」右侧新增垃圾桶删除键**：库条目（path 模式）→ 确认弹窗（复用 voiceRefAudioDelete* 文案）→ `voice-library delete` 删库 + 刷新 + 清空选择；base64 本地回退 → 直接清空。
+- **上传即入库**：点「选择」选文件后，base64 写入共享 `voice-library`（name=文件名去扩展名，服务端 dedup），成功后 refFile=库条目 path 模式 + 输入框自动填文件名（去后缀）+ toast「参考音频已导入」+ 刷新库；入库失败回退 base64 模式（仍可克隆）。
+- **`onMinimaxClone` 扩展**：接受 `{ref_audio_path, voice_id}`（库条目）或 `{base64, mime, voice_id}`（回退）。
+- **布局**：`MinimaxCloneSection` 容器改为 `omni-preset-bar omni-ref-audio-bar omni-minimax-clone-bar`，输入组复用 `.omni-preset-input-wrap`（相对定位 + padding-right 留指示键空间 + `.omni-preset-menu` 下拉），outside-click 关闭复用父级 `.omni-preset-bar` 逻辑。
+- **新 i18n**（zh/en）：`voiceClonePickRefTitle`、`voiceCloneLibMenu`（"音色库"）、`voiceCloneLibEmpty`。
+- 验证：浏览器自动化（agent-browser）设置→全模态→语音→MiniMax——快照确认「选择」+ 输入框指示键 + 「克隆」+ 垃圾桶四控件同行；点指示键展开菜单显示空态文案「音色库为空，点击「选择」上传音频」；上传 `vo_BZLQ001_4_hutao_03.wav` 后输入框显示 `vo_BZLQ001_4_hutao_03`、克隆/删除按钮启用。189 单测通过。（注：本轮 E2E 运行环境的沙箱限制写入 `~/.dsh/.../omni-vision.json`（storeConfig EPERM），voice-library 入库在正常用户环境（无沙箱）下生效；dsh web 需由用户正常启动以完成全链路验证。）
+
 ## v2.9.5 — minimax 克隆音色区 UI 修复（文件名校入输入框 + 三控件同行）
 - **上传按钮不再被文件名替换**：此前上传音频后，按钮文本会变为音频文件名（`vo_xxx.wav`），按钮视觉"撑宽"且与输入框错位。现文件名（去扩展名）自动填入 voice_id 输入框作为建议值（用户可继续编辑），按钮文案恒定「选择参考音频」；输入框 `title` 保留完整文件名便于查看，有文件时隐藏 placeholder。
 - **三控件同一基线**：`MinimaxCloneSection` 内部容器由 `omni-model-wrap`（block，input 与按钮上下堆叠）改为 `omni-model-wrap omni-voice-upload omni-minimax-clone-bar`，复用 indextts/voxcpm 的 flex 横排规则——voice_id 输入框（`flex:1`）+「选择参考音频」按钮 + 右侧「克隆」按钮同一行垂直居中。
