@@ -3823,6 +3823,13 @@ function applyPatch(cfg, patch) {
         else if (value === 'doubao') c[vcKey].voiceId = 'zh_female_vv_uranus_bigtts'
         else if (value !== 'minimax') c[vcKey].voiceId = ''
         // minimax: voiceId untouched (preserve cloned voice_id)
+        // v2.9.8: also reset model to provider-appropriate default — prevents
+        // stale mimo model (mimo-v2.5-tts-voiceclone) leaking into doubao (needs
+        // seed-tts-2.0) or minimax (needs speech-2.8-hd) on provider switch.
+        if (value === 'mimo') c[vcKey].model = 'mimo-v2.5-tts'
+        else if (value === 'minimax') c[vcKey].model = 'speech-2.8-hd'
+        else if (value === 'doubao') c[vcKey].model = 'seed-tts-2.0'
+        else c[vcKey].model = ''
       } else if (field === 'protocol' && VOICE_PROTOCOLS.includes(value)) c[vcKey].protocol = value
       else if (field === 'endpoint') c[vcKey].endpoint = String(value || '').trim()
       else if (field === 'model') c[vcKey].model = String(value || '').trim()
