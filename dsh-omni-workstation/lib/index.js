@@ -1008,9 +1008,10 @@ function normalizeConfig(raw) {
         id: typeof p.id === 'string' ? p.id : 'dcp_' + Date.now().toString(36),
         name: typeof p.name === 'string' ? p.name : '未命名',
         speakerId: typeof p.speakerId === 'string' ? p.speakerId : '',
-        refAudioPath: typeof p.refAudioPath === 'string' ? p.refAudioPath : ''
+        refAudioPath: typeof p.refAudioPath === 'string' ? p.refAudioPath : '',
+        cloneModel: typeof p.cloneModel === 'string' ? p.cloneModel : 'seed-icl-2.0'
       }))
-    : [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }]
+    : [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0' }]
   let activeDoubaoClonePreset = typeof src.activeDoubaoClonePreset === 'string' && doubaoClonePresets.some((p) => p.id === src.activeDoubaoClonePreset) ? src.activeDoubaoClonePreset : doubaoClonePresets[0].id
   return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, doubaoClonePresets, activeDoubaoClonePreset, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
@@ -2969,28 +2970,26 @@ async function runDoubaoTts(vc, args, exec) {
   return { ok: true, path, model, format: 'mp3' }
 }
 
-// v2.9.8: doubao voice clone — base64 upload → async training → poll status.
-// Postpaid: speaker_id='custom_speaker_id', custom_speaker_id=user-defined.
-// Training is async: poll get_voice until status=2(Success) or 4(Active).
-async function doDoubaoClone(vc, refPath, speakerId, text) {
+// v2.9.10: doubao voice clone — V1 API (旧版控制台)
+// Endpoint: /api/v1/mega_tts/audio/upload + /api/v1/mega_tts/status
+// Auth: Authorization: Bearer; <accessToken> + Resource-Id header
+// Body: {appid, speaker_id, audios:[{audio_bytes, audio_format}], source:2, model_type, language}
+// Response: BaseResp.StatusCode === 0 for success
+async function doDoubaoClone(vc, refPath, speakerId, text, cloneModel) {
+  const accessToken = vc.accessKey || vc.apiKey || ''
   const appId = vc.appId || ''
-  const accessKey = vc.accessKey || ''
-  const apiKey = vc.accessKey || vc.apiKey || ''
-  const headers = { 'Content-Type': 'application/json' }
-  if (appId) headers['X-Api-App-Key'] = appId
-  if (accessKey) headers['X-Api-Access-Key'] = accessKey
-  else if (apiKey) headers['X-Api-Key'] = apiKey
-  // v2.9.9: voice_clone endpoint requires X-Api-Request-Id (TTS endpoint doesn't)
-  headers['X-Api-Request-Id'] = 'omni_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)
+  const resourceId = cloneModel || 'seed-icl-2.0'
+  const modelType = resourceId === 'seed-icl-1.0' ? 1 : 4
   const buf = readFileSync(refPath)
   const ext = String(refPath.replace(/^.*\./, '') || '').toLowerCase()
-  const format = ext === 'mp3' ? 'mp3' : ext === 'wav' ? 'wav' : ext === 'ogg' ? 'ogg_opus' : 'mp3'
+  const format = ext === 'mp3' ? 'mp3' : ext === 'wav' ? 'wav' : ext === 'm4a' ? 'm4a' : ext === 'ogg' ? 'ogg' : ext === 'aac' ? 'aac' : 'mp3'
   const b64 = buf.toString('base64')
-  const cloneBody = { speaker_id: 'custom_speaker_id', custom_speaker_id: speakerId, audio: { data: b64, format } }
+  const headers = { 'Authorization': 'Bearer; ' + accessToken, 'Resource-Id': resourceId, 'Content-Type': 'application/json' }
+  const cloneBody = { appid: appId, speaker_id: speakerId, audios: [{ audio_bytes: b64, audio_format: format }], source: 2, model_type: modelType, language: 0 }
   if (text) cloneBody.text = text
   let resp
   try {
-    resp = await fetch('https://openspeech.bytedance.com/api/v3/tts/voice_clone', { method: 'POST', headers, body: JSON.stringify(cloneBody) })
+    resp = await fetch('https://openspeech.bytedance.com/api/v1/mega_tts/audio/upload', { method: 'POST', headers, body: JSON.stringify(cloneBody) })
   } catch (e) {
     throw new Error('doDoubaoClone: 上传请求失败 — ' + String(e && e.message || e))
   }
@@ -2998,23 +2997,26 @@ async function doDoubaoClone(vc, refPath, speakerId, text) {
     const t = await resp.text().catch(() => '')
     throw new Error('doDoubaoClone: HTTP ' + resp.status + ' — ' + t.slice(0, 200))
   }
-  // Poll training status (sync, up to 120s, 3s interval)
-  const maxIter = 40
-  const intervalMs = 3000
-  for (let i = 0; i < maxIter; i++) {
-    await new Promise(r => setTimeout(r, intervalMs))
-    let statusResp
+  const cloneResult = await resp.json()
+  if (!cloneResult.BaseResp || cloneResult.BaseResp.StatusCode !== 0) {
+    const code = (cloneResult.BaseResp && cloneResult.BaseResp.StatusCode) || 'N/A'
+    const msg = (cloneResult.BaseResp && cloneResult.BaseResp.StatusMessage) || '未知错误'
+    throw new Error('doDoubaoClone: 训练提交失败 (code=' + code + ') — ' + msg)
+  }
+  // Poll status via V1 API (sync, up to 120s, 3s interval)
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 3000))
+    let sr
     try {
-      statusResp = await fetch('https://openspeech.bytedance.com/api/v3/tts/get_voice', {
-        method: 'POST', headers, body: JSON.stringify({ speaker_id: 'custom_speaker_id', custom_speaker_id: speakerId })
-      })
+      sr = await fetch('https://openspeech.bytedance.com/api/v1/mega_tts/status', { method: 'POST', headers, body: JSON.stringify({ appid: appId, speaker_id: speakerId }) })
     } catch { continue }
-    if (!statusResp.ok) continue
-    const statusResult = await statusResp.json()
-    const status = statusResult.status
-    if (status === 2 || status === 4)
-      return { speaker_id: speakerId, status, demo_audio: statusResult.demo_audio || null, raw: statusResult }
-    if (status === 3) throw new Error('doDoubaoClone: 训练失败（status=3）')
+    if (!sr.ok) continue
+    const sResult = await sr.json()
+    if (sResult.BaseResp && sResult.BaseResp.StatusCode === 0) {
+      const status = sResult.status
+      if (status === 2 || status === 4) return { speaker_id: speakerId, status, demo_audio: null, raw: sResult }
+      if (status === 3) throw new Error('doDoubaoClone: 训练失败（status=3）')
+    }
   }
   return { speaker_id: speakerId, status: 1, demo_audio: null, raw: { note: 'training timeout, poll again later' } }
 }
@@ -3212,7 +3214,7 @@ const buildCloneVoiceToolDef = (vc) => defineTool({
       const cloneVc = Object.assign({}, vc)
       if (args.app_id) cloneVc.appId = args.app_id
       if (args.access_key) cloneVc.accessKey = args.access_key
-      const r = await doDoubaoClone(cloneVc, samplePath, voiceId, args.text || '')
+      const r = await doDoubaoClone(cloneVc, samplePath, voiceId, args.text || '', dcp.cloneModel || 'seed-icl-2.0')
       const ret = { ok: true, voice_id: r.speaker_id }
       if (r.status === 2 || r.status === 4) {
         if (r.demo_audio) ret.demo_audio = r.demo_audio
@@ -3937,19 +3939,19 @@ function applyPatch(cfg, patch) {
     c.voiceLibrary = (c.voiceLibrary || []).filter((e) => e.id !== p.voiceLibraryRemove)
   }
   // ---- doubao clone preset management (v2.9.9, shared across voice config presets) ----
-  if (typeof c.doubaoClonePresets !== 'object' || !Array.isArray(c.doubaoClonePresets)) c.doubaoClonePresets = [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }]
+  if (typeof c.doubaoClonePresets !== 'object' || !Array.isArray(c.doubaoClonePresets)) c.doubaoClonePresets = [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0' }]
   if (typeof c.activeDoubaoClonePreset !== 'string' || !c.doubaoClonePresets.some((pr) => pr.id === c.activeDoubaoClonePreset)) c.activeDoubaoClonePreset = c.doubaoClonePresets[0].id
   if (p.doubaoClonePresetSwitch && typeof p.doubaoClonePresetSwitch === 'string') {
     if (c.doubaoClonePresets.some((pr) => pr.id === p.doubaoClonePresetSwitch)) c.activeDoubaoClonePreset = p.doubaoClonePresetSwitch
   }
   if (p.doubaoClonePresetAdd === true) {
-    const np = { id: 'dcp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name: '新预设 ' + ((c.doubaoClonePresets || []).length + 1), speakerId: '', refAudioPath: '' }
+    const np = { id: 'dcp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name: '新预设 ' + ((c.doubaoClonePresets || []).length + 1), speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0' }
     c.doubaoClonePresets = (c.doubaoClonePresets || []).concat([np])
     c.activeDoubaoClonePreset = np.id
   }
   if (p.doubaoClonePresetDelete && typeof p.doubaoClonePresetDelete === 'string') {
     c.doubaoClonePresets = (c.doubaoClonePresets || []).filter((pr) => pr.id !== p.doubaoClonePresetDelete)
-    if (c.doubaoClonePresets.length === 0) { const dp = { id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }; c.doubaoClonePresets = [dp]; c.activeDoubaoClonePreset = dp.id }
+    if (c.doubaoClonePresets.length === 0) { const dp = { id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0' }; c.doubaoClonePresets = [dp]; c.activeDoubaoClonePreset = dp.id }
     else if (!c.doubaoClonePresets.some((pr) => pr.id === c.activeDoubaoClonePreset)) c.activeDoubaoClonePreset = c.doubaoClonePresets[0].id
   }
   if (p.doubaoClonePresetRename && typeof p.doubaoClonePresetRename === 'string') {
@@ -3961,6 +3963,7 @@ function applyPatch(cfg, patch) {
     if (dcp) {
       if (typeof p.doubaoClonePresetPatch.speakerId === 'string') dcp.speakerId = p.doubaoClonePresetPatch.speakerId
       if (typeof p.doubaoClonePresetPatch.refAudioPath === 'string') dcp.refAudioPath = p.doubaoClonePresetPatch.refAudioPath
+      if (typeof p.doubaoClonePresetPatch.cloneModel === 'string') dcp.cloneModel = p.doubaoClonePresetPatch.cloneModel
     }
   }
   if (p.imggenConfig) {
@@ -4864,7 +4867,7 @@ function apply(ctx) {
         const cloneVc = Object.assign({}, vc)
         if (args.app_id) cloneVc.appId = args.app_id
         if (args.access_key) cloneVc.accessKey = args.access_key
-        const r = await doDoubaoClone(cloneVc, finalRefPath, voiceId, args.text || '')
+        const r = await doDoubaoClone(cloneVc, finalRefPath, voiceId, args.text || '', dcp.cloneModel || args.clone_model || 'seed-icl-2.0')
         // v2.9.9: update the active preset with the speakerId if it changed
         if (dcp.speakerId !== voiceId && dcp.id) {
           const dcp2 = (cfg.doubaoClonePresets || []).find((p) => p.id === cfg.activeDoubaoClonePreset)

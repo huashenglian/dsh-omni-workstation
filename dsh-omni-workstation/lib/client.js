@@ -237,7 +237,7 @@ voiceFilterTtsDesc: "获取模型时按关键词筛选（含 tts/speech 的模�
 voiceModelPh: "如 mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0",
 voiceStyleNotParsed: "当前供应商不解析此字段",
 voiceDoubaoAppId: "App ID",
-voiceDoubaoAccessKey: "Access Key",
+voiceDoubaoAccessKey: "Access Token",
 voiceDoubaoCloneSection: "复刻音色",
 voiceDoubaoCloneSpeakerPh: "speaker_id（如 hutao_voice）",
 voiceDoubaoCloneBtn: "复刻",
@@ -611,7 +611,7 @@ voiceFilterTtsDesc: "Filter models by keyword (tts/speech) when fetching; off = 
 voiceModelPh: "e.g. mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0",
 voiceStyleNotParsed: "This provider does not parse this field",
 		voiceDoubaoAppId: "App ID",
-		voiceDoubaoAccessKey: "Access Key",
+		voiceDoubaoAccessKey: "Access Token",
 		voiceDoubaoCloneSection: "Voice clone",
 		voiceDoubaoCloneSpeakerPh: "speaker_id (e.g. hutao_voice)",
 		voiceDoubaoCloneBtn: "Clone",
@@ -958,6 +958,7 @@ voiceSovitsModel: "SoVITS model name",
 		".omni-toast-close { background: none; border: none; color: inherit; opacity: 0.5; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; } .omni-toast-close:hover { opacity: 1; }",
 		"@keyframes omni-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }",
 		".omni-label-sm { font-size: 11px; opacity: 0.8; }",
+			".omni-label-small { font-size: 0.75rem; opacity: 0.6; margin-bottom: 2px; display: block; }",
 			// ---- delete buttons (trash icons are always red) ----
 			".omni-icon-btn.omni-del-btn { color: #f85149; }",
 			".omni-icon-btn.omni-del-btn:hover { color: #ff6b63; background: rgba(248,81,73,0.12); }",
@@ -2980,6 +2981,13 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				reader.readAsDataURL(f);
 				if (e && e.target) e.target.value = '';
 			};
+		// v2.9.10: add clone model local state
+		var cloneModelDraft = React.useState(activePreset.cloneModel || 'seed-icl-2.0');
+		var cloneModelDdOpen = React.useState(false);
+		var ICL_MODELS = [
+			{ value: 'seed-icl-2.0', label: 'seed-icl-2.0 (ICL 2.0)' },
+			{ value: 'seed-icl-1.0', label: 'seed-icl-1.0 (ICL 1.0)' }
+		];
 			// Clone button
 			var onClone = function () {
 				var sid = String(speakerDraft[0] || '').trim();
@@ -2997,6 +3005,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				]),
 				React.createElement('button', { className: 'omni-btn omni-preset-new-btn', type: 'button', title: t('presetNew'), onClick: function () { props.onAdd(); } }, React.createElement(SvgIcon, { d: I_PLUS })),
 				React.createElement('button', { className: 'omni-btn omni-preset-del-btn omni-del-btn', type: 'button', title: presets.length <= 1 ? t('presetDeleteDisabled') : t('presetDelete'), disabled: presets.length <= 1, onClick: function () { delConfirm[1](true); } }, React.createElement(SvgIcon, { d: I_TRASH }))
+			]);
+			// v2.9.10: Clone model selector (input + dropdown indicator)
+			var modelRow = React.createElement('div', { className: 'omni-preset-bar omni-ref-audio-bar' }, [
+				React.createElement('div', { className: 'omni-preset-input-wrap' }, [
+					React.createElement('input', { className: 'omni-input', type: 'text', value: cloneModelDraft[0] || 'seed-icl-2.0', readOnly: true, onChange: function () {} }),
+					React.createElement('button', { className: 'omni-preset-dd-btn', type: 'button', onClick: function () { cloneModelDdOpen[1](!cloneModelDdOpen[0]); } }, React.createElement(SvgIcon, { d: cloneModelDdOpen[0] ? I_COLLAPSE : I_EXPAND })),
+					cloneModelDdOpen[0] ? React.createElement('div', { className: 'omni-preset-menu' }, ICL_MODELS.map(function (m) { return React.createElement('div', { key: m.value, className: 'omni-preset-menu-item' + (m.value === (cloneModelDraft[0] || 'seed-icl-2.0') ? ' active' : ''), onClick: function () { cloneModelDraft[1](m.value); cloneModelDdOpen[1](false); props.onPatch({ cloneModel: m.value }); } }, m.label); })) : null
+				])
 			]);
 			// Path input + file picker button
 			var pathRow = React.createElement('div', { className: 'omni-preset-bar omni-ref-audio-bar omni-minimax-clone-bar' }, [
@@ -3022,7 +3038,11 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			return React.createElement('div', { className: 'omni-field omni-minimax-clone' }, [
 				React.createElement('span', { className: 'omni-label' }, t('voiceDoubaoCloneSection')),
 				bar,
+				React.createElement('span', { className: 'omni-label-small' }, '复刻模型'),
+				modelRow,
+				React.createElement('span', { className: 'omni-label-small' }, '参考语音'),
 				pathRow,
+				React.createElement('span', { className: 'omni-label-small' }, 'speaker_id'),
 				cloneRow,
 				delModal,
 				React.createElement('input', { ref: fileInput, type: 'file', accept: 'audio/*', style: { display: 'none' }, onChange: onFilePick })
@@ -3254,14 +3274,6 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 									onClick: props.onFetchModels
 								}, busy === "voice-mdl" ? t("fetching") : t("voiceFetchModels"))
 						]),
-						React.createElement("div", { className: "omni-module-row" }, [
-							React.createElement("label", { className: "omni-switch" }, [
-								React.createElement("input", { type: "checkbox", checked: cfg.filterVoiceModels !== false, onChange: props.onToggleFilter }),
-								React.createElement("span", { className: "omni-switch-slider" })
-							]),
-								React.createElement("span", { className: "omni-label" }, t("voiceFilterTts"))
-							]),
-							React.createElement("p", { className: "omni-voice-hint" }, t("voiceFilterTtsDesc")),
 						React.createElement("div", { className: "omni-voice-control" }, (function () {
 							var p = cfg.provider;
 							var m = cfg.model;
@@ -3299,12 +3311,18 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 								return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || (opts[0] && opts[0].id) || "", options: opts.map(function (v) { return { value: v.id, label: v.name }; }), onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
 							}
 
-							// Doubao: speaker dropdown (10 built-in voices + stale-value guard)
+							// Doubao: speaker dropdown (10 built-in voices + cloned preset names + stale-value guard)
 							if (p === "doubao") {
 								var dbOpts = DOUBAO_PRESET_VOICES.map(function (v) { return { value: v.id, label: v.name }; });
-								// stale-value guard: if cfg.voiceId is a custom/cloned id not in the preset list,
-								// append it as an extra option so the <select> doesn't render blank
-								if (cfg.voiceId && !DOUBAO_PRESET_VOICES.some(function (v) { return v.id === cfg.voiceId; })) {
+								// v2.9.10: append cloned voice presets (from doubaoClonePresets with speakerId set)
+								var dcPresets = Array.isArray(props.doubaoClonePresets) ? props.doubaoClonePresets : [];
+								dcPresets.forEach(function (dcp) {
+									if (dcp.speakerId && !dbOpts.some(function (o) { return o.value === dcp.speakerId; })) {
+										dbOpts.push({ value: dcp.speakerId, label: dcp.name + "（自定义）" });
+									}
+								});
+								// stale-value guard: if cfg.voiceId is not in any list, append it
+								if (cfg.voiceId && !dbOpts.some(function (o) { return o.value === cfg.voiceId; })) {
 									dbOpts.push({ value: cfg.voiceId, label: cfg.voiceId + " (自定义)" });
 								}
 								return React.createElement(SelectField, { label: t("voicePresetVoice"), value: cfg.voiceId || "zh_female_vv_uranus_bigtts", options: dbOpts, onChange: function (e) { props.onPatch("voiceId", e.target.value); } });
@@ -4345,7 +4363,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						return;
 					}
 					if (p === "doubao") {
-						var dbModels = ["seed-tts-2.0", "seed-icl-2.0", "seed-icl-1.0"];
+						var dbModels = ["seed-tts-2.0"];
 						voiceModelList[1](dbModels);
 						voiceModelCount[1](dbModels.length);
 						voiceOpenDd[1](true);
@@ -4560,7 +4578,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		}
 		function onDoubaoClonePresetPatch(fields) {
 			queueSave({ doubaoClonePresetPatch: fields });
-			updateDraft(function (d) { var dcp = (d.doubaoClonePresets || []).find(function (p) { return p.id === d.activeDoubaoClonePreset; }); if (dcp) { if (typeof fields.speakerId === 'string') dcp.speakerId = fields.speakerId; if (typeof fields.refAudioPath === 'string') dcp.refAudioPath = fields.refAudioPath; } return d; });
+			updateDraft(function (d) { var dcp = (d.doubaoClonePresets || []).find(function (p) { return p.id === d.activeDoubaoClonePreset; }); if (dcp) { if (typeof fields.speakerId === 'string') dcp.speakerId = fields.speakerId; if (typeof fields.refAudioPath === 'string') dcp.refAudioPath = fields.refAudioPath; if (typeof fields.cloneModel === 'string') dcp.cloneModel = fields.cloneModel; } return d; });
 		}
 				function changeVoiceProvider(v) {
 					if (!VOICE_PROVIDERS_UI[v]) return;
