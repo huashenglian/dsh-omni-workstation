@@ -1002,7 +1002,17 @@ function normalizeConfig(raw) {
       mime: typeof e.mime === 'string' ? e.mime : '',
       createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now()
     })) : []
-  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
+  // v2.9.9: doubao clone presets (shared across voice config presets)
+  let doubaoClonePresets = Array.isArray(src.doubaoClonePresets) && src.doubaoClonePresets.length > 0
+    ? src.doubaoClonePresets.filter((p) => p && typeof p === 'object').map((p) => ({
+        id: typeof p.id === 'string' ? p.id : 'dcp_' + Date.now().toString(36),
+        name: typeof p.name === 'string' ? p.name : '未命名',
+        speakerId: typeof p.speakerId === 'string' ? p.speakerId : '',
+        refAudioPath: typeof p.refAudioPath === 'string' ? p.refAudioPath : ''
+      }))
+    : [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }]
+  let activeDoubaoClonePreset = typeof src.activeDoubaoClonePreset === 'string' && doubaoClonePresets.some((p) => p.id === src.activeDoubaoClonePreset) ? src.activeDoubaoClonePreset : doubaoClonePresets[0].id
+  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoConfig, videoPresets, activeVideoPreset, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, doubaoClonePresets, activeDoubaoClonePreset, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
@@ -1023,6 +1033,8 @@ const masked = (cfg) => ({
   voicePresetsStt: (Array.isArray(cfg.voicePresetsStt) ? cfg.voicePresetsStt : []).map((p) => ({ id: p.id, name: p.name, config: maskedVoice(p.config || defaultVoiceConfig()) })),
   activeVoicePresetStt: cfg.activeVoicePresetStt || (Array.isArray(cfg.voicePresetsStt) && cfg.voicePresetsStt.length > 0 ? cfg.voicePresetsStt[0].id : ''),
   voiceLibrary: cfg.voiceLibrary || [],
+  doubaoClonePresets: Array.isArray(cfg.doubaoClonePresets) ? cfg.doubaoClonePresets : [],
+  activeDoubaoClonePreset: cfg.activeDoubaoClonePreset || (Array.isArray(cfg.doubaoClonePresets) && cfg.doubaoClonePresets.length > 0 ? cfg.doubaoClonePresets[0].id : ''),
   visionToolsEnabled: cfg.visionToolsEnabled !== false,
     visionToolToggles: cfg.visionToolToggles || {},
   mirrorConfig: maskedMirror(cfg.mirrorConfig || defaultMirrorConfig()),
@@ -3130,14 +3142,16 @@ const buildCloneVoiceToolDef = (vc) => defineTool({
     + (vc.provider === 'minimax'
       ? 'minimax 供应商：上传参考音频 → 注册持久 voice_id → 后续 speak 调用传入 voice 参数 = 返回的 voice_id 即可复用克隆音色。voice_id 可选（不填自动生成 clone_<ts>）；text 可选（传了返回试听 demo_audio）。'
       : vc.provider === 'doubao'
-      ? 'doubao 供应商：上传参考音频 → 异步训练 → 拿到 speaker_id → 后续 speak 传 voice 参数 = speaker_id 复用。voice_id 可选（不填自动生成 clone_<ts>，需 8-256 字母开头）。训练可能需数秒。'
+      ? 'doubao 供应商：上传参考音频 → 异步训练 → 拿到 speaker_id → 后续 speak 传 voice 参数 = speaker_id 复用。不填 voice_sample_path 时使用面板音色预设中配置的参考音频路径；不填 voice_id 时使用预设的 speaker_id。用户可提供 app_id 和 access_key 覆盖面板凭据。训练可能需数秒。'
       : 'mimo 供应商：确认采样音频路径 → 后续 speak 调用传入 voice_sample_path 参数 = 返回的路径即可复用克隆音色（每次合成内联克隆）。')
     + '正常情况下直接使用 speak 工具（使用面板配置的默认音色），不需要克隆。'
-    + 'voice_sample_path 参考音频本地路径（.wav/.mp3，minimax ≥10s≤5min≤20MB；doubao 同样要求）。',
+    + 'voice_sample_path 可选（doubao 不填时用面板预设路径；mimo/minimax 必填）。',
   parameters: {
-    voice_sample_path: { type: 'string', required: true, description: '参考音频文件本地路径（.wav 或 .mp3）' },
-    voice_id: { type: 'string', description: '自定义音色 id（仅 minimax 有效，不填自动生成 clone_<timestamp>）' },
-    text: { type: 'string', description: '试听文本（仅 minimax 有效，传了返回 demo_audio 试听链接）' }
+    voice_sample_path: { type: 'string', description: '参考音频文件本地路径（doubao 不填时用面板预设路径）' },
+    voice_id: { type: 'string', description: '自定义音色 id（doubao 不填时用预设的 speaker_id）' },
+    app_id: { type: 'string', description: '覆盖面板 App ID（仅 doubao，仅当用户提供新凭据时）' },
+    access_key: { type: 'string', description: '覆盖面板 Access Key（仅 doubao，仅当用户提供新凭据时）' },
+    text: { type: 'string', description: '试听文本（可选）' }
   },
   output: {
     schema: {
@@ -3162,16 +3176,19 @@ const buildCloneVoiceToolDef = (vc) => defineTool({
     }
   },
   async execute(args, exec) {
-    const samplePath = String(args && args.voice_sample_path || '').trim()
-    if (!samplePath) throw new Error('clone_voice: 缺少参数 voice_sample_path（参考音频文件路径）')
     const ctx = appCtx
     const cfg = await loadConfig(ctx)
     const vc = cfg.voiceConfig || defaultVoiceConfig()
     if (!isVoiceConfigValid(vc)) {
       throw new Error('clone_voice: 语音配置无效。请在设置页「语音」面板配置完整的 API。')
     }
-    // shared: validate sample exists before branching (doMinimaxClone does
-    // readFileSync → raw ENOENT; runMimoTts does the same at line 2726)
+    // v2.9.9: for doubao, use active preset's refAudioPath/speakerId as defaults
+    const dcp = vc.provider === 'doubao'
+      ? (cfg.doubaoClonePresets || []).find((p) => p.id === cfg.activeDoubaoClonePreset) || {}
+      : {}
+    let samplePath = String(args && args.voice_sample_path || '').trim()
+    if (!samplePath && vc.provider === 'doubao' && dcp.refAudioPath) samplePath = dcp.refAudioPath
+    if (!samplePath) throw new Error('clone_voice: 缺少参考音频路径（voice_sample_path 或面板预设配置）')
     const { existsSync } = await import('node:fs')
     if (!existsSync(samplePath)) throw new Error('clone_voice: 参考音频文件不存在: ' + samplePath)
     if (vc.provider === 'minimax') {
@@ -3186,9 +3203,14 @@ const buildCloneVoiceToolDef = (vc) => defineTool({
       if (r.demo_audio) ret.demo_audio = r.demo_audio
       return ret
     } else if (vc.provider === 'doubao') {
-      const voiceId = String(args && args.voice_id || '').trim() || ('clone_' + Date.now().toString(36))
+      // v2.9.9: use preset's speakerId as default; allow AI override
+      const voiceId = String(args && args.voice_id || '').trim() || dcp.speakerId || ('clone_' + Date.now().toString(36))
       if (voiceId === vc.voiceId) throw new Error('clone_voice: voice_id 与面板配置的当前音色相同，请换一个 id')
-      const r = await doDoubaoClone(vc, samplePath, voiceId, args.text || '')
+      // Allow AI to override appId/accessKey
+      const cloneVc = Object.assign({}, vc)
+      if (args.app_id) cloneVc.appId = args.app_id
+      if (args.access_key) cloneVc.accessKey = args.access_key
+      const r = await doDoubaoClone(cloneVc, samplePath, voiceId, args.text || '')
       const ret = { ok: true, voice_id: r.speaker_id }
       if (r.status === 2 || r.status === 4) {
         if (r.demo_audio) ret.demo_audio = r.demo_audio
@@ -3911,6 +3933,33 @@ function applyPatch(cfg, patch) {
   }
   if (p.voiceLibraryRemove && typeof p.voiceLibraryRemove === 'string') {
     c.voiceLibrary = (c.voiceLibrary || []).filter((e) => e.id !== p.voiceLibraryRemove)
+  }
+  // ---- doubao clone preset management (v2.9.9, shared across voice config presets) ----
+  if (typeof c.doubaoClonePresets !== 'object' || !Array.isArray(c.doubaoClonePresets)) c.doubaoClonePresets = [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }]
+  if (typeof c.activeDoubaoClonePreset !== 'string' || !c.doubaoClonePresets.some((pr) => pr.id === c.activeDoubaoClonePreset)) c.activeDoubaoClonePreset = c.doubaoClonePresets[0].id
+  if (p.doubaoClonePresetSwitch && typeof p.doubaoClonePresetSwitch === 'string') {
+    if (c.doubaoClonePresets.some((pr) => pr.id === p.doubaoClonePresetSwitch)) c.activeDoubaoClonePreset = p.doubaoClonePresetSwitch
+  }
+  if (p.doubaoClonePresetAdd === true) {
+    const np = { id: 'dcp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name: '新预设 ' + ((c.doubaoClonePresets || []).length + 1), speakerId: '', refAudioPath: '' }
+    c.doubaoClonePresets = (c.doubaoClonePresets || []).concat([np])
+    c.activeDoubaoClonePreset = np.id
+  }
+  if (p.doubaoClonePresetDelete && typeof p.doubaoClonePresetDelete === 'string') {
+    c.doubaoClonePresets = (c.doubaoClonePresets || []).filter((pr) => pr.id !== p.doubaoClonePresetDelete)
+    if (c.doubaoClonePresets.length === 0) { const dp = { id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '' }; c.doubaoClonePresets = [dp]; c.activeDoubaoClonePreset = dp.id }
+    else if (!c.doubaoClonePresets.some((pr) => pr.id === c.activeDoubaoClonePreset)) c.activeDoubaoClonePreset = c.doubaoClonePresets[0].id
+  }
+  if (p.doubaoClonePresetRename && typeof p.doubaoClonePresetRename === 'string') {
+    const dcp = c.doubaoClonePresets.find((pr) => pr.id === c.activeDoubaoClonePreset)
+    if (dcp) dcp.name = String(p.doubaoClonePresetRename).slice(0, 60)
+  }
+  if (p.doubaoClonePresetPatch && typeof p.doubaoClonePresetPatch === 'object') {
+    const dcp = c.doubaoClonePresets.find((pr) => pr.id === c.activeDoubaoClonePreset)
+    if (dcp) {
+      if (typeof p.doubaoClonePresetPatch.speakerId === 'string') dcp.speakerId = p.doubaoClonePresetPatch.speakerId
+      if (typeof p.doubaoClonePresetPatch.refAudioPath === 'string') dcp.refAudioPath = p.doubaoClonePresetPatch.refAudioPath
+    }
   }
   if (p.imggenConfig) {
     // reset (full or flag)
@@ -4782,7 +4831,7 @@ function apply(ctx) {
     }
   })
 
-  // v2.9.8: doubao voice clone — base64 upload → train → poll → speaker_id
+  // v2.9.9: doubao voice clone — uses active doubao clone preset defaults + AI overrides
   webServer.register({
     kind: 'exact', path: '/omni/doubao/clone',
     handler: async (req, res) => {
@@ -4793,9 +4842,11 @@ function apply(ctx) {
         const cfg = await loadConfig(ctx)
         const vc = cfg.voiceConfig || defaultVoiceConfig()
         if (!isVoiceConfigValid(vc) || vc.provider !== 'doubao') return jsonOut(res, 400, { ok: false, error: '语音配置无效或非 doubao 供应商' })
-        const voiceId = String(args.voice_id || args.custom_speaker_id || '').trim()
-        if (!voiceId) return jsonOut(res, 400, { ok: false, error: '缺少 voice_id（自定义音色代号，8-256 字符，字母开头）' })
-        let finalRefPath = String(args.ref_audio_path || '').trim()
+        // v2.9.9: use active doubao clone preset as defaults
+        const dcp = (cfg.doubaoClonePresets || []).find((p) => p.id === cfg.activeDoubaoClonePreset) || {}
+        const voiceId = String(args.voice_id || args.custom_speaker_id || dcp.speakerId || '').trim()
+        if (!voiceId) return jsonOut(res, 400, { ok: false, error: '缺少 voice_id（请在音色预设中配置 speaker_id 或在请求中提供）' })
+        let finalRefPath = String(args.ref_audio_path || dcp.refAudioPath || '').trim()
         if (!finalRefPath && args.base64) {
           const dir = voiceLibraryDir()
           mkdirSync(dir, { recursive: true })
@@ -4805,9 +4856,18 @@ function apply(ctx) {
           if (!buf || buf.length === 0) return jsonOut(res, 400, { ok: false, error: 'base64 解码失败' })
           writeFileSync(finalRefPath, buf)
         }
-        if (!finalRefPath) return jsonOut(res, 400, { ok: false, error: '缺少 ref_audio_path 或 base64' })
-        if (!existsSync(finalRefPath)) return jsonOut(res, 400, { ok: false, error: '参考音频文件不存在' })
-        const r = await doDoubaoClone(vc, finalRefPath, voiceId, args.text || '')
+        if (!finalRefPath) return jsonOut(res, 400, { ok: false, error: '缺少 ref_audio_path（请在音色预设中配置参考音频路径）' })
+        if (!existsSync(finalRefPath)) return jsonOut(res, 400, { ok: false, error: '参考音频文件不存在: ' + finalRefPath })
+        // Allow AI to override appId/accessKey
+        const cloneVc = Object.assign({}, vc)
+        if (args.app_id) cloneVc.appId = args.app_id
+        if (args.access_key) cloneVc.accessKey = args.access_key
+        const r = await doDoubaoClone(cloneVc, finalRefPath, voiceId, args.text || '')
+        // v2.9.9: update the active preset with the speakerId if it changed
+        if (dcp.speakerId !== voiceId && dcp.id) {
+          const dcp2 = (cfg.doubaoClonePresets || []).find((p) => p.id === cfg.activeDoubaoClonePreset)
+          if (dcp2) { dcp2.speakerId = voiceId; dcp2.refAudioPath = finalRefPath; await storeConfig(ctx, cfg) }
+        }
         jsonOut(res, 200, { ok: true, speaker_id: r.speaker_id, status: r.status, demo_audio: r.demo_audio })
       } catch (e) {
         jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
