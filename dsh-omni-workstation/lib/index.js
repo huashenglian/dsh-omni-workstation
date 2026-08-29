@@ -2980,6 +2980,8 @@ async function doDoubaoClone(vc, refPath, speakerId, text) {
   if (appId) headers['X-Api-App-Key'] = appId
   if (accessKey) headers['X-Api-Access-Key'] = accessKey
   else if (apiKey) headers['X-Api-Key'] = apiKey
+  // v2.9.9: voice_clone endpoint requires X-Api-Request-Id (TTS endpoint doesn't)
+  headers['X-Api-Request-Id'] = 'omni_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)
   const buf = readFileSync(refPath)
   const ext = String(refPath.replace(/^.*\./, '') || '').toLowerCase()
   const format = ext === 'mp3' ? 'mp3' : ext === 'wav' ? 'wav' : ext === 'ogg' ? 'ogg_opus' : 'mp3'
