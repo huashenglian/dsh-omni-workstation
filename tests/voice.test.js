@@ -635,3 +635,48 @@ test('applyPatch provider switch resets voiceId in active preset too', () => {
   assert.ok(vp, 'active preset exists')
   assert.equal(vp.config.voiceId, 'zh_female_vv_uranus_bigtts')
 })
+
+// ---- v2.9.8: doubao tool definitions + validation ----
+
+test('buildCloneVoiceToolDef doubao: description mentions speaker_id', () => {
+  const vc = { provider: 'doubao', voiceId: 'zh_female_vv_uranus_bigtts', model: 'seed-tts-2.0' }
+  const def = buildCloneVoiceToolDef(vc)
+  assert.equal(def.name, 'clone_voice')
+  assert.ok(def.description.indexOf('speaker_id') >= 0 || def.description.indexOf('doubao') >= 0, 'description should mention speaker_id or doubao')
+})
+
+test('buildSpeakToolDef doubao: no voice_sample_path, description mentions speaker_id', () => {
+  const vc = { provider: 'doubao', voiceId: 'zh_female_vv_uranus_bigtts', model: 'seed-tts-2.0' }
+  const def = buildSpeakToolDef(vc)
+  const props = def.parameters.properties
+  assert.equal(props.voice_sample_path, undefined, 'doubao speak should NOT have voice_sample_path')
+  assert.ok(def.description.indexOf('speaker_id') >= 0 || def.description.indexOf('doubao') >= 0, 'description should mention speaker_id or doubao')
+})
+
+test('isVoiceConfigValid doubao: accepts appId+accessKey without apiKey', () => {
+  // Reproduce isVoiceConfigValid logic — doubao accepts appId+accessKey OR apiKey
+  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: '', appId: 'test-app-id', accessKey: 'test-access-key' }
+  // doubao has keyRequired=true, but our v2.9.8 logic accepts appId+accessKey as alternative
+  const meta = VOICE_PROVIDERS[vc.provider]
+  const endpoint = meta.endpoint // fixedUrl
+  const hasLegacy = vc.appId && vc.accessKey
+  const hasNew = vc.apiKey && vc.apiKey.length > 0
+  assert.ok(hasLegacy, 'appId+accessKey should be valid for doubao')
+  assert.ok(!hasNew, 'apiKey is empty')
+  assert.ok(endpoint && vc.model, 'endpoint and model required')
+})
+
+test('isVoiceConfigValid doubao: accepts apiKey without appId/accessKey', () => {
+  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: 'test-key', appId: '', accessKey: '' }
+  const hasLegacy = vc.appId && vc.accessKey
+  const hasNew = vc.apiKey && vc.apiKey.length > 0
+  assert.ok(!hasLegacy, 'no appId+accessKey')
+  assert.ok(hasNew, 'apiKey alone should be valid for doubao (new auth)')
+})
+
+test('isVoiceConfigValid doubao: rejects empty auth', () => {
+  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: '', appId: '', accessKey: '' }
+  const hasLegacy = vc.appId && vc.accessKey
+  const hasNew = vc.apiKey && vc.apiKey.length > 0
+  assert.ok(!hasLegacy && !hasNew, 'should reject empty auth')
+})

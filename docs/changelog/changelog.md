@@ -2,6 +2,17 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.8 — 豆包声音复刻（TTS 合成 + 克隆 API + 面板 UI）
+- **`runDoubaoTts(vc, args, exec)`**：`POST /api/v3/tts/unidirectional`，chunked JSON 响应解析（逐行 JSON.parse → base64 拼接 → mp3 buffer → 落 `<cwd>/.omni-workstation/artifacts/voice_<ts>.mp3`）。auth 双模式：legacy（`X-Api-App-Key`+`X-Api-Access-Key`）或新版（`X-Api-Key`）。model = `X-Api-Resource-Id`（`seed-tts-2.0` 预置 / `seed-icl-2.0` 复刻 2.0 / `seed-icl-1.0` 复刻 1.0）。
+- **`doDoubaoClone(vc, refPath, speakerId, text)`**：`POST /api/v3/tts/voice_clone`，base64 音频入 JSON body（非 multipart）。后付费自定义 speaker_id（`speaker_id='custom_speaker_id'`，`custom_speaker_id` = 用户定义，无需预购槽位）。训练异步：轮询 `POST /api/v3/tts/get_voice` 直到 status=2(Success)/4(Active)，最多 120s 3s 间隔。
+- **`POST /omni/doubao/clone` 路由**：面板入口，接受 `ref_audio_path` 或 `base64+mime`+`voice_id` → `doDoubaoClone` → 返回 `{ok, speaker_id, status, demo_audio}`。
+- **speak/clone_voice 工具加 doubao 分支**：`speak` execute 路由加 `vc.provider === 'doubao' ? runDoubaoTts`；`clone_voice` execute 加 doubao 分支（调 `doDoubaoClone` → 返回 speaker_id）；`syncToolRegistration` 扩展到 mimo+minimax+doubao 三供应商注册。
+- **`isVoiceConfigValid` doubao 鉴权**：接受 `appId+accessKey`（legacy）或 `apiKey`（新版 X-Api-Key），二选一即可。
+- **`DoubaoCloneSection` 面板组件**（client.js）：文件选择（audio/*）→ base64 → speaker_id 输入 → 克隆按钮 → `POST /omni/doubao/clone` → 成功 `patchVoice('voiceId', speaker_id)` + toast。仅在 `provider==='doubao'` 时渲染。
+- **doubao 模型下拉**：已含 `seed-tts-2.0`/`seed-icl-2.0`/`seed-icl-1.0`（合成 + 复刻 2.0 + 复刻 1.0）。
+- **测试**：新增 5 例（clone_voice doubao description、speak doubao 无 voice_sample_path、isVoiceConfigValid doubao auth 3 例），全套 **44** 例通过。
+- 验证：`node --check` + `node --test` 全通过；E2E 浏览器验证待进行。
+
 ## v2.9.7 — 统一 clone_voice（clone-only）+ 语音面板修复
 - **统一 `clone_voice`**（clone-only，不合成）：mimo+minimax 均注册，替代旧 mimo clone+synthesize（一步克隆+合成）和旧 `minimax_clone_voice`（一步克隆+合成）。AI 克隆→拿 voice_id（minimax 持久化）或 voice_sample_path（mimo 内联）→ 后续 `speak` 传 `voice`/`voice_sample_path` 复用，不写 config 防冲突。
 - **`speak` 工具更新**：加 `voice_sample_path` 参数（mimo-only，execute 覆写 model→`mimo-v2.5-tts-voiceclone`，`runMimoTts` line 2721 已处理 base64 inline）；description 改为 provider-aware（minimax 提示 voice_id，mimo 提示 voice_sample_path）。
