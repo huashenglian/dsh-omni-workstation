@@ -238,6 +238,12 @@ voiceModelPh: "如 mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0",
 voiceStyleNotParsed: "当前供应商不解析此字段",
 voiceDoubaoAppId: "App ID",
 voiceDoubaoAccessKey: "Access Key",
+voiceDoubaoCloneSection: "复刻音色",
+voiceDoubaoCloneSpeakerPh: "speaker_id（如 hutao_voice）",
+voiceDoubaoCloneBtn: "复刻",
+voiceDoubaoCloneOk: "音色复刻成功",
+voiceDoubaoCloneFail: "音色复刻失败",
+voiceDoubaoCloneTraining: "训练中...",
 voiceIndexEmoStrategy: "情绪策略 (0-3)",
 voiceIndexEmoWeight: "emo_weight",
 voiceVoxcpmMode: "模式",
@@ -604,8 +610,14 @@ voiceFilterTts: "Show TTS models only",
 voiceFilterTtsDesc: "Filter models by keyword (tts/speech) when fetching; off = fetch all",
 voiceModelPh: "e.g. mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0",
 voiceStyleNotParsed: "This provider does not parse this field",
-voiceDoubaoAppId: "App ID",
-voiceDoubaoAccessKey: "Access Key",
+		voiceDoubaoAppId: "App ID",
+		voiceDoubaoAccessKey: "Access Key",
+		voiceDoubaoCloneSection: "Voice clone",
+		voiceDoubaoCloneSpeakerPh: "speaker_id (e.g. hutao_voice)",
+		voiceDoubaoCloneBtn: "Clone",
+		voiceDoubaoCloneOk: "Voice cloned",
+		voiceDoubaoCloneFail: "Voice clone failed",
+		voiceDoubaoCloneTraining: "Training...",
 voiceIndexEmoStrategy: "Emotion Strategy (0-3)",
 voiceIndexEmoWeight: "emo_weight",
 voiceVoxcpmMode: "Mode",
@@ -2932,6 +2944,37 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			]);
 		}
 
+		// v2.9.8: doubao clone — minimal file picker + speaker_id + clone button
+		function DoubaoCloneSection(props) {
+			var t = props.t;
+			var busy = props.busy === true;
+			var vid = React.useState("");
+			var fileInput = React.useRef(null);
+			var onFileChange = function (e) {
+				var f = e && e.target && e.target.files && e.target.files[0];
+				if (!f) return;
+				var reader = new FileReader();
+				reader.onload = function () {
+					var du = String(reader.result || ""); var c = du.indexOf(",");
+					var b64 = c >= 0 ? du.slice(c + 1) : du;
+					var mime = "audio/wav"; var m = c >= 0 ? du.slice(0, c).match(/data:([^;]+)/) : null; if (m) mime = m[1];
+					var id = String(vid[0] || "").trim();
+					if (!id) { var nm = String(f.name || ""); id = nm.replace(/\.[^.]+$/, ""); }
+					props.onClone({ base64: b64, mime: mime, voice_id: id });
+				};
+				reader.readAsDataURL(f);
+				if (e && e.target) e.target.value = "";
+			};
+			return React.createElement("div", { className: "omni-field omni-minimax-clone" }, [
+				React.createElement("span", { className: "omni-label" }, t("voiceDoubaoCloneSection")),
+				React.createElement("div", { className: "omni-preset-bar omni-ref-audio-bar omni-minimax-clone-bar" }, [
+					React.createElement("input", { className: "omni-input", type: "text", placeholder: t("voiceDoubaoCloneSpeakerPh"), value: vid[0] || "", onChange: function (e) { vid[1](e.target.value); } }),
+					React.createElement("button", { className: "omni-btn omni-minimax-clone-btn", type: "button", disabled: busy, onClick: function () { if (fileInput.current) fileInput.current.click(); }, title: t("voiceDoubaoCloneBtn") }, t("voiceDoubaoCloneBtn"))
+				]),
+				React.createElement("input", { ref: fileInput, type: "file", accept: "audio/*", style: { display: "none" }, onChange: onFileChange })
+			]);
+		}
+
 		// ---------- voice generation panel (v2.8) ----------
 		function VoicePanel(props) {
 				var t = props.t;
@@ -3301,6 +3344,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							onLibReload: props.onRefLibReload,
 							onToast: props.showToast,
 							onFail: function (m) { props.showToast && props.showToast('error', t("voiceCloneFail"), m || t("unknown")); }
+						}) : null,
+						cfg.provider === "doubao" ? React.createElement(DoubaoCloneSection, {
+							t: t,
+							busy: props.voiceCloneBusy,
+							onClone: props.onDoubaoClone,
+							onToast: props.showToast
 						}) : null,
 						// 重试次数 | 输出格式
 						React.createElement("div", { className: "omni-row" }, [
@@ -4399,6 +4448,26 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				}
 			}).catch(function (e) { showToast('error', t('voiceCloneFail'), et(e)); }).finally(function () { voiceCloneBusy[1](false); });
 		}
+		// v2.9.8: doubao clone (panel) — POST /omni/doubao/clone {base64, mime, voice_id} → poll → speaker_id
+		function onDoubaoClone(payload) {
+			if (!payload || !payload.voice_id) return;
+			if (!payload.base64 && !payload.ref_audio_path) return;
+			voiceCloneBusy[1](true);
+			call("doubao/clone", {
+				base64: payload.base64, mime: payload.mime,
+				ref_audio_path: payload.ref_audio_path,
+				voice_id: payload.voice_id
+			}).then(function (r) {
+				if (r && r.ok && (r.status === 2 || r.status === 4)) {
+					patchVoice("voiceId", r.speaker_id);
+					showToast('success', t('voiceDoubaoCloneOk'), r.speaker_id);
+				} else if (r && r.ok) {
+					showToast('warning', t('voiceDoubaoCloneTraining'), (r && r.error) || '');
+				} else {
+					showToast('error', t('voiceDoubaoCloneFail'), (r && r.error) || t('unknown'));
+				}
+			}).catch(function (e) { showToast('error', t('voiceDoubaoCloneFail'), et(e)); }).finally(function () { voiceCloneBusy[1](false); });
+		}
 				function changeVoiceProvider(v) {
 					if (!VOICE_PROVIDERS_UI[v]) return;
 					patchVoice("provider", v);
@@ -4907,6 +4976,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						onRefLibReload: fetchVoiceLibrary,
 						voiceCloneBusy: voiceCloneBusy[0],
 						onMinimaxClone: onMinimaxClone,
+					onDoubaoClone: onDoubaoClone,
 						showToast: showToast
 					}),
 						React.createElement("input", { ref: refFileInput, type: "file", accept: "audio/*", style: { display: "none" }, onChange: onRefFileChange })
