@@ -2,6 +2,19 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.10 — doDoubaoClone V1 API 重写 + 6 项 UI 改动
+- **`doDoubaoClone` 重写为 V1 API（旧版控制台）**：端点 `POST /api/v1/mega_tts/audio/upload` + 轮询 `/api/v1/mega_tts/status`。Auth `Authorization: Bearer; <accessToken>` + `Resource-Id` 头。Body `{appid, speaker_id, audios:[{audio_bytes, audio_format}], source:2, model_type, language}`。Response `BaseResp.StatusCode===0`。**音频时长 ≥5s 否则报 1307 PromptAudioDurationTooShort**。
+- **`doubaoClonePresets` 加 `cloneModel` 字段**：每预设存独立复刻模型（`seed-icl-2.0`/`seed-icl-1.0`）。`doubaoClonePresetPatch` 支持更新 `cloneModel`。`/omni/doubao/clone` 路由和 `clone_voice` 工具传递 `dcp.cloneModel` 给 `doDoubaoClone`。
+- **6 项 UI 改动**：①移除"仅显示 TTS 模型"开关；②TTS 模型下拉仅 `seed-tts-2.0`（ICL 移到复刻模型选择器）；③预置音色下拉显示复刻预设名（"默认（自定义）"）；④Access Key → Access Token 标签；⑤复刻模型选择器（ICL 模型下拉，存入 preset.cloneModel）；⑥行小标题（复刻模型/参考语音/speaker_id）。
+- **验证**：豆包克隆 V1 API ✅ SUCCESS（status=2, 10.2s, speaker_id=S_rJ9MW0yd2, audio=vo_hutao_draw_appear.wav 1786KB）。
+
+## v2.9.9 — doubao 克隆预设管理 + UI
+- **`doubaoClonePresets` 配置**：`{id, name, speakerId, refAudioPath}`，共享跨语音配置预设。applyPatch 支持 5 种操作（switch/add/delete/rename/patch）。
+- **`DoubaoCloneSection` 面板组件**：预设栏（名称输入+下拉+添加+删除）+ 路径输入 + 文件选择 + speaker_id + 克隆按钮。
+- **`/omni/doubao/clone` 路由**使用当前预设的 speakerId/refAudioPath 作为默认值。
+- **`clone_voice` 工具 doubao 分支**使用预设的 appId/accessKey/speakerId，AI 可覆盖 `app_id`/`access_key`/`voice_sample_path`。
+- **`X-Api-Request-Id` 头**加到 doDoubaoClone（V3 API 需要，V1 不需要）。**`voiceStatusNoSynth` 检查加 doubao**。
+
 ## v2.9.8 — 豆包声音复刻（TTS 合成 + 克隆 API + 面板 UI）
 - **`runDoubaoTts(vc, args, exec)`**：`POST /api/v3/tts/unidirectional`，chunked JSON 响应解析（逐行 JSON.parse → base64 拼接 → mp3 buffer → 落 `<cwd>/.omni-workstation/artifacts/voice_<ts>.mp3`）。auth 双模式：legacy（`X-Api-App-Key`+`X-Api-Access-Key`）或新版（`X-Api-Key`）。model = `X-Api-Resource-Id`（`seed-tts-2.0` 预置 / `seed-icl-2.0` 复刻 2.0 / `seed-icl-1.0` 复刻 1.0）。
 - **`doDoubaoClone(vc, refPath, speakerId, text)`**：`POST /api/v3/tts/voice_clone`，base64 音频入 JSON body（非 multipart）。后付费自定义 speaker_id（`speaker_id='custom_speaker_id'`，`custom_speaker_id` = 用户定义，无需预购槽位）。训练异步：轮询 `POST /api/v3/tts/get_voice` 直到 status=2(Success)/4(Active)，最多 120s 3s 间隔。
