@@ -2595,22 +2595,60 @@ const buildImggenToolDef = (comfy) => defineTool({
           : { sampler: '3', checkpoint: '4', latent: '5', positive: '6', negative: '7' }
         const inj = (id) => wf[id] && wf[id].inputs ? wf[id].inputs : null
         let injected = false
+        // v2.9.14: per-role field override — mapping value may be '6' (default
+        // field) or {node, field}. Default fields: checkpoint→ckpt_name,
+        // unet→unet_name, vae→vae_name, clip→clip_name, positive/negative→text.
+        const setField = (role, defField) => {
+          const tgt = comfyMapTarget(mp[role])
+          if (!tgt) return null
+          const inputs = inj(tgt.node)
+          if (!inputs) return null
+          const field = tgt.field || defField
+          // explicit field override always writes (user takes ownership — a wrong
+          // field surfaces as a honest ComfyUI validation error); otherwise only
+          // touch nodes that already expose the default field key.
+          if (!tgt.field && !(field in inputs)) return null
+          return { inputs, field }
+        }
+        const writeField = (role, defField, value) => {
+          const t = setField(role, defField)
+          if (t) { t.inputs[t.field] = value; injected = true }
+        }
         // v2.8: model name (igc.model) is injected into whichever loader node the
         // mapping points at — CheckpointLoaderSimple OR UNETLoader (independent, not if/else).
-        if (mp.checkpoint && inj(mp.checkpoint)) { inj(mp.checkpoint).ckpt_name = igc.model; injected = true }
-        if (mp.unet && inj(mp.unet)) { inj(mp.unet).unet_name = igc.model; injected = true }
-        if (mp.latent && inj(mp.latent)) { inj(mp.latent).width = cfSize.width; inj(mp.latent).height = cfSize.height; inj(mp.latent).batch_size = n; injected = true }
-        if (mp.positive && inj(mp.positive)) { inj(mp.positive).text = prompt; injected = true }
+        writeField('checkpoint', 'ckpt_name', igc.model)
+        writeField('unet', 'unet_name', igc.model)
+        // v2.9.14: latent fields guarded — only write keys the node actually has
+        // (custom latent nodes may lack batch_size; writing it would 400).
+        {
+          const latTgt = comfyMapTarget(mp.latent)
+          const latInputs = latTgt ? inj(latTgt.node) : null
+          if (latInputs) {
+            let latHit = false
+            if ('width' in latInputs) { latInputs.width = cfSize.width; latHit = true }
+            if ('height' in latInputs) { latInputs.height = cfSize.height; latHit = true }
+            if ('batch_size' in latInputs) { latInputs.batch_size = n; latHit = true }
+            if (latHit) injected = true
+          }
+        }
+        writeField('positive', 'text', prompt)
         // v2.8: VAE/CLIP only injected when the user picked a file (empty = leave workflow's own).
-        if (mp.vae && inj(mp.vae) && igc.vae) { inj(mp.vae).vae_name = igc.vae; injected = true }
-        if (mp.clip && inj(mp.clip) && igc.clip) { inj(mp.clip).clip_name = igc.clip; injected = true }
-        if (mp.sampler && inj(mp.sampler)) {
-          if (awf && awf.seed !== '' && awf.seed != null) inj(mp.sampler).seed = awf.seed
-          else inj(mp.sampler).seed = Math.floor(Math.random() * 1125899906842624)
-          if (awf) {
-            if (awf.steps !== '' && awf.steps != null) inj(mp.sampler).steps = awf.steps
-            if (awf.cfg !== '' && awf.cfg != null) inj(mp.sampler).cfg = awf.cfg
-            if (awf.scheduler) inj(mp.sampler).scheduler = awf.scheduler
+        if (igc.vae) writeField('vae', 'vae_name', igc.vae)
+        if (igc.clip) writeField('clip', 'clip_name', igc.clip)
+        // v2.9.14: sampler seed field is adaptive (KSamplerAdvanced uses noise_seed).
+        {
+          const smpTgt = comfyMapTarget(mp.sampler)
+          const smpInputs = smpTgt ? inj(smpTgt.node) : null
+          if (smpInputs) {
+            const seedField = 'seed' in smpInputs ? 'seed' : 'noise_seed' in smpInputs ? 'noise_seed' : 'seed'
+            if (awf && awf.seed !== '' && awf.seed != null) smpInputs[seedField] = awf.seed
+            else smpInputs[seedField] = Math.floor(Math.random() * 1125899906842624)
+            injected = true
+            if (awf) {
+              if (awf.steps !== '' && awf.steps != null) smpInputs.steps = awf.steps
+              if (awf.cfg !== '' && awf.cfg != null) smpInputs.cfg = awf.cfg
+              if (awf.scheduler) smpInputs.scheduler = awf.scheduler
+            }
           }
         }
         if (!injected && !cfDetail) cfDetail = '（映射节点未命中，使用工作流原样参数）'
@@ -4263,9 +4301,25 @@ function applyPatch(cfg, patch) {
     const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfUpdateMapping.id)
     if (wf) {
       if (!wf.mapping || typeof wf.mapping !== 'object') wf.mapping = {}
-      if (typeof p.comfyWfUpdateMapping.key === 'string' && typeof p.comfyWfUpdateMapping.value === 'string') {
-        wf.mapping[p.comfyWfUpdateMapping.key] = p.comfyWfUpdateMapping.value
+      // v2.9.14: value may be a node-id string OR {node, field} (field override).
+      // Back-compat: existing string-only mapping values keep working as-is.
+      const v = p.comfyWfUpdateMapping.value
+      if (typeof p.comfyWfUpdateMapping.key === 'string') {
+        if (typeof v === 'string' && v.trim() !== '') {
+          wf.mapping[p.comfyWfUpdateMapping.key] = v
+        } else if (v && typeof v === 'object' && typeof v.node === 'string' && v.node.trim() !== '') {
+          wf.mapping[p.comfyWfUpdateMapping.key] = { node: v.node, field: typeof v.field === 'string' ? v.field : '' }
+        } else if (v == null || (typeof v === 'string' && v.trim() === '') || (v && typeof v === 'object' && !(typeof v.node === 'string' && v.node.trim() !== ''))) {
+          // empty value removes the entry — turning a role line empty deletes it
+          delete wf.mapping[p.comfyWfUpdateMapping.key]
+        }
       }
+    }
+  }
+  if (p.comfyWfDeleteMapping && typeof p.comfyWfDeleteMapping === 'object' && typeof p.comfyWfDeleteMapping.id === 'string' && typeof p.comfyWfDeleteMapping.key === 'string') {
+    const wf = (c.comfyWorkflows || []).find((w) => w.id === p.comfyWfDeleteMapping.id)
+    if (wf && wf.mapping && typeof wf.mapping === 'object') {
+      delete wf.mapping[p.comfyWfDeleteMapping.key]
     }
   }
   if (p.comfyWfUpdateJson && typeof p.comfyWfUpdateJson === 'object' && typeof p.comfyWfUpdateJson.id === 'string') {
@@ -4562,17 +4616,27 @@ function apply(ctx) {
           // v2.7: pre-parse comfy workflow CRUD patches (async work needing
           // /object_info from the endpoint, or config lookups) BEFORE applyPatch.
           if (patch.comfyWfImport && typeof patch.comfyWfImport === 'object' && typeof patch.comfyWfImport.workflow === 'string') {
-            const cfg0 = await loadConfig(ctx)
-            const endpoint = (cfg0.imggenConfig && cfg0.imggenConfig.endpoint) || ''
-            const prep = await prepareComfyWorkflow(patch.comfyWfImport.workflow, endpoint)
-            const basic = extractComfyBasicConfig(prep.api, prep.mapping)
-            patch.comfyWfImport.id = 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
-            patch.comfyWfImport.workflow = JSON.stringify(prep.api)
-            patch.comfyWfImport.mapping = prep.mapping
-            patch.comfyWfImport.steps = basic.steps
-            patch.comfyWfImport.cfg = basic.cfg
-            patch.comfyWfImport.scheduler = basic.scheduler
-            patch.comfyWfImport.seed = basic.seed
+            // v2.9.14: prepared imports (e.g. from /omni/comfy/history) skip
+            // prepareComfyWorkflow — the API graph was already converted by the
+            // user's ComfyUI frontend. Only validate the JSON is sane.
+            if (patch.comfyWfImport.prepared === true) {
+              let parsed = null
+              try { parsed = JSON.parse(patch.comfyWfImport.workflow) } catch (e) { throw new Error('工作流不是合法 JSON：' + String(e && e.message || e).slice(0, 120)) }
+              if (!parsed || typeof parsed !== 'object') throw new Error('工作流 JSON 必须是对象')
+              if (patch.comfyWfImport.mapping !== undefined && patch.comfyWfImport.mapping !== null && typeof patch.comfyWfImport.mapping !== 'object') throw new Error('mapping 必须是对象')
+            } else {
+              const cfg0 = await loadConfig(ctx)
+              const endpoint = (cfg0.imggenConfig && cfg0.imggenConfig.endpoint) || ''
+              const prep = await prepareComfyWorkflow(patch.comfyWfImport.workflow, endpoint)
+              const basic = extractComfyBasicConfig(prep.api, prep.mapping)
+              patch.comfyWfImport.id = 'wf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
+              patch.comfyWfImport.workflow = JSON.stringify(prep.api)
+              patch.comfyWfImport.mapping = prep.mapping
+              patch.comfyWfImport.steps = basic.steps
+              patch.comfyWfImport.cfg = basic.cfg
+              patch.comfyWfImport.scheduler = basic.scheduler
+              patch.comfyWfImport.seed = basic.seed
+            }
           }
           if (patch.comfyWfAutoMap && typeof patch.comfyWfAutoMap === 'object' && typeof patch.comfyWfAutoMap.id === 'string') {
             const cfg0 = await loadConfig(ctx)
@@ -4832,6 +4896,77 @@ function apply(ctx) {
           ids = body.ids.filter((s) => typeof s === 'string')
         }
         jsonOut(res, 200, { ok: true, models: ids.slice(0, 100) })
+      } catch (e) {
+        jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
+      }
+    }
+  })
+
+  // v2.9.14: ComfyUI execution-history import. The server proxies the ComfyUI
+  // /history endpoint and reuses the API-format graph the user's own frontend
+  // produced when they pressed Queue — no local UI-format conversion, so
+  // third-party custom-node workflows work untouched.
+  webServer.register({
+    kind: 'exact',
+    path: '/omni/comfy/history',
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
+      try {
+        const raw = await readBody(req)
+        const args = raw ? JSON.parse(raw) : {}
+        const cfg = await loadConfig(ctx)
+        const igc = cfg.imggenConfig || {}
+        const base = String(igc.endpoint || '').trim().replace(/\/+$/, '')
+        if (!base) return jsonOut(res, 400, { ok: false, error: '请先填写 ComfyUI 端点 URL' })
+        const headers = { Accept: 'application/json', ...(igc.apiKey ? { Authorization: 'Bearer ' + igc.apiKey } : {}) }
+        if (args.action === 'list') {
+          const maxItems = Math.max(1, Math.min(200, Number.isInteger(args.maxItems) ? args.maxItems : 30))
+          const r = await httpJson(base + '/history?max_items=' + maxItems, 'GET', headers, undefined, 30000)
+          if (!r.ok || !r.body || typeof r.body !== 'object') {
+            return jsonOut(res, 502, { ok: false, error: '获取 ComfyUI /history 失败（HTTP ' + r.status + '）：' + String(r.message || '').slice(0, 200) })
+          }
+          const items = []
+          for (const [promptId, entry] of Object.entries(r.body)) {
+            const got = comfyHistoryPromptApi(entry)
+            if (!got) continue
+            const api = got.api
+            const nodeCount = Object.keys(api).length
+            const mapping = detectComfyMapping(api)
+            items.push({
+              promptId,
+              queue: got.queue,
+              status: (entry.status && entry.status.status_str) || 'unknown',
+              nodeCount,
+              hint: comfyHistoryHint(api, mapping) || ''
+            })
+          }
+          items.sort((a, b) => (b.queue ?? 0) - (a.queue ?? 0))
+          return jsonOut(res, 200, { ok: true, items: items.slice(0, maxItems) })
+        }
+        if (args.action === 'get' && typeof args.promptId === 'string' && args.promptId !== '') {
+          const r = await httpJson(base + '/history/' + encodeURIComponent(args.promptId), 'GET', headers, undefined, 30000)
+          if (!r.ok || !r.body || typeof r.body !== 'object') {
+            return jsonOut(res, 502, { ok: false, error: '获取 ComfyUI 历史条目失败（HTTP ' + r.status + '）' })
+          }
+          const entry = r.body[args.promptId]
+          const got = entry ? comfyHistoryPromptApi(entry) : null
+          if (!got) return jsonOut(res, 404, { ok: false, error: '历史条目中未找到工作流 API 图（prompt_id=' + args.promptId + '）' })
+          const api = got.api
+          const mapping = detectComfyMapping(api)
+          const basic = extractComfyBasicConfig(api, mapping)
+          const hint = comfyHistoryHint(api, mapping)
+          const name = (hint || '').slice(0, 24) || (got.queue != null ? '历史 #' + got.queue : '历史工作流')
+          return jsonOut(res, 200, {
+            ok: true,
+            name,
+            workflow: JSON.stringify(api),
+            mapping,
+            basic,
+            missing: mapping.missing || [],
+            queue: got.queue
+          })
+        }
+        jsonOut(res, 400, { ok: false, error: '未知操作：需要 action=list 或 action=get+promptId' })
       } catch (e) {
         jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
       }
