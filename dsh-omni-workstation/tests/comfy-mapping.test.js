@@ -1,4 +1,5 @@
 // comfy-mapping.test.js — v2.8 detectComfyMapping: unet/vae/clip support + relaxed checkpoint requirement
+// v2.9.14: never throws — missing[] + generalized fallbacks (custom sampler/text-encode/latent)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -45,17 +46,74 @@ test('detectComfyMapping: default workflow (checkpoint present, no unet/vae/clip
   assert.strictEqual(m.clip, undefined)
 })
 
-test('detectComfyMapping: missing sampler still throws', () => {
+test('detectComfyMapping: missing sampler is reported in missing[], does not throw', () => {
   const bad = { '4': { class_type: 'CheckpointLoaderSimple', inputs: {} }, '28': { class_type: 'EmptyLatentImage', inputs: {} } }
-  assert.throws(() => detectComfyMapping(bad), /采样器/)
+  const m = detectComfyMapping(bad)
+  assert.ok(m.missing.includes('采样器(KSampler)'))
 })
 
-test('detectComfyMapping: missing both checkpoint and unet throws model-loader error', () => {
+test('detectComfyMapping: missing both checkpoint and unet is reported in missing[], does not throw', () => {
   const bad = {
     '63': { class_type: 'KSampler', inputs: { positive: ['11', 0], negative: ['12', 0] } },
     '11': { class_type: 'CLIPTextEncode', inputs: {} },
     '12': { class_type: 'CLIPTextEncode', inputs: {} },
     '28': { class_type: 'EmptyLatentImage', inputs: {} }
   }
-  assert.throws(() => detectComfyMapping(bad), /模型加载器/)
+  const m = detectComfyMapping(bad)
+  assert.ok(m.missing.includes('模型加载器(Checkpoint 或 UNETLoader)'))
+})
+
+// v2.9.14: generalized samplers — any node whose inputs carry positive+negative
+// array links counts, covering Efficiency / custom sampler nodes.
+test('detectComfyMapping: custom sampler node (positive/negative array inputs) is detected as sampler', () => {
+  const custom = {
+    '4': { class_type: 'CheckpointLoaderSimple', inputs: {} },
+    '77': { class_type: 'Efficiency Sampler', inputs: { positive: ['11', 0], negative: ['12', 0], steps: 20 } },
+    '11': { class_type: 'CLIPTextEncode', inputs: {} },
+    '12': { class_type: 'CLIPTextEncode', inputs: {} },
+    '28': { class_type: 'EmptyLatentImage', inputs: {} }
+  }
+  const m = detectComfyMapping(custom)
+  assert.strictEqual(m.sampler, '77')
+  assert.strictEqual(m.positive, '11')
+  assert.strictEqual(m.negative, '12')
+  assert.deepStrictEqual(m.missing, [])
+})
+
+// v2.9.14: no sampler — positive/negative fall back to TextEncode nodes.
+test('detectComfyMapping: without sampler, TextEncode nodes are used for positive/negative', () => {
+  const noSampler = {
+    '4': { class_type: 'CheckpointLoaderSimple', inputs: {} },
+    '11': { class_type: 'CustomTextEncode', inputs: {} },
+    '12': { class_type: 'CLIPTextEncode', inputs: {} },
+    '28': { class_type: 'EmptyLatentImage', inputs: {} }
+  }
+  const m = detectComfyMapping(noSampler)
+  assert.strictEqual(m.sampler, undefined)
+  assert.strictEqual(m.positive, '11')
+  assert.strictEqual(m.negative, '12')
+  assert.ok(m.missing.includes('采样器(KSampler)'))
+})
+
+// v2.9.14: generalized latent — any node with numeric width/height inputs.
+test('detectComfyMapping: custom latent node (numeric width/height) is detected as latent', () => {
+  const customLatent = {
+    '63': { class_type: 'KSampler', inputs: { positive: ['11', 0], negative: ['12', 0] } },
+    '11': { class_type: 'CLIPTextEncode', inputs: {} },
+    '12': { class_type: 'CLIPTextEncode', inputs: {} },
+    '4': { class_type: 'CheckpointLoaderSimple', inputs: {} },
+    '88': { class_type: 'CustomLatentCreator', inputs: { width: 1024, height: 1024 } }
+  }
+  const m = detectComfyMapping(customLatent)
+  assert.strictEqual(m.latent, '88')
+})
+
+test('detectComfyMapping: missing[] reports sampler and latent when absent (loader present)', () => {
+  const bad = {
+    '11': { class_type: 'CLIPTextEncode', inputs: {} },
+    '21': { class_type: 'UNETLoader', inputs: {} }
+  }
+  const m = detectComfyMapping(bad)
+  assert.ok(m.missing.includes('采样器(KSampler)'))
+  assert.ok(m.missing.includes('空Latent(EmptyLatentImage)'))
 })

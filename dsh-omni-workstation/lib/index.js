@@ -2154,29 +2154,96 @@ function comfyUiToApi(ui, objectInfo) {
 }
 
 // Detect the standard node mapping from an API-format prompt.
+// v2.9.14: never throws — returns missing[] instead, and adds generalized
+// fallbacks (custom sampler / text encoder / latent nodes) so custom-node
+// workflows still import and run with their original values.
 function detectComfyMapping(api) {
-  const sampler = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'KSampler' || api[k].class_type === 'KSamplerAdvanced'))
-  const checkpoint = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'CheckpointLoaderSimple' || api[k].class_type === 'CheckpointLoader'))
+  const nodes = Object.entries(api).filter(([, n]) => n && typeof n === 'object' && typeof n.class_type === 'string')
+  const kid = (f) => f && f[0]
+  const sampler = nodes.find(([, n]) => n.class_type === 'KSampler' || n.class_type === 'KSamplerAdvanced')
+    || nodes.find(([, n]) => n && n.inputs && Array.isArray(n.inputs.positive) && Array.isArray(n.inputs.negative))
+  const checkpoint = nodes.find(([, n]) => n.class_type === 'CheckpointLoaderSimple' || n.class_type === 'CheckpointLoader')
   // v2.8: UNETLoader (standalone diffusion model, e.g. ANIMA) is an alternative model loader
-  const unet = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'UNETLoader' || api[k].class_type === 'UNETLoaderGGUF'))
-  const vae = Object.keys(api).find((k) => api[k] && api[k].class_type === 'VAELoader')
-  const clip = Object.keys(api).find((k) => api[k] && api[k].class_type === 'CLIPLoader')
-  const latent = Object.keys(api).find((k) => api[k] && (api[k].class_type === 'EmptyLatentImage' || api[k].class_type === 'EmptySD3LatentImage'))
+  const unet = nodes.find(([, n]) => n.class_type === 'UNETLoader' || n.class_type === 'UNETLoaderGGUF')
+  const vae = nodes.find(([, n]) => n.class_type === 'VAELoader')
+  const clip = nodes.find(([, n]) => n.class_type === 'CLIPLoader')
+  const latent = nodes.find(([, n]) => n.class_type === 'EmptyLatentImage' || n.class_type === 'EmptySD3LatentImage')
+    || nodes.find(([, n]) => n && n.inputs && typeof n.inputs.width === 'number' && typeof n.inputs.height === 'number')
   const missing = []
-  if (!sampler) missing.push('采样器(KSampler)')
+  if (!kid(sampler)) missing.push('采样器(KSampler)')
   // v2.8: a workflow needs a model loader — either Checkpoint OR UNET counts.
-  if (!checkpoint && !unet) missing.push('模型加载器(Checkpoint 或 UNETLoader)')
-  if (!latent) missing.push('空Latent(EmptyLatentImage)')
-  if (missing.length > 0) throw new Error('工作流缺少必需节点：' + missing.join('、'))
-  let positive = sampler
-  let negative = sampler
-  if (api[sampler] && api[sampler].inputs) {
-    if (Array.isArray(api[sampler].inputs.positive)) positive = String(api[sampler].inputs.positive[0])
-    if (Array.isArray(api[sampler].inputs.negative)) negative = String(api[sampler].inputs.negative[0])
+  if (!kid(checkpoint) && !kid(unet)) missing.push('模型加载器(Checkpoint 或 UNETLoader)')
+  if (!kid(latent)) missing.push('空Latent(EmptyLatentImage)')
+  let positive = kid(sampler)
+  let negative = kid(sampler)
+  const samplerNode = kid(sampler) ? api[kid(sampler)] : null
+  if (samplerNode && samplerNode.inputs) {
+    if (Array.isArray(samplerNode.inputs.positive)) positive = String(samplerNode.inputs.positive[0])
+    if (Array.isArray(samplerNode.inputs.negative)) negative = String(samplerNode.inputs.negative[0])
+  }
+  if (!samplerNode) {
+    // no sampler: fall back to TextEncode nodes (first → positive, second → negative)
+    const encodes = nodes.filter(([, n]) => typeof n.class_type === 'string' && n.class_type.indexOf('TextEncode') >= 0)
+    if (encodes.length > 0) positive = String(encodes[0][0])
+    if (encodes.length > 1) negative = String(encodes[1][0])
   }
   // v2.8: return all detected loader ids (may be undefined). checkpoint stays as the
   // canonical key for CheckpointLoaderSimple; unet/vae/clip are new.
-  return { sampler, checkpoint, unet, vae, clip, latent, positive, negative }
+  // v2.9.14: missing[] carries the human-readable roles that were NOT identified
+  // (injection keeps the workflow's original values for those; UI shows a warning).
+  return { sampler: kid(sampler), checkpoint: kid(checkpoint), unet: kid(unet), vae: kid(vae), clip: kid(clip), latent: kid(latent), positive, negative, missing }
+}
+
+// Parse a mapping target: '6' → {node:'6', field:''}; {node,field} → normalized;
+// empty/null → null. Shared by the mapping UI and the injection block.
+function comfyMapTarget(v) {
+  if (v == null) return null
+  if (typeof v === 'string') {
+    const s = v.trim()
+    return s === '' ? null : { node: s, field: '' }
+  }
+  if (typeof v === 'object') {
+    const node = String(v.node || '').trim()
+    if (node === '') return null
+    return { node, field: String(v.field || '').trim() }
+  }
+  return null
+}
+
+// Extract the API-format workflow graph from one /history entry. A history entry
+// is { prompt: [queueNo, promptId, apiPrompt, extraData, outputsToExecute], ... }.
+// Defensively scans for the first array element that is an object whose values
+// carry class_type instead of hardcoding index 2 (structure is stable for long
+// but the crawl keeps us compatible).
+function comfyHistoryPromptApi(entry) {
+  if (!entry || !entry.prompt || !Array.isArray(entry.prompt)) return null
+  for (const item of entry.prompt) {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const hasApi = Object.keys(item).some((k) => item[k] && typeof item[k] === 'object' && typeof item[k].class_type === 'string')
+      if (hasApi) return { api: item, queue: typeof entry.prompt[0] === 'number' ? entry.prompt[0] : null }
+    }
+  }
+  return null
+}
+
+// Human-readable hint for a history item / default workflow name: the positive
+// prompt text (truncated) when found, otherwise the loader model name.
+function comfyHistoryHint(api, mapping) {
+  if (!api || typeof api !== 'object') return ''
+  if (mapping && mapping.positive && api[mapping.positive] && typeof api[mapping.positive].inputs.text === 'string') {
+    const s = api[mapping.positive].inputs.text.trim()
+    if (s) return s.length > 40 ? s.slice(0, 40) + '…' : s
+  }
+  for (const key of ['checkpoint', 'unet', 'vae', 'clip']) {
+    const id = mapping && mapping[key]
+    const node = id && api[id]
+    if (node && node.inputs) {
+      for (const f of ['ckpt_name', 'unet_name', 'vae_name', 'clip_name']) {
+        if (typeof node.inputs[f] === 'string' && node.inputs[f].trim()) return node.inputs[f].trim()
+      }
+    }
+  }
+  return ''
 }
 
 // Extract steps/cfg/scheduler/seed from the KSampler node's widget inputs.
@@ -5027,4 +5094,4 @@ function apply(ctx) {
   })
 }
 
-export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig, VIDEO_PROVIDERS, VIDEO_PROVIDER_IDS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS, defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid, isVoiceConfigValid, pathGet, agnesNumFrames, klingJwt, filterVideoModelIds, buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId, pollVideoOnce, minimaxResolveUrl, buildVideoToolDef, dashscopeVideoBase, dashscopeModelsUrl, parseDashscopeModelList, buildCloneVoiceToolDef, buildSpeakToolDef, runDoubaoTts, doDoubaoClone, resolveDoubaoClonePreset }
+export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, comfyMapTarget, comfyHistoryPromptApi, comfyHistoryHint, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig, VIDEO_PROVIDERS, VIDEO_PROVIDER_IDS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS, defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid, isVoiceConfigValid, pathGet, agnesNumFrames, klingJwt, filterVideoModelIds, buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId, pollVideoOnce, minimaxResolveUrl, buildVideoToolDef, dashscopeVideoBase, dashscopeModelsUrl, parseDashscopeModelList, buildCloneVoiceToolDef, buildSpeakToolDef, runDoubaoTts, doDoubaoClone, resolveDoubaoClonePreset }
