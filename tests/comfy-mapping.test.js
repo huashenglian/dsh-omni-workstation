@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { detectComfyMapping } = await import('../lib/index.js')
+const { detectComfyMapping, applyPatch } = await import('../lib/index.js')
 
 // ANIMA-style workflow: no CheckpointLoader, has UNETLoader/VAELoader/CLIPLoader.
 // Node ids mirror the real ANIMA API-format dump from the plan.
@@ -116,4 +116,27 @@ test('detectComfyMapping: missing[] reports sampler and latent when absent (load
   const m = detectComfyMapping(bad)
   assert.ok(m.missing.includes('采样器(KSampler)'))
   assert.ok(m.missing.includes('空Latent(EmptyLatentImage)'))
+})
+
+// ---- v2.9.14 applyPatch mapping ops ----
+const cfgWithWf = () => ({ comfyWorkflows: [{ id: 'w1', name: 'wf', workflow: '{}', mapping: { positive: '6' } }] })
+
+test('applyPatch comfyWfUpdateMapping: object value {node,field} is stored as-is', () => {
+  const out = applyPatch(cfgWithWf(), { comfyWfUpdateMapping: { id: 'w1', key: 'positive', value: { node: '11', field: 'prompt' } } })
+  assert.deepStrictEqual(out.comfyWorkflows[0].mapping.positive, { node: '11', field: 'prompt' })
+})
+
+test('applyPatch comfyWfUpdateMapping: empty-node object keeps an empty row (not deleted)', () => {
+  const out = applyPatch(cfgWithWf(), { comfyWfUpdateMapping: { id: 'w1', key: 'positive', value: { node: '', field: '' } } })
+  assert.deepStrictEqual(out.comfyWorkflows[0].mapping.positive, { node: '', field: '' })
+})
+
+test('applyPatch comfyWfUpdateMapping: string value stays a string (back-compat)', () => {
+  const out = applyPatch(cfgWithWf(), { comfyWfUpdateMapping: { id: 'w1', key: 'negative', value: '12' } })
+  assert.strictEqual(out.comfyWorkflows[0].mapping.negative, '12')
+})
+
+test('applyPatch comfyWfDeleteMapping removes the key entirely', () => {
+  const out = applyPatch(cfgWithWf(), { comfyWfDeleteMapping: { id: 'w1', key: 'positive' } })
+  assert.strictEqual(out.comfyWorkflows[0].mapping.positive, undefined)
 })
