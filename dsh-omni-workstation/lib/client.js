@@ -103,6 +103,34 @@ window.__ModuleLoader__.load({
 				comfyWfError: "工作流解析失败",
 				comfyWfImportPh: "选择 .json 工作流文件…",
 				comfyWfDefaultTag: "内置默认工作流",
+				// v2.9.14: history import + help + mapping add/delete
+				comfyWfHistoryBtn: "从历史导入",
+				comfyWfHistoryTitle: "从执行历史导入",
+				comfyWfHistoryRefresh: "刷新",
+				comfyWfHistoryClose: "关闭",
+				comfyWfHistoryEmpty: "暂无执行历史，先在 ComfyUI 浏览器里 Queue 一次工作流再刷新",
+				comfyWfHistoryNoEndpoint: "请先在下方填写 ComfyUI 端点 URL",
+				comfyWfHistoryFail: "获取历史失败",
+				comfyWfHistoryImport: "导入",
+				comfyWfHistoryImporting: "导入中…",
+				comfyWfHistoryNodes: "节点",
+				comfyWfHistoryOk: "成功",
+				comfyWfHistoryError: "失败",
+				comfyWfImportWarn: "已导入；以下角色未识别，生成时将保留工作流原值",
+				comfyWfHelpBtn: "如何导入工作流？",
+				comfyWfHelpTitle: "导入工作流",
+				comfyWfHelpIntro: "推荐路径（零导出，三方节点兼容）：",
+				comfyWfHelpStep1: "在 ComfyUI 浏览器里打开工作流并按一次 Queue（调试工作流的人必然按过）；",
+				comfyWfHelpStep2: "在插件面板点击「从历史导入」，选中刚才跑的那条记录即可。服务器上存的是你前端已转换好的 API 格式图，任何自定义节点都被正确序列化，无需手动导出。",
+				comfyWfHelpManualTitle: "手动路径：",
+				comfyWfHelpManual: "ComfyUI 菜单 → Save (API Format) 导出 .json，再用「导入工作流」选择该文件。",
+				comfyWfHelpMappingTitle: "映射说明：",
+				comfyWfHelpMapping: "自动识别节点映射；对未识别的角色可手动添加（节点号 + 可选字段名），未识别项在生成时保留工作流原值，不影响运行。",
+				comfyWfMappingAdd: "添加映射",
+				comfyWfMappingDelete: "删除此项",
+				comfyWfMappingFieldPh: "字段（留空=默认）",
+				comfyWfMappingComplete: "已识别",
+				comfyWfMappingMissing: "未识别",
 				ollamaHint: "Ollama 为本地模型服务器：只需填写 URL，无需 API Key。",
 				apiKeyLabel: "API Key（输入后自动保存；留空保持不变）",
 				apiKeySet: "已设置（输入新值以替换）",
@@ -477,6 +505,34 @@ voiceSovitsModel: "SoVITS 模型名",
 				comfyWfError: "Workflow parse failed",
 				comfyWfImportPh: "Choose a .json workflow file…",
 				comfyWfDefaultTag: "Built-in default workflow",
+				// v2.9.14: history import + help + mapping add/delete
+				comfyWfHistoryBtn: "From History",
+				comfyWfHistoryTitle: "Import from Execution History",
+				comfyWfHistoryRefresh: "Refresh",
+				comfyWfHistoryClose: "Close",
+				comfyWfHistoryEmpty: "No history yet — Queue a workflow in the ComfyUI browser once, then refresh",
+				comfyWfHistoryNoEndpoint: "Fill in the ComfyUI endpoint URL below first",
+				comfyWfHistoryFail: "Failed to load history",
+				comfyWfHistoryImport: "Import",
+				comfyWfHistoryImporting: "Importing…",
+				comfyWfHistoryNodes: "nodes",
+				comfyWfHistoryOk: "OK",
+				comfyWfHistoryError: "Error",
+				comfyWfImportWarn: "Imported; the following roles were not identified — their original workflow values will be kept on generation",
+				comfyWfHelpBtn: "How to import a workflow?",
+				comfyWfHelpTitle: "Import Workflow",
+				comfyWfHelpIntro: "Recommended path (zero export, custom-node friendly):",
+				comfyWfHelpStep1: "Open the workflow in the ComfyUI browser and press Queue once (anyone debugging a workflow has done this);",
+				comfyWfHelpStep2: "In this panel click “From History” and pick the entry you just ran. The server stores the API-format graph your frontend already converted — any custom node is serialized correctly, no manual export needed.",
+				comfyWfHelpManualTitle: "Manual path:",
+				comfyWfHelpManual: "ComfyUI menu → Save (API Format) to export a .json, then use “Import Workflow” to pick the file.",
+				comfyWfHelpMappingTitle: "Mapping notes:",
+				comfyWfHelpMapping: "Node roles are auto-detected; for unrecognized ones you can add them manually (node id + optional field name). Unidentified roles keep their original values on generation — they never block running.",
+				comfyWfMappingAdd: "Add Mapping",
+				comfyWfMappingDelete: "Remove",
+				comfyWfMappingFieldPh: "Field (blank = default)",
+				comfyWfMappingComplete: "Identified",
+				comfyWfMappingMissing: "Unidentified",
 				ollamaHint: "Ollama is a local model server: just fill in the URL, no API Key needed.",
 				apiKeyLabel: "API Key (auto-saves on input; leave blank to keep)",
 				apiKeySet: "Set (enter new value to replace)",
@@ -948,6 +1004,41 @@ voiceSovitsModel: "SoVITS model name",
 		".omni-comfy-wf-mapping-body .omni-row .omni-field { flex: 1 1 calc(25% - 6px); min-width: calc(25% - 6px); }",
 		".omni-comfy-wf-mapping-summary { display: flex; gap: 8px; font-size: 12px; }",
 		".omni-comfy-wf-automap { align-self: flex-start; }",
+		// v2.9.14: history import modal + help modal + mapping add/delete rows
+		".omni-comfy-wf-list-title-row { display: flex; align-items: center; gap: 6px; }",
+		".omni-comfy-wf-help-btn { background: none; border: none; cursor: pointer; padding: 0; display: inline-flex; opacity: 0.65; color: inherit; }",
+		".omni-comfy-wf-help-btn:hover { opacity: 1; color: var(--dsh-accent, #58a6ff); }",
+		".omni-comfy-wf-help-btn svg { width: 14px; height: 14px; }",
+		".omni-comfy-wf-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }",
+		".omni-comfy-wf-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: omni-comfy-wf-fade 0.12s ease; }",
+		".omni-comfy-wf-modal-in { background: var(--dsw-alias-bg-layer-2); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,0.35); max-height: 70vh; display: flex; flex-direction: column; animation: omni-comfy-wf-pop 0.12s ease; }",
+		".omni-comfy-wf-history-content { min-width: 420px; max-width: 560px; }",
+		".omni-comfy-wf-history-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--dsh-border, #444); }",
+		".omni-comfy-wf-history-head h4 { flex: 1; margin: 0; font-size: 13px; }",
+		".omni-comfy-wf-history-body { padding: 10px 16px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }",
+		".omni-comfy-wf-hist-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--dsw-alias-bg-layer-2); border-radius: 6px; font-size: 12px; border: 1px solid var(--dsh-border, #444); }",
+		".omni-comfy-wf-hist-queue { font-weight: 600; flex-shrink: 0; }",
+		".omni-comfy-wf-hist-status { flex-shrink: 0; font-size: 11px; padding: 1px 6px; border-radius: 10px; }",
+		".omni-comfy-wf-hist-status.ok { background: rgba(34,197,94,0.15); color: #22c55e; }",
+		".omni-comfy-wf-hist-status.error { background: rgba(229,72,77,0.15); color: #e5484d; }",
+		".omni-comfy-wf-hist-status.unknown { background: rgba(120,120,120,0.15); color: #999; }",
+		".omni-comfy-wf-hist-nodes { flex-shrink: 0; opacity: 0.7; }",
+		".omni-comfy-wf-hist-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.9; }",
+		".omni-comfy-wf-help-content { min-width: 420px; max-width: 480px; padding: 16px; text-align: left; font-size: 12px; line-height: 1.65; gap: 10px; }",
+		".omni-comfy-wf-help-content ol, .omni-comfy-wf-help-content ul { margin: 0; padding-left: 18px; }",
+		".omni-comfy-wf-help-content li { margin-bottom: 6px; }",
+		".omni-comfy-wf-help-mapping { background: var(--dsw-alias-bg-layer-2); border-radius: 6px; padding: 8px 10px; }",
+		".omni-comfy-wf-map-row { display: flex; align-items: center; gap: 8px; }",
+		".omni-comfy-wf-map-row .omni-field { flex: 1; min-width: 0; }",
+		".omni-comfy-wf-map-label { width: 82px; flex-shrink: 0; font-size: 12px; opacity: 0.9; }",
+		".omni-comfy-wf-map-del { background: none; border: none; cursor: pointer; padding: 4px; display: inline-flex; color: #e5484d; align-self: flex-end; }",
+		".omni-comfy-wf-map-del svg { width: 15px; height: 15px; }",
+		".omni-comfy-wf-map-add { align-self: flex-start; }",
+		".omni-comfy-wf-mapping-warn { font-size: 12px; color: #f59e0b; }",
+		".omni-comfy-wf-mapping-missings { display: flex; flex-wrap: wrap; gap: 4px; }",
+		".omni-comfy-wf-missing-chip { font-size: 11px; background: rgba(245,158,11,0.15); color: #f59e0b; padding: 1px 6px; border-radius: 10px; }",
+		"@keyframes omni-comfy-wf-fade { from { opacity: 0; } to { opacity: 1; } }",
+		"@keyframes omni-comfy-wf-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }",
 		".omni-toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }",
 		".omni-toast-card { display: flex; align-items: flex-start; gap: 8px; padding: 12px 16px; background: var(--dsw-alias-bg-layer-2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 480px; pointer-events: auto; animation: omni-toast-in 0.2s ease; border-left: 3px solid #3b82f6; }",
 		".omni-toast-info { border-left-color: #3b82f6; } .omni-toast-info svg { color: #3b82f6; }",
@@ -1191,6 +1282,7 @@ voiceSovitsModel: "SoVITS model name",
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
 	var I_EDIT = ["M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z", "M10 4l2 2"];
 	var I_TOAST_INFO = ["M8 2a6 6 0 100 12A6 6 0 008 2zm0 3a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6a.75.75 0 100 1.5.75.75 0 000-1.5z"];
+	var I_HELP = ["M8 2a6 6 0 100 12A6 6 0 008 2z", "M6.1 6.2a1.9 1.9 0 113.1 1.5c-.7.5-.9.8-1 1.3", "M8 11.4v.1"];
 	var I_TOAST_SUCCESS = ["M8 2a6 6 0 100 12A6 6 0 008 2zm3 4.5L7 10.5 5 8.5"];
 	var I_TOAST_WARNING = ["M8 1.5L1 14h14L8 1.5zM8 6v4M8 12v.5"];
 	var I_TOAST_ERROR = ["M8 2a6 6 0 100 12A6 6 0 008 2zm3 3L5 11M11 5L5 11"];
@@ -1735,26 +1827,109 @@ voiceSovitsModel: "SoVITS model name",
 				])
 			]) : null;
 			return React.createElement("div", { className: "omni-comfy-wf-list" }, [
-				React.createElement("h4", { className: "omni-comfy-wf-list-title" }, t("comfyWfListTitle")),
+				React.createElement("div", { className: "omni-comfy-wf-list-title-row" }, [
+					React.createElement("h4", { className: "omni-comfy-wf-list-title" }, t("comfyWfListTitle")),
+					React.createElement("button", {
+						className: "omni-comfy-wf-help-btn", title: t("comfyWfHelpBtn"),
+						onClick: function () { if (props.onOpenHelp) props.onOpenHelp(); }
+					}, React.createElement(SvgIcon, { d: I_HELP }))
+				]),
 				workflows.length === 0 ? React.createElement("p", { className: "omni-msg" }, t("comfyWfNoWorkflows")) : null,
 				React.createElement("div", { className: "omni-comfy-wf-cards" }, cards),
-				React.createElement("label", { className: "omni-btn omni-comfy-wf-import-btn" }, [
-					t("comfyWfImportBtn"),
-					React.createElement("input", {
-						type: "file", accept: ".json,application/json", style: { display: "none" },
-						onChange: function (e) {
-							var f = e.target.files && e.target.files[0];
-							if (!f) return;
-							var reader = new FileReader();
-							reader.onload = function () {
-								props.onImport(f.name.replace(/\.[^.]+$/, ""), String(reader.result || ""));
-							};
-							reader.readAsText(f);
-							e.target.value = "";
-						}
-					})
+				React.createElement("div", { className: "omni-comfy-wf-actions" }, [
+					React.createElement("label", { className: "omni-btn omni-comfy-wf-import-btn" }, [
+						t("comfyWfImportBtn"),
+						React.createElement("input", {
+							type: "file", accept: ".json,application/json", style: { display: "none" },
+							onChange: function (e) {
+								var f = e.target.files && e.target.files[0];
+								if (!f) return;
+								var reader = new FileReader();
+								reader.onload = function () {
+									props.onImport(f.name.replace(/\.[^.]+$/, ""), String(reader.result || ""));
+								};
+								reader.readAsText(f);
+								e.target.value = "";
+							}
+						})
+					]),
+					React.createElement("button", {
+						className: "omni-btn omni-comfy-wf-import-btn",
+						onClick: function () { if (props.onOpenHistory) props.onOpenHistory(); }
+					}, t("comfyWfHistoryBtn"))
 				]),
 				modal
+			]);
+		}
+
+		// v2.9.14: execution-history import modal (proxy of the ComfyUI /history endpoint)
+		function WorkflowHistoryModal(props) {
+			var t = props.t;
+			var items = Array.isArray(props.items) ? props.items : [];
+			var loading = !!props.loading;
+			var error = props.error || "";
+			var busyId = props.busyId || "";
+			var head = React.createElement("div", { className: "omni-comfy-wf-history-head" }, [
+				React.createElement("h4", null, t("comfyWfHistoryTitle")),
+				React.createElement("button", {
+					className: "omni-btn", disabled: loading, onClick: props.onRefresh
+				}, t("comfyWfHistoryRefresh")),
+				React.createElement("button", { className: "omni-btn", onClick: props.onClose }, t("comfyWfHistoryClose"))
+			]);
+			var body = null;
+			if (loading) {
+				body = React.createElement("p", { className: "omni-status" }, "…");
+			} else if (error) {
+				body = React.createElement("p", { className: "omni-status" }, error);
+			} else if (items.length === 0) {
+				body = React.createElement("p", { className: "omni-status" }, t("comfyWfHistoryEmpty"));
+			} else {
+				body = items.map(function (it) {
+					var st = "unknown";
+					if (it.status === "success") st = "ok";
+					else if (it.status === "error") st = "error";
+					var stText = st === "ok" ? t("comfyWfHistoryOk") : st === "error" ? t("comfyWfHistoryError") : it.status || "";
+					return React.createElement("div", { key: it.promptId, className: "omni-comfy-wf-hist-item" }, [
+						React.createElement("span", { className: "omni-comfy-wf-hist-queue" }, "#" + (it.queue != null ? it.queue : "?")),
+						React.createElement("span", { className: "omni-comfy-wf-hist-status " + st }, stText),
+						React.createElement("span", { className: "omni-comfy-wf-hist-nodes" }, it.nodeCount + " " + t("comfyWfHistoryNodes")),
+						React.createElement("span", { className: "omni-comfy-wf-hist-hint", title: it.hint || "" }, it.hint || "—"),
+						React.createElement("button", {
+							className: "omni-btn omni-comfy-wf-hist-import",
+							disabled: busyId !== "",
+							onClick: function () { props.onPick(it.promptId); }
+						}, busyId === it.promptId ? t("comfyWfHistoryImporting") : t("comfyWfHistoryImport"))
+					]);
+				});
+			}
+			return React.createElement("div", { className: "omni-comfy-wf-modal-overlay", onClick: function (e) { if (e.target === e.currentTarget) props.onClose(); } }, [
+				React.createElement("div", { className: "omni-comfy-wf-modal-in omni-comfy-wf-history-content" }, [head,
+					React.createElement("div", { className: "omni-comfy-wf-history-body" }, body)
+				])
+			]);
+		}
+
+		// v2.9.14: static how-to-import help modal (popup, does not occupy panel space)
+		function WorkflowHelpModal(props) {
+			var t = props.t;
+			return React.createElement("div", { className: "omni-comfy-wf-modal-overlay", onClick: function (e) { if (e.target === e.currentTarget) props.onClose(); } }, [
+				React.createElement("div", { className: "omni-comfy-wf-modal-in omni-comfy-wf-help-content" }, [
+					React.createElement("div", { className: "omni-comfy-wf-history-head" }, [
+						React.createElement("h4", { className: "omni-comfy-wf-title" }, t("comfyWfHelpTitle")),
+						React.createElement("button", { className: "omni-btn", onClick: props.onClose }, t("comfyWfHistoryClose"))
+					]),
+					React.createElement("p", { className: "omni-label" }, t("comfyWfHelpIntro")),
+					React.createElement("ol", null, [
+						React.createElement("li", null, t("comfyWfHelpStep1")),
+						React.createElement("li", null, t("comfyWfHelpStep2"))
+					]),
+					React.createElement("p", { className: "omni-label" }, t("comfyWfHelpManualTitle")),
+					React.createElement("p", null, t("comfyWfHelpManual")),
+					React.createElement("div", { className: "omni-comfy-wf-help-mapping" }, [
+						React.createElement("p", { className: "omni-label" }, t("comfyWfHelpMappingTitle")),
+						React.createElement("p", null, t("comfyWfHelpMapping"))
+					])
+				])
 			]);
 		}
 
@@ -1875,6 +2050,41 @@ voiceSovitsModel: "SoVITS model name",
 			// v2.7: workflow list/edit view state
 			var wfView = React.useState("list"); // "list" | "edit"
 			var editWf = React.useState(null); // workflow entry being edited
+			// v2.9.14: history import modal + help modal state
+			var histOpen = React.useState(false);
+			var histItems = React.useState([]);
+			var histLoading = React.useState(false);
+			var histError = React.useState("");
+			var histBusyId = React.useState("");
+			var helpOpen = React.useState(false);
+			function openHistory() {
+				if (histLoading[0] || histBusyId[0] !== "") return;
+				histOpen[1](true);
+				histItems[1]([]);
+				histError[1]("");
+				histLoading[1](true);
+				props.onFetchHistory().then(function (r) {
+					histLoading[1](false);
+					if (r && r.ok) {
+						histItems[1](Array.isArray(r.items) ? r.items : []);
+					} else if (r && r.error) {
+						histError[1](r.error);
+					} else {
+						histError[1](t("comfyWfHistoryFail"));
+					}
+				}).catch(function (e) { histLoading[1](false); histError[1](t("comfyWfHistoryNoEndpoint")); });
+			}
+			function refreshHistory() {
+				openHistory();
+			}
+			function pickHistory(promptId) {
+				if (histBusyId[0] !== "") return;
+				histBusyId[1](promptId);
+				props.onImportHistory(promptId).then(function (r) {
+					histBusyId[1]("");
+					if (r && r.ok) histOpen[1](false);
+				}).catch(function () { histBusyId[1](""); });
+			}
 			var presetNameDraft = React.useState(props.activePresetName || "");
 			React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
 
@@ -2196,20 +2406,28 @@ voiceSovitsModel: "SoVITS model name",
 					t: t, workflows: props.workflows || [], activeId: props.activeWfId,
 					onImport: props.onImport, onToggle: props.onToggle,
 					onEdit: function (id) { editWf[1]((props.workflows || []).find(function (w) { return w.id === id; })); wfView[1]("edit"); },
-					onDelete: props.onDelete
+					onDelete: props.onDelete,
+					onOpenHistory: openHistory, onOpenHelp: function () { helpOpen[1](true); }
 				}) : null,
 				isComfy && wfView[0] === "edit" && editWf[0] ? React.createElement(WorkflowEdit, {
 					t: t, wf: editWf[0], onBack: function () { wfView[1]("list"); editWf[1](null); },
 					onRename: props.onRename, onUpdateJson: props.onUpdateJson,
 					onUpdateConfig: props.onUpdateConfig, onAutoMap: props.onAutoMap,
-					onUpdateMapping: props.onUpdateMapping
+					onUpdateMapping: props.onUpdateMapping, onDeleteMapping: props.onDeleteMapping
 				}) : null,
 				React.createElement("p", { className: "omni-status" },
 					t("imggenStatusPrefix") + (props.visible ? t("imggenToolVisible") : (isComfy ? t("imggenToolHidden") : t("toolHidden"))) +
 					(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
 			]);
 
-return React.createElement("div", { className: "omni-imggen-panel" }, [head, presetBar, React.createElement("div", { className: "omni-preset-divider" }), body, confirmModal]);
+return React.createElement("div", { className: "omni-imggen-panel" }, [head, presetBar, React.createElement("div", { className: "omni-preset-divider" }), body, confirmModal]
+		.concat(histOpen[0] ? [React.createElement(WorkflowHistoryModal, {
+			t: t, items: histItems[0], loading: histLoading[0], error: histError[0], busyId: histBusyId[0],
+			onRefresh: refreshHistory, onPick: pickHistory, onClose: function () { histOpen[1](false); }
+		})] : []).concat(helpOpen[0] ? [React.createElement(WorkflowHelpModal, {
+			t: t, onClose: function () { helpOpen[1](false); }
+		})] : [])
+		);
 		}
 
 		// ---------- fallback card ----------
@@ -4794,6 +5012,34 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					return d;
 				});
 			}
+			// v2.9.14: mapping row delete
+			function deleteWfMapping(id, key) {
+				commitStructure({ comfyWfDeleteMapping: { id: id, key: key } }, function (d) {
+					var wf = (d.comfyWorkflows || []).find(function (w) { return w.id === id; });
+					if (wf && wf.mapping) { delete wf.mapping[key]; }
+					return d;
+				});
+			}
+			// v2.9.14: history import — proxy through /omni/comfy/history
+			function fetchComfyHistory() {
+				return call("comfy/history", { action: "list" });
+			}
+			function importComfyHistory(promptId) {
+				return call("comfy/history", { action: "get", promptId: promptId }).then(function (r) {
+					if (!r || !r.ok) return r || { ok: false, error: t("unknown") };
+					commitStructure({ comfyWfImport: {
+						name: r.name, workflow: r.workflow,
+						mapping: r.mapping, steps: r.basic.steps, cfg: r.basic.cfg,
+						scheduler: r.basic.scheduler, seed: r.basic.seed, prepared: true
+					} }, null, function () {
+						var missing = r.missing || [];
+						showToast(missing.length > 0 ? "warning" : "success",
+							t(missing.length > 0 ? "comfyWfImportWarn" : "importedWf"),
+							missing.length > 0 ? missing.join("、") : "");
+					});
+					return { ok: true };
+				});
+			}
 			function toggleIgFilter() {
 				patchImggen("filterImageModels", !igc.filterImageModels);
 			}
@@ -5021,7 +5267,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 
 			var imggenBody = React.createElement("div", { className: "omni-tab-body" }, [
 				igcValid
-					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], unetList: igUnetList[0], vaeList: igVaeList[0], clipList: igClipList[0], openVaeDd: igVaeDd[0], openClipDd: igClipDd[0], onToggleVaeDd: function () { igVaeDd[1](!igVaeDd[0]); }, onToggleClipDd: function () { igClipDd[1](!igClipDd[0]); }, onPickVae: pickIgVae, onPickClip: pickIgClip, modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { var n = !igOpenDd[0]; igOpenDd[1](n); if (n && igModelList[0].length === 0) fetchImggenModels(); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, onUpdateMapping: updateWfMapping, workflows: (draft[0].comfyWorkflows || []), activeWfId: (draft[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
+					? React.createElement(ImggenPanel, Object.assign({ t: t, cfg: igc, visible: imggenVisible, busy: igBusy[0], keyDraft: igKeyDraft[0], revealed: igRevealed[0], openDd: igOpenDd[0], openProv: igOpenProv[0], confirmReset: igConfirmReset[0], modelList: igModelList[0], unetList: igUnetList[0], vaeList: igVaeList[0], clipList: igClipList[0], openVaeDd: igVaeDd[0], openClipDd: igClipDd[0], onToggleVaeDd: function () { igVaeDd[1](!igVaeDd[0]); }, onToggleClipDd: function () { igClipDd[1](!igClipDd[0]); }, onPickVae: pickIgVae, onPickClip: pickIgClip, modelCount: igModelCount[0], onPatch: patchImggen, onSaveKey: saveImggenKey, onToggleReveal: toggleIgReveal, onFetchModels: fetchImggenModels, onPickModel: pickIgModel, onToggleDd: function () { var n = !igOpenDd[0]; igOpenDd[1](n); if (n && igModelList[0].length === 0) fetchImggenModels(); }, onPickProvider: function (v) { changeIgProvider(v); igOpenProv[1](false); }, onToggleProv: function () { igOpenProv[1](!igOpenProv[0]); }, onToggleFilter: toggleIgFilter, onImport: importWorkflow, onDelete: deleteWorkflow, onRename: renameWorkflow, onToggle: toggleWorkflow, onUpdateJson: updateWfJson, onUpdateConfig: updateWfConfig, onAutoMap: autoMapWorkflow, onUpdateMapping: updateWfMapping, onDeleteMapping: deleteWfMapping, onFetchHistory: fetchComfyHistory, onImportHistory: importComfyHistory, workflows: (draft[0].comfyWorkflows || []), activeWfId: (draft[0].activeComfyWorkflow || ""), onResetClick: resetImggen, onCloseMenu: function () { igConfirmReset[1](false); }, presets: (draft[0].imggenPresets || []), activePresetId: draft[0].activeImggenPreset || "", activePresetName: ((draft[0].imggenPresets || []).find(function (p) { return p.id === draft[0].activeImggenPreset; }) || {}).name || "", onSwitchPreset: switchPreset, onAddPreset: addPreset, onDeletePreset: deletePreset, onRenamePreset: renamePreset, presetDdOpen: igPresetDdOpen[0], onTogglePresetDd: togglePresetDd, presetDeleteConfirm: igPresetDeleteConfirm[0], onConfirmDeletePreset: function () { igPresetDeleteConfirm[1](true); }, onCancelDeletePreset: function () { igPresetDeleteConfirm[1](false); }, onConfirmDelete: function () { deletePreset(draft[0].activeImggenPreset || ""); } }, props))
 					: React.createElement("p", { className: "omni-msg" }, t("imggenNoConfig")),
 				null
 			]);
