@@ -4307,10 +4307,13 @@ function applyPatch(cfg, patch) {
       if (typeof p.comfyWfUpdateMapping.key === 'string') {
         if (typeof v === 'string' && v.trim() !== '') {
           wf.mapping[p.comfyWfUpdateMapping.key] = v
-        } else if (v && typeof v === 'object' && typeof v.node === 'string' && v.node.trim() !== '') {
-          wf.mapping[p.comfyWfUpdateMapping.key] = { node: v.node, field: typeof v.field === 'string' ? v.field : '' }
-        } else if (v == null || (typeof v === 'string' && v.trim() === '') || (v && typeof v === 'object' && !(typeof v.node === 'string' && v.node.trim() !== ''))) {
-          // empty value removes the entry — turning a role line empty deletes it
+        } else if (typeof v === 'string') {
+          // blank node box keeps an empty (unfilled) row so the user can fill it again
+          wf.mapping[p.comfyWfUpdateMapping.key] = ''
+        } else if (v && typeof v === 'object') {
+          wf.mapping[p.comfyWfUpdateMapping.key] = { node: typeof v.node === 'string' ? v.node : '', field: typeof v.field === 'string' ? v.field : '' }
+        } else if (v == null) {
+          // explicit null/undefined removes the entry (the UI delete button uses comfyWfDeleteMapping)
           delete wf.mapping[p.comfyWfUpdateMapping.key]
         }
       }

@@ -1940,11 +1940,30 @@ voiceSovitsModel: "SoVITS model name",
 			var jsonDraft = React.useState(wf.workflow || "");
 			var nameDraft = React.useState(wf.name || "");
 			React.useEffect(function () { nameDraft[1](wf.name || ""); }, [wf.name]);
-			var summary = wf.mapping ? [
-				{ k: "sampler", l: "KSampler" }, { k: "checkpoint", l: "Checkpoint" }, { k: "unet", l: "UNET" },
-				{ k: "vae", l: "VAE" }, { k: "clip", l: "CLIP" },
-				{ k: "latent", l: "EmptyLatent" }, { k: "positive", l: "Positive" }, { k: "negative", l: "Negative" }
-			].filter(function (m) { return wf.mapping[m.k]; }).map(function (m) { return m.l + ": " + wf.mapping[m.k]; }).join(" · ") : "";
+			// v2.9.14: mapping roles — value may be a node-id string or {node, field}
+			var MAPPING_ROLES = [
+				{ key: "sampler", label: "KSampler", field: false, def: "KSampler" },
+				{ key: "checkpoint", label: "Checkpoint", field: true, def: "CheckpointLoader" },
+				{ key: "unet", label: "UNETLoader", field: true, def: "UNETLoader" },
+				{ key: "vae", label: "VAELoader", field: true, def: "VAELoader" },
+				{ key: "clip", label: "CLIPLoader", field: true, def: "CLIPLoader" },
+				{ key: "latent", label: "EmptyLatent", field: false, def: "EmptyLatentImage" },
+				{ key: "positive", label: "Positive", field: true, def: "Positive" },
+				{ key: "negative", label: "Negative", field: true, def: "Negative" }
+			];
+			var mapVal = function (key) {
+				var v = wf.mapping && wf.mapping[key];
+				if (v == null) return null;
+				if (typeof v === "string") return { node: v.trim(), field: "" };
+				if (typeof v === "object") return { node: (typeof v.node === "string" ? v.node : ""), field: (typeof v.field === "string" ? v.field : "") };
+				return null;
+			};
+			var summaryParts = wf.mapping ? MAPPING_ROLES.filter(function (r) { var mv = mapVal(r.key); return mv && mv.node !== ""; }).map(function (r) {
+				var mv = mapVal(r.key);
+				return r.label + ": " + mv.node + (r.field && mv.field ? "." + mv.field : "");
+			}) : [];
+			var mappingMissing = (wf.mapping && Array.isArray(wf.mapping.missing)) ? wf.mapping.missing : [];
+			var summary = summaryParts.join(" · ") + (mappingMissing.length > 0 ? " · " + t("comfyWfMappingMissing") + " " + mappingMissing.length : "");
 			return React.createElement("div", { className: "omni-comfy-wf-edit" }, [
 				React.createElement("div", { className: "omni-comfy-wf-edit-header" }, [
 					React.createElement("span", { className: "omni-comfy-wf-title" }, t("comfyWfListTitle")),
@@ -2000,29 +2019,60 @@ voiceSovitsModel: "SoVITS model name",
 						React.createElement("span", null, t("comfyWfMappingTitle"))
 					]),
 					!collapsed[0] ? React.createElement("div", { className: "omni-comfy-wf-mapping-body" }, [
-						React.createElement("button", {
-							className: "omni-btn omni-comfy-wf-automap",
-							onClick: function () { props.onAutoMap(wf.id); }
-						}, t("comfyWfAutoMap")),
+						summary ? React.createElement("div", { className: "omni-comfy-wf-mapping-summary" }, summary) : null,
+						mappingMissing.length > 0 ? React.createElement("div", { className: "omni-comfy-wf-mapping-warn" }, [
+							t("comfyWfMappingMissing") + "：" + mappingMissing.join("、")
+						]) : null,
 						React.createElement("div", { className: "omni-row" }, [
-								{ key: "sampler", label: "KSampler" },
-								{ key: "checkpoint", label: "Checkpoint" },
-								{ key: "unet", label: "UNETLoader" },
-								{ key: "vae", label: "VAELoader" },
-								{ key: "clip", label: "CLIPLoader" },
-								{ key: "latent", label: "EmptyLatent" },
-								{ key: "positive", label: "Positive" },
-								{ key: "negative", label: "Negative" }
-							].map(function (m) {
-								return React.createElement("div", { key: m.key, className: "omni-field omni-grow" }, [
-									React.createElement("span", { className: "omni-label omni-label-sm" }, m.label),
+							React.createElement("button", {
+								className: "omni-btn omni-comfy-wf-automap",
+								onClick: function () { props.onAutoMap(wf.id); }
+							}, t("comfyWfAutoMap"))
+						]),
+						// mapped role rows (node id + optional field override + delete)
+						MAPPING_ROLES.filter(function (r) { return mapVal(r.key); }).map(function (r) {
+							var mv = mapVal(r.key);
+							return React.createElement("div", { key: r.key, className: "omni-comfy-wf-map-row" }, [
+								React.createElement("span", { className: "omni-comfy-wf-map-label" }, r.label),
+								React.createElement("div", { className: "omni-field" }, [
+									React.createElement("input", {
+										className: "omni-input", type: "text", value: mv.node,
+										placeholder: "node id",
+										onChange: function (e) {
+											var cur = mapVal(r.key) || { node: "", field: "" };
+											var node = e.target.value;
+											props.onUpdateMapping(wf.id, r.key, cur.field ? { node: node, field: cur.field } : node);
+										}
+									})
+								]),
+								r.field ? React.createElement("div", { className: "omni-field" }, [
 									React.createElement("input", {
 										className: "omni-input", type: "text",
-										value: (wf.mapping && wf.mapping[m.key]) || "",
-										onChange: function (e) { props.onUpdateMapping(wf.id, m.key, e.target.value); }
+										placeholder: t("comfyWfMappingFieldPh"), value: mv.field,
+										onChange: function (e) {
+											var cur = mapVal(r.key) || { node: "", field: "" };
+											props.onUpdateMapping(wf.id, r.key, { node: cur.node, field: e.target.value });
+										}
 									})
-								]);
-							}))
+								]) : null,
+								React.createElement("button", {
+									className: "omni-comfy-wf-map-del", title: t("comfyWfMappingDelete"),
+									onClick: function () { if (props.onDeleteMapping) props.onDeleteMapping(wf.id, r.key); }
+								}, React.createElement(SvgIcon, { d: I_TRASH }))
+							]);
+						}),
+						// add-a-role row (only roles that are not in the mapping at all)
+						(function () {
+							var addOptions = MAPPING_ROLES.filter(function (r) { var v = wf.mapping && wf.mapping[r.key]; return v == null; });
+							if (addOptions.length === 0) return null;
+							var addKey = addOptions[0].key;
+							return React.createElement("div", { className: "omni-row", key: "add" }, [
+								React.createElement("button", {
+									className: "omni-btn omni-comfy-wf-map-add",
+									onClick: function () { props.onUpdateMapping(wf.id, addKey, { node: "", field: "" }); }
+								}, t("comfyWfMappingAdd") + " (" + ((MAPPING_ROLES.find(function (r) { return r.key === addKey; }) || {}).label || "") + ")")
+							]);
+						})()
 					]) : null
 				])
 			]);
