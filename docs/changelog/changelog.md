@@ -2,6 +2,15 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.14 — ComfyUI 执行历史导入（零导出）+ 自定义节点映射增强
+- **「从历史导入」按钮**（导入工作流右侧）：新增 `POST /omni/comfy/history` 路由代理 ComfyUI `/history`（list：队列号/status/节点数/prompt 摘要，新→旧排序；get：取回**前端已转好的 API 格式图**——用户浏览器 Queue 后服务端必然存有），最小注入后重发。**彻底解决三方自定义节点工作流**：API 图由用户前端序列化、且在同一台服务器执行过（class_type 必然存在），插件只认识注入点，不认识任何三方节点。
+- **映射检测全面降级**：`detectComfyMapping` 不再 throw，返回 `missing[]`（未识别角色随 mapping 持久化）；新增泛化识别——任意带 positive/negative 数组输入的节点=采样器（覆盖 Efficiency/自定义采样器）、无采样器时 TextEncode 节点回退正/负、任意数值 width/height 节点=Latent。**永远能导入、永远能跑**（未识别角色生成时保留工作流原值）。
+- **映射配置项可增/删 + 字段名覆盖**：8 角色逐行显示（节点号 + **可选字段名**，如自定义编码节点映射到 `prompt` 字段而非 `text`），✕ 删除行、「添加映射」追加空行；`applyPatch comfyWfUpdateMapping` 支持 `string | {node,field}`，空节点保留空行（仅 null 删除）、新增 `comfyWfDeleteMapping`。
+- **"?" 教程浮窗**：工作流列表标题旁帮助按钮弹覆盖层（不占面板空间），内置两条路径教程（历史导入推荐路径 / 手动 Save (API Format) 导出路径）+ 映射说明。
+- **注入守卫修复**：latent 的 width/height/batch_size 仅写节点已有的键（自定义 Latent 缺 batch_size 不再 400）；采样器 seed 字段自适应（KSamplerAdvanced 用 `noise_seed`）；单字段角色默认字段缺失时跳过（保留原值）、用户显式字段覆盖优先。
+- **prepared 导入通道**：`/omni/config` 的 `comfyWfImport.prepared:true` 跳过本地转换（只校验 JSON 合法性），历史导入走单一写路径（applyPatch→storeConfig→syncToolRegistration）。
+- **验证**：单测 219 全通过（新增 comfy-history.test.js 6 例、comfy-mapping +9 例含 applyPatch 4 例）；E2E 需本机 ComfyUI（见 plan doc 验证步骤）。
+
 ## v2.9.13 — 豆包双区独立 V1/V3 鉴权 + 自定义音色自动 ICL
 - **V1 TTS 合成鉴权头修正**：合成按官方旧版控制台文档用 `X-Api-App-Id`+`X-Api-Access-Key`+`X-Api-Resource-Id`+`X-Api-Request-Id`（不再用 `Authorization: Bearer`——那是 mega_tts 克隆专用）。V3：`X-Api-Key` 优先，无 KEY 回退 App-Key/Access-Key。
 - **上（生成）/下（复刻）两区独立协议+凭据**：上方 doubao V1 显示 App ID+Access Token 行、V3 显示 KEY 行；复刻区每个预设自带「API 协议」选择器与对应凭据行（V1=App ID+Token / V3=KEY），预设新增 `apiKey` 字段；两区可配不同凭据。
