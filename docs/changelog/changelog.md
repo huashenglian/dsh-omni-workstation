@@ -2,6 +2,15 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.9.13 — 豆包双区独立 V1/V3 鉴权 + 自定义音色自动 ICL
+- **V1 TTS 合成鉴权头修正**：合成按官方旧版控制台文档用 `X-Api-App-Id`+`X-Api-Access-Key`+`X-Api-Resource-Id`+`X-Api-Request-Id`（不再用 `Authorization: Bearer`——那是 mega_tts 克隆专用）。V3：`X-Api-Key` 优先，无 KEY 回退 App-Key/Access-Key。
+- **上（生成）/下（复刻）两区独立协议+凭据**：上方 doubao V1 显示 App ID+Access Token 行、V3 显示 KEY 行；复刻区每个预设自带「API 协议」选择器与对应凭据行（V1=App ID+Token / V3=KEY），预设新增 `apiKey` 字段；两区可配不同凭据。
+- **自定义音色自动 ICL**：`resolveDoubaoClonePreset(speaker, cfg)`（已导出）—预设精确匹配或 `S_` 前缀活动预设兜底；`speak` 命中预设时用预设的 cloneModel（seed-icl-2.0）+预设协议/凭据合成（内置 s 音色仍用上方 seed-tts-2.0）。
+- **预设为唯一凭据源**：`speak`/`clone_voice`/`/omni/doubao/clone` 均不复用上方 vc 的 appId/accessKey/apiKey，防止 V3 预设泄漏上方遗留 V1 凭据发错鉴权头；克隆 apiVersion 预设优先。
+- **`isVoiceConfigValid` doubao**：V1 要求上方 appId+accessKey，V3 要求 apiKey（与协议一致）。
+- **验证（真凭据浏览器 E2E + 后端复核）**：V1 克隆 S_R4WKW0yd2 status=2 ✅；V1 生成内置语音 ✅（voice_mthe7z86.mp3）；V1 生成自定义音色自动 seed-icl-2.0 ✅（voice_mthe8uoa.mp3）；V3 生成内置 ✅（voice_mtheibdx.mp3）；V3 生成自定义 S_vx6CUo342 → seed-icl-2.0 ✅（voice_mthewz1s.mp3，工具卡显示模型 seed-icl-2.0）。全套测试 205 通过。
+- 排坑：同名 speaker 残留预设会抢先命中 find → `resolveDoubaoClonePreset` 匹配第一个即返回；V3 预设混入 V1 遗留凭据会发错头 → 预设唯一凭据源。
+
 ## v2.9.10 — doDoubaoClone V1 API 重写 + 6 项 UI 改动
 - **`doDoubaoClone` 重写为 V1 API（旧版控制台）**：端点 `POST /api/v1/mega_tts/audio/upload` + 轮询 `/api/v1/mega_tts/status`。Auth `Authorization: Bearer; <accessToken>` + `Resource-Id` 头。Body `{appid, speaker_id, audios:[{audio_bytes, audio_format}], source:2, model_type, language}`。Response `BaseResp.StatusCode===0`。**音频时长 ≥5s 否则报 1307 PromptAudioDurationTooShort**。
 - **`doubaoClonePresets` 加 `cloneModel` 字段**：每预设存独立复刻模型（`seed-icl-2.0`/`seed-icl-1.0`）。`doubaoClonePresetPatch` 支持更新 `cloneModel`。`/omni/doubao/clone` 路由和 `clone_voice` 工具传递 `dcp.cloneModel` 给 `doDoubaoClone`。
