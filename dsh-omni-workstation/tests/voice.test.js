@@ -12,7 +12,7 @@ import { join } from 'node:path'
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-workstation-voice-'))
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-workstation-vcfg-'))
 
-const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef } = await import('../lib/index.js')
+const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef, isVoiceConfigValid: realIsVoiceConfigValid, resolveDoubaoClonePreset, runDoubaoTts } = await import('../lib/index.js')
 
 // ---- Reproduce pure voice helpers (not exported from index.js) ----
 
@@ -653,30 +653,81 @@ test('buildSpeakToolDef doubao: no voice_sample_path, description mentions speak
   assert.ok(def.description.indexOf('speaker_id') >= 0 || def.description.indexOf('doubao') >= 0, 'description should mention speaker_id or doubao')
 })
 
-test('isVoiceConfigValid doubao: accepts appId+accessKey without apiKey', () => {
-  // Reproduce isVoiceConfigValid logic — doubao accepts appId+accessKey OR apiKey
-  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: '', appId: 'test-app-id', accessKey: 'test-access-key' }
-  // doubao has keyRequired=true, but our v2.9.8 logic accepts appId+accessKey as alternative
-  const meta = VOICE_PROVIDERS[vc.provider]
-  const endpoint = meta.endpoint // fixedUrl
-  const hasLegacy = vc.appId && vc.accessKey
-  const hasNew = vc.apiKey && vc.apiKey.length > 0
-  assert.ok(hasLegacy, 'appId+accessKey should be valid for doubao')
-  assert.ok(!hasNew, 'apiKey is empty')
-  assert.ok(endpoint && vc.model, 'endpoint and model required')
+test('isVoiceConfigValid doubao v1: 需要 App ID + Access Token（真实函数）', () => {
+  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiVersion: 'v1', apiKey: '', appId: 'test-app-id', accessKey: 'test-access-key' }
+  assert.equal(realIsVoiceConfigValid(vc), true, 'v1 + appId+accessKey 应有效')
+  assert.equal(realIsVoiceConfigValid({ ...vc, accessKey: '' }), false, 'v1 缺 Access Token 应无效')
+  assert.equal(realIsVoiceConfigValid({ ...vc, appId: '' }), false, 'v1 缺 App ID 应无效')
 })
 
-test('isVoiceConfigValid doubao: accepts apiKey without appId/accessKey', () => {
-  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: 'test-key', appId: '', accessKey: '' }
-  const hasLegacy = vc.appId && vc.accessKey
-  const hasNew = vc.apiKey && vc.apiKey.length > 0
-  assert.ok(!hasLegacy, 'no appId+accessKey')
-  assert.ok(hasNew, 'apiKey alone should be valid for doubao (new auth)')
+test('isVoiceConfigValid doubao v3: 需要 KEY（真实函数）', () => {
+  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiVersion: 'v3', apiKey: 'test-key', appId: '', accessKey: '' }
+  assert.equal(realIsVoiceConfigValid(vc), true, 'v3 + apiKey 应有效')
+  assert.equal(realIsVoiceConfigValid({ ...vc, apiKey: '' }), false, 'v3 缺 KEY 应无效')
 })
 
-test('isVoiceConfigValid doubao: rejects empty auth', () => {
-  const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiKey: '', appId: '', accessKey: '' }
-  const hasLegacy = vc.appId && vc.accessKey
-  const hasNew = vc.apiKey && vc.apiKey.length > 0
-  assert.ok(!hasLegacy && !hasNew, 'should reject empty auth')
+test('resolveDoubaoClonePreset: 命中预设 / S_ 兜底 / 内置音色返回 null', () => {
+  const cfg = {
+    activeDoubaoClonePreset: 'p1',
+    doubaoClonePresets: [
+      { id: 'p1', name: '预设一', speakerId: 'S_abc', cloneModel: 'seed-icl-2.0', apiVersion: 'v1', appId: 'a', accessToken: 't' },
+      { id: 'p2', name: '预设二', speakerId: 'S_def', cloneModel: 'seed-icl-1.0', apiVersion: 'v3', apiKey: 'k' }
+    ]
+  }
+  assert.equal(resolveDoubaoClonePreset('S_def', cfg).id, 'p2', '精确命中预设')
+  assert.equal(resolveDoubaoClonePreset('S_unknown', cfg).id, 'p1', 'S_ 未命中 → 活动预设兜底')
+  assert.equal(resolveDoubaoClonePreset('zh_female_vv_uranus_bigtts', cfg), null, '内置音色未命中 → null')
+  assert.equal(resolveDoubaoClonePreset('S_x', { doubaoClonePresets: [] }), null, '无预设 → null')
+})
+
+test('runDoubaoTts V1: X-Api-App-Id + X-Api-Access-Key + Resource-Id + Request-Id 头', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => {
+    captured.headers = opts.headers
+    return { ok: true, status: 200, body: { getReader: () => ({ read: async () => ({ done: true }) }) } }
+  }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiVersion: 'v1', appId: 'app-1', accessKey: 'tok-1', voiceId: 'zh_female_vv_uranus_bigtts', timeoutMs: 5000 }
+    await runDoubaoTts(vc, { text: '你好' }, exec)
+  } catch (e) {
+    assert.ok(String(e.message || '').indexOf('未收到音频数据') >= 0, 'mock 空流应报未收到音频：' + e.message)
+  } finally {
+    global.fetch = realFetch
+  }
+  assert.equal(captured.headers['X-Api-App-Id'], 'app-1')
+  assert.equal(captured.headers['X-Api-Access-Key'], 'tok-1')
+  assert.equal(captured.headers['X-Api-Resource-Id'], 'seed-tts-2.0')
+  assert.ok(captured.headers['X-Api-Request-Id'], '应有 X-Api-Request-Id')
+  assert.equal(captured.headers['Authorization'], undefined, 'V1 合成不应使用 Bearer 头')
+})
+
+test('runDoubaoTts V3: X-Api-Key 头', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => {
+    captured.headers = opts.headers
+    return { ok: true, status: 200, body: { getReader: () => ({ read: async () => ({ done: true }) }) } }
+  }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'doubao', model: 'seed-tts-2.0', apiVersion: 'v3', apiKey: 'key-1', appId: '', accessKey: '', voiceId: 'zh_female_vv_uranus_bigtts', timeoutMs: 5000 }
+    await runDoubaoTts(vc, { text: '你好' }, exec)
+  } catch (e) {
+    assert.ok(String(e.message || '').indexOf('未收到音频数据') >= 0, 'mock 空流应报未收到音频：' + e.message)
+  } finally {
+    global.fetch = realFetch
+  }
+  assert.equal(captured.headers['X-Api-Key'], 'key-1')
+  assert.equal(captured.headers['X-Api-Resource-Id'], 'seed-tts-2.0')
+  assert.equal(captured.headers['X-Api-App-Id'], undefined)
+})
+
+test('applyPatch: doubaoClonePresetPatch apiKey 持久化', () => {
+  let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'doubao' } })
+  assert.ok(Array.isArray(cfg.doubaoClonePresets) && cfg.doubaoClonePresets.length > 0, 'presets auto-created')
+  cfg = applyPatch(cfg, { doubaoClonePresetPatch: { apiKey: 'preset-key-1', apiVersion: 'v3' } })
+  assert.equal(cfg.doubaoClonePresets[0].apiKey, 'preset-key-1')
+  assert.equal(cfg.doubaoClonePresets[0].apiVersion, 'v3')
 })

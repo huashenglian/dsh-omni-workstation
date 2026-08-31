@@ -2961,6 +2961,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var speakerDraft = React.useState(activePreset.speakerId || '');
 			var appIdDraft = React.useState(activePreset.appId || '');
 			var accessTokenDraft = React.useState(activePreset.accessToken || '');
+			var apiKeyDraft = React.useState(activePreset.apiKey || '');
 			var fileInput = React.useRef(null);
 			var onFilePick = function (e) {
 				var f = e && e.target && e.target.files && e.target.files[0];
@@ -3031,8 +3032,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement('button', { className: 'omni-btn omni-minimax-clone-btn', type: 'button', disabled: busy, onClick: onClone, title: t('voiceDoubaoCloneBtn') }, t('voiceDoubaoCloneBtn'))
 				])
 			]);
-			// v2.9.12: App ID + Access Token same row (V1 only, between preset bar and clone model)
-			var appIdAccessTokenRow = (activePreset.apiVersion || 'v1') === 'v1' ? React.createElement('div', { className: 'omni-row' }, [
+			// v2.9.13: 复刻区独立协议切换（V1/V3）— 与上方生成语音区各自独立
+			var protocolRow = React.createElement('div', { className: 'omni-row' }, [
+				React.createElement(SelectField, {
+					label: 'API 协议', value: activePreset.apiVersion || 'v1',
+					options: [{ value: 'v1', label: 'V1 (旧版控制台)' }, { value: 'v3', label: 'V3 (新版控制台)' }],
+					onChange: function (e) { props.onPatch({ apiVersion: e.target.value }); }
+				})
+			]);
+			// v2.9.13: 复刻区凭据按协议切换 — V1 = App ID + Access Token；V3 = KEY
+			var credRow = (activePreset.apiVersion || 'v1') === 'v1' ? React.createElement('div', { className: 'omni-row' }, [
 				React.createElement('div', { className: 'omni-field' }, [
 					React.createElement('span', { className: 'omni-label-small' }, 'App ID'),
 					React.createElement('input', { className: 'omni-input', type: 'text', placeholder: 'App ID', value: appIdDraft[0] || '', onChange: function (e) { appIdDraft[1](e.target.value); }, onBlur: function (e) { props.onPatch({ appId: e.target.value }); } })
@@ -3041,7 +3050,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement('span', { className: 'omni-label-small' }, 'Access Token'),
 					React.createElement('input', { className: 'omni-input', type: 'password', placeholder: 'Access Token', value: accessTokenDraft[0] || '', onChange: function (e) { accessTokenDraft[1](e.target.value); }, onBlur: function (e) { props.onPatch({ accessToken: e.target.value }); } })
 				])
-			]) : null;
+			]) : React.createElement('div', { className: 'omni-row' }, [
+				React.createElement('div', { className: 'omni-field omni-grow' }, [
+					React.createElement('span', { className: 'omni-label-small' }, 'KEY'),
+					React.createElement('input', { className: 'omni-input', type: 'password', placeholder: 'KEY（V3 新版控制台）', value: apiKeyDraft[0] || '', onChange: function (e) { apiKeyDraft[1](e.target.value); }, onBlur: function (e) { props.onPatch({ apiKey: e.target.value }); } })
+				])
+			]);
 			// Delete confirm modal
 			var delModal = delConfirm[0] ? React.createElement('div', { className: 'omni-confirm-overlay', onClick: function () { delConfirm[1](false); } }, [
 				React.createElement('div', { className: 'omni-confirm-modal', onClick: function (e) { e.stopPropagation(); } }, [
@@ -3057,7 +3071,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				React.createElement('hr', { className: 'omni-section-hr' }),
 				React.createElement('span', { className: 'omni-label' }, t('voiceDoubaoCloneSection')),
 				bar,
-				appIdAccessTokenRow,
+				protocolRow,
+				credRow,
 				modelSpeakerRow,
 				pathRow,
 				delModal,
@@ -3249,8 +3264,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							placeholder: "https://api.example.com/v1",
 							onChange: function (e) { props.onPatch("endpoint", e.target.value); }
 						}),
-					// v2.9.12: hide key input for doubao V1 (uses App ID + Access Token instead)
-					(cfg.provider === "doubao" && (cfg.apiVersion || "v1") === "v1") ? null :
+					// v2.9.13: doubao 上方生成语音区独立凭据 — V1 = App ID + Access Token；V3 = KEY
+					(cfg.provider === "doubao" && (cfg.apiVersion || "v1") === "v1") ? React.createElement("div", { className: "omni-row" }, [
+						React.createElement("div", { className: "omni-field" }, [
+							React.createElement("span", { className: "omni-label" }, "App ID"),
+							React.createElement("input", { className: "omni-input", type: "text", value: cfg.appId || "", placeholder: "App ID", onChange: function (e) { props.onPatch("appId", e.target.value); } })
+						]),
+						React.createElement("div", { className: "omni-field omni-grow" }, [
+							React.createElement("span", { className: "omni-label" }, "Access Token"),
+							React.createElement("input", { className: "omni-input", type: "password", value: cfg.accessKey || "", placeholder: "Access Token", onChange: function (e) { props.onPatch("accessKey", e.target.value); } })
+						])
+					]) :
 					React.createElement("div", { className: "omni-row" }, [
 						React.createElement("div", { className: "omni-field omni-grow" }, [
 							React.createElement("span", { className: "omni-label" }, t("voiceApiKey")),
@@ -4580,7 +4604,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			// v2.9.11: copy appId/accessToken from current active preset
 			var cur = (draft[0].doubaoClonePresets || []).find(function(p) { return p.id === draft[0].activeDoubaoClonePreset; }) || {};
 			commitStructure({ doubaoClonePresetAdd: true }, function (d) {
-				d.doubaoClonePresets = (d.doubaoClonePresets || []).concat([{ id: newId, name: newName, speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0', appId: cur.appId || '', accessToken: cur.accessToken || '', apiVersion: cur.apiVersion || 'v1' }]);
+				d.doubaoClonePresets = (d.doubaoClonePresets || []).concat([{ id: newId, name: newName, speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0', appId: cur.appId || '', accessToken: cur.accessToken || '', apiKey: cur.apiKey || '', apiVersion: cur.apiVersion || 'v1' }]);
 				d.activeDoubaoClonePreset = newId;
 				return d;
 			});
