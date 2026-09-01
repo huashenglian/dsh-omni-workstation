@@ -116,6 +116,7 @@ window.__ModuleLoader__.load({
 				comfyWfHelpMappingTitle: "映射说明：",
 				comfyWfHelpMapping: "自动识别节点映射；对未识别的角色可手动添加（节点号 + 可选字段名），未识别项在生成时保留工作流原值，不影响运行。",
 				comfyWfMappingAdd: "添加映射",
+				comfyWfMappingAllMapped: "全部角色已映射",
 				comfyWfMappingDelete: "删除此项",
 				comfyWfMappingFieldPh: "字段（留空=默认）",
 				comfyWfMappingComplete: "已识别",
@@ -507,6 +508,7 @@ voiceSovitsModel: "SoVITS 模型名",
 				comfyWfHelpMappingTitle: "Mapping notes:",
 				comfyWfHelpMapping: "Node roles are auto-detected; for unrecognized ones you can add them manually (node id + optional field name). Unidentified roles keep their original values on generation — they never block running.",
 				comfyWfMappingAdd: "Add Mapping",
+				comfyWfMappingAllMapped: "All roles mapped",
 				comfyWfMappingDelete: "Remove",
 				comfyWfMappingFieldPh: "Field (blank = default)",
 				comfyWfMappingComplete: "Identified",
@@ -1990,7 +1992,14 @@ voiceSovitsModel: "SoVITS model name",
 						// add-a-role row (outside scroll container, always visible)
 						(function () {
 							var addOptions = MAPPING_ROLES.filter(function (r) { var v = wf.mapping && wf.mapping[r.key]; return v == null; });
-							if (addOptions.length === 0) return null;
+							if (addOptions.length === 0) {
+								return React.createElement("div", { className: "omni-row", key: "add" },
+									React.createElement("button", {
+										className: "omni-btn omni-comfy-wf-map-add",
+										disabled: true
+									}, t("comfyWfMappingAllMapped"))
+								);
+							}
 							var addKey = addOptions[0].key;
 							return React.createElement("div", { className: "omni-row", key: "add" }, [
 								React.createElement("button", {
