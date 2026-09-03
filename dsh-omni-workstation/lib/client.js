@@ -2027,33 +2027,10 @@ voiceSovitsModel: "SoVITS model name",
 												props.onUpdateMapping(wf.id, r.key, { node: cur.node, field: e.target.value });
 											}
 										})
-									]) : null,
-									React.createElement("button", {
-										className: "omni-comfy-wf-map-del", title: t("comfyWfMappingDelete"),
-										onClick: function () { if (props.onDeleteMapping) props.onDeleteMapping(wf.id, r.key); }
-									}, React.createElement(SvgIcon, { d: I_TRASH }))
+									]) : null
 								]);
 							})
-						),
-						// add-a-role row (outside scroll container, always visible)
-						(function () {
-							var addOptions = MAPPING_ROLES.filter(function (r) { var v = wf.mapping && wf.mapping[r.key]; return v == null; });
-							if (addOptions.length === 0) {
-								return React.createElement("div", { className: "omni-row", key: "add" },
-									React.createElement("button", {
-										className: "omni-btn omni-comfy-wf-map-add",
-										disabled: true
-									}, t("comfyWfMappingAllMapped"))
-								);
-							}
-							var addKey = addOptions[0].key;
-							return React.createElement("div", { className: "omni-row", key: "add" }, [
-								React.createElement("button", {
-									className: "omni-btn omni-comfy-wf-map-add",
-									onClick: function () { props.onUpdateMapping(wf.id, addKey, { node: "", field: "" }); }
-								}, t("comfyWfMappingAdd") + " (" + ((MAPPING_ROLES.find(function (r) { return r.key === addKey; }) || {}).label || "") + ")")
-							]);
-						})(),
+						),,
 						// v2.9.15: custom mappings section (unlimited, user-defined injection points)
 						React.createElement("div", { className: "omni-comfy-wf-custom-mappings" }, [
 							React.createElement("span", { className: "omni-label" }, t("comfyWfCustomMappings")),
