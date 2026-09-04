@@ -5,14 +5,14 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-workstation-voice-'))
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-workstation-vcfg-'))
 
-const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef, isVoiceConfigValid: realIsVoiceConfigValid, resolveDoubaoClonePreset, runDoubaoTts } = await import('../lib/index.js')
+const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef, isVoiceConfigValid: realIsVoiceConfigValid, resolveDoubaoClonePreset, runDoubaoTts, runIndexTts, doIndexTtsClone, runGptSovits, runVoxCpm, doVoxCpmClone, runTtsWebui } = await import('../lib/index.js')
 
 // ---- Reproduce pure voice helpers (not exported from index.js) ----
 
@@ -54,7 +54,14 @@ const defaultVoiceConfig = () => ({
   emoStrategy: '',
   emoWeight: '',
   mode: 'clone',
-  region: 'cn'
+  region: 'cn',
+  apiVersion: 'v1',
+  gptModel: '',
+  sovitsModel: '',
+  refAudioPath: '',
+  refText: '',
+  promptLang: '中文',
+  textLang: '中文'
 })
 
 function normalizeVoiceConfig(raw) {
@@ -85,7 +92,14 @@ function normalizeVoiceConfig(raw) {
     emoStrategy: typeof raw.emoStrategy === 'string' ? raw.emoStrategy : '',
     emoWeight: typeof raw.emoWeight === 'string' ? raw.emoWeight : '',
     mode: typeof raw.mode === 'string' ? raw.mode : 'clone',
-    region: typeof raw.region === 'string' ? raw.region : 'cn'
+    region: typeof raw.region === 'string' ? raw.region : 'cn',
+    apiVersion: typeof raw.apiVersion === 'string' ? raw.apiVersion : 'v1',
+    gptModel: typeof raw.gptModel === 'string' ? raw.gptModel : '',
+    sovitsModel: typeof raw.sovitsModel === 'string' ? raw.sovitsModel : '',
+    refAudioPath: typeof raw.refAudioPath === 'string' ? raw.refAudioPath : '',
+    refText: typeof raw.refText === 'string' ? raw.refText : '',
+    promptLang: typeof raw.promptLang === 'string' ? raw.promptLang : '中文',
+    textLang: typeof raw.textLang === 'string' ? raw.textLang : '中文'
   }
 }
 
@@ -730,4 +744,226 @@ test('applyPatch: doubaoClonePresetPatch apiKey 持久化', () => {
   cfg = applyPatch(cfg, { doubaoClonePresetPatch: { apiKey: 'preset-key-1', apiVersion: 'v3' } })
   assert.equal(cfg.doubaoClonePresets[0].apiKey, 'preset-key-1')
   assert.equal(cfg.doubaoClonePresets[0].apiVersion, 'v3')
+})
+
+// ---- v2.10: local voice provider tests ----
+
+function mockBlobResp() {
+  return { ok: true, status: 200, text: async () => '', blob: async () => new Blob([Buffer.from('fake-audio')]), json: async () => ({}) }
+}
+
+test('runIndexTts: POST /api/v1/tts/tasks with prompt_audio + Bearer auth', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = JSON.parse(opts.body); captured.headers = opts.headers; return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'indextts', apiKey: 'sk-test', voiceId: 'voice1', timeoutMs: 5000 }
+    await runIndexTts(vc, { text: '你好', voice: 'voice1' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/api/v1/tts/tasks') >= 0, 'URL should contain /api/v1/tts/tasks')
+  assert.equal(captured.body.prompt_audio, 'voice1')
+  assert.equal(captured.body.text, '你好')
+  assert.equal(captured.headers['Authorization'], 'Bearer sk-test')
+})
+
+test('runIndexTts: no Bearer header when apiKey empty', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.headers = opts.headers; return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    await runIndexTts({ provider: 'indextts', voiceId: 'v1', timeoutMs: 5000 }, { text: 'test' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.equal(captured.headers['Authorization'], undefined)
+})
+
+test('runIndexTts: throws on empty text', async () => {
+  try { await runIndexTts({ provider: 'indextts', voiceId: 'v1' }, {}, {}) } catch (e) {
+    assert.ok(String(e.message).indexOf('text') >= 0); return
+  }
+  assert.fail('should throw')
+})
+
+test('runIndexTts: emo_text from style when style provided', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.body = JSON.parse(opts.body); return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    await runIndexTts({ provider: 'indextts', voiceId: 'v1', timeoutMs: 5000 }, { text: '你好', style: '温柔' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.equal(captured.body.emo_control_method, 3)
+  assert.equal(captured.body.emo_text, '温柔')
+})
+
+test('doIndexTtsClone: POST /api/v1/upload with FormData', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = opts.body; return { ok: true, status: 200, text: async () => '', json: async () => ({ voice_id: 'uploaded_voice' }) } }
+  try {
+    const tmpFile = join(process.env.DSH_HOME, 'test_ref.wav')
+    writeFileSync(tmpFile, Buffer.from('fake-audio'))
+    const r = await doIndexTtsClone({ provider: 'indextts', apiKey: 'sk-test' }, tmpFile, {})
+    assert.equal(r.voice_id, 'uploaded_voice')
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/api/v1/upload') >= 0)
+  assert.ok(captured.body instanceof FormData, 'body should be FormData')
+})
+
+test('runGptSovits: POST /infer_classic with app_key in body (not header)', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = JSON.parse(opts.body); captured.headers = opts.headers; return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'gptsovits', apiKey: 'gsv-key', gptModel: 'model.ckpt', sovitsModel: 'model.pth', refAudioPath: 'custom_refs/test.wav', refText: '参考', timeoutMs: 5000 }
+    await runGptSovits(vc, { text: '你好' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/infer_classic') >= 0)
+  assert.equal(captured.body.app_key, 'gsv-key', 'app_key should be in body')
+  assert.equal(captured.headers['Authorization'], undefined, 'no Authorization header for GSV')
+  assert.equal(captured.body.gpt_model_name, 'model.ckpt')
+  assert.equal(captured.body.sovits_model_name, 'model.pth')
+  assert.equal(captured.body.ref_audio_path, 'custom_refs/test.wav')
+  assert.equal(captured.body.prompt_text, '参考')
+})
+
+test('runGptSovits: version parsing "v4::model.ckpt" → version=v4, name=model.ckpt', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.body = JSON.parse(opts.body); return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    await runGptSovits({ provider: 'gptsovits', gptModel: 'v4::model.ckpt', sovitsModel: 'v4::model.pth', refAudioPath: 'test.wav', refText: 'ref', timeoutMs: 5000 }, { text: 'hi' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.equal(captured.body.version, 'v4')
+  assert.equal(captured.body.gpt_model_name, 'model.ckpt')
+  assert.equal(captured.body.sovits_model_name, 'model.pth')
+})
+
+test('runGptSovits: path auto-complete "test.wav" → "custom_refs/test.wav"', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.body = JSON.parse(opts.body); return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    await runGptSovits({ provider: 'gptsovits', gptModel: 'm', sovitsModel: 's', refAudioPath: 'test.wav', refText: 'r', timeoutMs: 5000 }, { text: 'hi' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.equal(captured.body.ref_audio_path, 'custom_refs/test.wav')
+})
+
+test('runGptSovits: throws on missing gptModel', async () => {
+  try { await runGptSovits({ provider: 'gptsovits' }, { text: 'hi' }, {}) } catch (e) {
+    assert.ok(String(e.message).indexOf('GPT') >= 0); return
+  }
+  assert.fail('should throw')
+})
+
+test('runVoxCpm clone mode: POST /v1/audio/clone with reference_wav_path', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = JSON.parse(opts.body); captured.headers = opts.headers; return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'voxcpm', mode: 'clone', apiKey: 'vox-key', voiceId: 'ref.wav', timeoutMs: 5000 }
+    await runVoxCpm(vc, { text: '你好', voice: 'ref.wav' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/v1/audio/clone') >= 0)
+  assert.equal(captured.body.reference_wav_path, 'ref.wav')
+  assert.equal(captured.headers['X-API-Key'], 'vox-key', 'should use X-API-Key not Bearer')
+  assert.equal(captured.headers['Authorization'], undefined, 'no Bearer for VoxCPM')
+})
+
+test('runVoxCpm design mode: POST /v1/audio/design without reference_wav_path', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = JSON.parse(opts.body); return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'voxcpm', mode: 'design', voiceId: '', timeoutMs: 5000 }
+    await runVoxCpm(vc, { text: '你好', style: '年轻女性' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/v1/audio/design') >= 0)
+  assert.equal(captured.body.reference_wav_path, undefined, 'design mode should not have reference_wav_path')
+  assert.equal(captured.body.text, '(年轻女性) 你好', 'instruction prefix prepended')
+})
+
+test('doVoxCpmClone: POST /v1/audio/upload with FormData + X-API-Key', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = opts.body; captured.headers = opts.headers; return { ok: true, status: 200, text: async () => '', json: async () => ({ path: 'uploaded.wav' }) } }
+  try {
+    const tmpFile = join(process.env.DSH_HOME, 'vox_ref.wav')
+    writeFileSync(tmpFile, Buffer.from('fake'))
+    const r = await doVoxCpmClone({ provider: 'voxcpm', apiKey: 'vox-key' }, tmpFile, {})
+    assert.equal(r.voice_id, 'uploaded.wav')
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/v1/audio/upload') >= 0)
+  assert.ok(captured.body instanceof FormData)
+  assert.equal(captured.headers['X-API-Key'], 'vox-key')
+})
+
+test('runTtsWebui: POST /v1/audio/speech with model, input, voice, response_format', async () => {
+  const captured = {}
+  const realFetch = global.fetch
+  global.fetch = async (url, opts) => { captured.url = url; captured.body = JSON.parse(opts.body); captured.headers = opts.headers; return mockBlobResp() }
+  try {
+    const exec = { agent: { meta: { cwd: process.env.DSH_HOME } } }
+    const vc = { provider: 'tts-webui', endpoint: 'http://localhost:7778', apiKey: 'sk-test', model: 'bark', voiceId: 'speaker1', outputFormat: 'wav', timeoutMs: 5000 }
+    await runTtsWebui(vc, { text: '你好' }, exec)
+  } finally { global.fetch = realFetch }
+  assert.ok(captured.url.indexOf('/v1/audio/speech') >= 0)
+  assert.equal(captured.body.model, 'bark')
+  assert.equal(captured.body.input, '你好')
+  assert.equal(captured.body.voice, 'speaker1')
+  assert.equal(captured.body.response_format, 'wav')
+  assert.equal(captured.headers['Authorization'], 'Bearer sk-test')
+})
+
+test('runTtsWebui: throws on empty endpoint', async () => {
+  try { await runTtsWebui({ provider: 'tts-webui', endpoint: '', model: 'bark', voiceId: 'v1' }, { text: 'hi' }, {}) } catch (e) {
+    assert.ok(String(e.message).indexOf('endpoint') >= 0); return
+  }
+  assert.fail('should throw')
+})
+
+test('buildSpeakToolDef indextts: description mentions indextts', () => {
+  const def = buildSpeakToolDef({ provider: 'indextts', voiceId: 'voice1', model: 'default' })
+  assert.ok(def.description.indexOf('indextts') >= 0)
+  assert.ok(def.description.indexOf('参考音色') >= 0)
+})
+
+test('buildSpeakToolDef gptsovits: description mentions gptsovits + gptModel', () => {
+  const def = buildSpeakToolDef({ provider: 'gptsovits', gptModel: 'model.ckpt', sovitsModel: 'model.pth', model: '' })
+  assert.ok(def.description.indexOf('gptsovits') >= 0)
+  assert.ok(def.description.indexOf('参考音频路径') >= 0)
+})
+
+test('buildSpeakToolDef voxcpm: description mentions voxcpm + mode', () => {
+  const def = buildSpeakToolDef({ provider: 'voxcpm', mode: 'clone', model: 'default' })
+  assert.ok(def.description.indexOf('voxcpm') >= 0)
+  assert.ok(def.description.indexOf('clone') >= 0)
+})
+
+test('buildSpeakToolDef tts-webui: description mentions tts-webui', () => {
+  const def = buildSpeakToolDef({ provider: 'tts-webui', model: 'bark', voiceId: 'v1' })
+  assert.ok(def.description.indexOf('tts-webui') >= 0)
+})
+
+test('buildCloneVoiceToolDef indextts: description mentions indextts upload', () => {
+  const def = buildCloneVoiceToolDef({ provider: 'indextts', voiceId: 'v1', model: 'default' })
+  assert.ok(def.description.indexOf('indextts') >= 0)
+  assert.ok(def.description.indexOf('上传') >= 0)
+})
+
+test('buildCloneVoiceToolDef gptsovits: description mentions inline clone', () => {
+  const def = buildCloneVoiceToolDef({ provider: 'gptsovits', gptModel: 'm', sovitsModel: 's', model: '' })
+  assert.ok(def.description.indexOf('gptsovits') >= 0)
+  assert.ok(def.description.indexOf('确认') >= 0)
+})
+
+test('buildCloneVoiceToolDef voxcpm: description mentions voxcpm upload', () => {
+  const def = buildCloneVoiceToolDef({ provider: 'voxcpm', mode: 'clone', model: 'default' })
+  assert.ok(def.description.indexOf('voxcpm') >= 0)
 })

@@ -2,6 +2,24 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.10 — 本地语音供应商完善（IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI 桥接）
+
+- **4 个本地语音供应商接入动态工具注册**：IndexTTS（POST /api/v1/tts/tasks，prompt_audio 参考音频，Bearer 可选认证）、GPT-SoVITS（POST /infer_classic，app_key 在 body 不在 header，version `::` 解析 + `custom_refs/` 路径补全）、VoxCPM（双端点 /v1/audio/clone | /v1/audio/design，X-API-Key 认证，指令前缀 `(style) text`）、TTS-WebUI（POST /v1/audio/speech，OpenAI 兼容协议）。所有合成函数严格对照 Siren-Voice 参考项目 API 模式实现。
+
+- **复刻功能**：IndexTTS（POST /api/v1/upload 上传 → 返回音色名复用）、VoxCPM（POST /v1/audio/upload 上传 → 返回参考路径复用）、GPT-SoVITS（内联复刻——验证 refAudioPath 存在即返回，每次合成自动带参考音频）、TTS-WebUI（不注册 clone_voice——OpenAI speech 协议无克隆端点）。
+
+- **动态注册扩展**：`syncToolRegistration` speak 注册条件扩展至全部 7 供应商；clone_voice 注册条件扩展至 mimo+minimax+doubao+indextts+gptsovits+voxcpm（clone 模式限定），不含 tts-webui。切换供应商时 voiceSig 含 provider 自动重注册；关闭语音模块开关自动注销全部语音工具。
+
+- **voiceConfig 新增 6 字段**：gptModel、sovitsModel、refAudioPath、refText、promptLang、textLang（同步更新 defaultVoiceConfig + normalizeVoiceConfig + maskedVoice 三处，否则字段在保存/往返时丢失）。
+
+- **model 门控修复**：isVoiceConfigValid 要求 model 非空，但 indextts/voxcpm 无 model 概念——changeVoiceProvider 为 indextts/voxcpm 设 placeholder model='default'。
+
+- **面板更新**：移除 voiceStatusNoSynth 阻断（所有 7 供应商均已接入合成）；gptsovits 新增 4 个配置字段（gptModel/sovitsModel/refAudioPath/refText）+ i18n（中英文）；changeVoiceProvider 新增 model 重置。
+
+- **路由新增**：POST /omni/indextts/clone、POST /omni/voxcpm/clone（面板上传参考音频，复用 doIndexTtsClone/doVoxCpmClone）。gptsovits 语音拉取走现有 fallback（返回空 + note）。
+
+- **验证**：单测 240 全通过（21 个新增测试覆盖 4 个合成函数 + 2 个克隆函数 + 工具定义描述 + 版本解析 + 路径补全 + 双端点路由 + X-API-Key 认证 + app_key 在 body + FormData 上传）。
+
 ## v2.9.15 — ComfyUI 面板清理（移除历史导入）+ 模型计数修复 + 映射滚动修复
 
 - **移除「从历史导入」按钮**：导入本质是 JSON 文件，统一走「导入工作流」文件通道。删除 WorkflowHistoryModal 组件、`POST /omni/comfy/history` 路由、5 个历史 state（histOpen/histItems/histLoading/histError/histBusyId）、3 个函数（openHistory/refreshHistory/pickHistory）、2 个 handler（fetchComfyHistory/importComfyHistory）、12 个 zh + 12 个 en DICTS key、9 条 CSS 类、2 个 props（onFetchHistory/onImportHistory）。新增 `comfyWfHelpClose` key 替代被删的 `comfyWfHistoryClose`。
