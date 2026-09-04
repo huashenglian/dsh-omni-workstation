@@ -3280,6 +3280,30 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				if (!rpath) { props.showToast && props.showToast('error', t('voiceDoubaoCloneFail'), '缺少参考音频路径'); return; }
 				props.onClone({ ref_audio_path: rpath, voice_id: sid });
 			};
+			// close preset dropdown on outside click (blank-space click closes it)
+			React.useEffect(function () {
+				if (!ddOpen[0]) return;
+				function close(e) {
+					var tgt = e.target;
+					if (!tgt || !tgt.closest || !tgt.closest('.omni-preset-bar')) {
+						ddOpen[1](false);
+					}
+				}
+				document.addEventListener('click', close);
+				return function () { document.removeEventListener('click', close); };
+			}, [ddOpen[0]]);
+			// close clone model dropdown on outside click
+			React.useEffect(function () {
+				if (!cloneModelDdOpen[0]) return;
+				function close(e) {
+					var tgt = e.target;
+					if (!tgt || !tgt.closest || !tgt.closest('.omni-preset-bar')) {
+						cloneModelDdOpen[1](false);
+					}
+				}
+				document.addEventListener('click', close);
+				return function () { document.removeEventListener('click', close); };
+			}, [cloneModelDdOpen[0]]);
 			// Preset bar
 			var bar = React.createElement('div', { className: 'omni-preset-bar' }, [
 				React.createElement('div', { className: 'omni-preset-input-wrap' }, [
@@ -4650,9 +4674,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				videoModelCount[1](null);
 				commitStructure({ videoPresetDelete: id }, null, function () { showToast('success', t('presetDeleted'), ''); });
 			}
-			function renameVideoPreset(name) {
-				queueSave({ videoPresetRename: name });
-			}
+		function renameVideoPreset(name) {
+			queueSave({ videoPresetRename: name });
+			updateDraft(function (d) {
+				var vp = (d.videoPresets || []).find(function (p) { return p.id === d.activeVideoPreset; });
+				if (vp) vp.name = String(name).slice(0, 60);
+				return d;
+			});
+		}
 			function toggleVideoPresetDd() {
 				videoPresetDdOpen[1](!videoPresetDdOpen[0]);
 			}
@@ -4977,9 +5006,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				voiceModelCount[1](null);
 				commitStructure({ voicePresetDelete: id, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { showToast('success', t('presetDeleted'), ''); });
 			}
-			function renameVoicePreset(name, sub) {
-				queueSave({ voicePresetRename: name, voiceSubtab: sub === "stt" ? "stt" : "tts" });
-			}
+		function renameVoicePreset(name, sub) {
+			var vpKey = sub === "stt" ? "voicePresetsStt" : "voicePresets";
+			var vaKey = sub === "stt" ? "activeVoicePresetStt" : "activeVoicePreset";
+			queueSave({ voicePresetRename: name, voiceSubtab: sub === "stt" ? "stt" : "tts" });
+			updateDraft(function (d) {
+				var vp = (d[vpKey] || []).find(function (p) { return p.id === d[vaKey]; });
+				if (vp) vp.name = String(name).slice(0, 60);
+				return d;
+			});
+		}
 			function toggleVoicePresetDd() {
 				voicePresetDdOpen[1](!voicePresetDdOpen[0]);
 			}
@@ -5155,9 +5191,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			igModelCount[1](null);
 			commitStructure({ imggenPresetDelete: id }, null, function () { showToast('success', t('presetDeleted'), ''); });
 		}
-		function renamePreset(name) {
-			queueSave({ imggenPresetRename: name });
-		}
+	function renamePreset(name) {
+		queueSave({ imggenPresetRename: name });
+		updateDraft(function (d) {
+			var ip = (d.imggenPresets || []).find(function (p) { return p.id === d.activeImggenPreset; });
+			if (ip) ip.name = String(name).slice(0, 60);
+			return d;
+		});
+	}
 		function togglePresetDd() {
 			igPresetDdOpen[1](!igPresetDdOpen[0]);
 		}
