@@ -140,13 +140,13 @@ function sessionCwd(exec) {
 }
 
 /**
- * 写工件到 `<cwd>/.omni-workstation/artifacts/<name>`。cwd 来自 exec.agent.meta.cwd 或
+ * 写工件到 `<cwd>/.omni-workstation/images/<name>`。cwd 来自 exec.agent.meta.cwd 或
  * 会话 header cwd，取不到用 process.cwd()。返回绝对路径。
  */
 export function saveArtifact(exec, name, buffer) {
   const cwd = sessionCwd(exec)
   const base = cwd || process.cwd()
-  const dir = join(base, '.omni-workstation', 'artifacts')
+  const dir = join(base, '.omni-workstation', 'images')
   mkdirSync(dir, { recursive: true })
   const file = join(dir, name)
   writeFileSync(file, buffer)
