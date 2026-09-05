@@ -889,6 +889,7 @@ const newCard = (overrides) => ({
   apiKey: '',
   model: '',
   collapsed: false,
+  enabled: true,
   timeoutMs: 120000,
   // contextWindow/maxOutput 留空：UI 显示占位符，留空时运行时回退默认值（262144/32768）
   ...(overrides || {})
@@ -1016,6 +1017,7 @@ function normalizeConfig(raw) {
         apiKey: typeof a.apiKey === 'string' ? a.apiKey : '',
         model: typeof a.model === 'string' ? a.model : '',
         collapsed: a.collapsed === true,
+        enabled: a.enabled !== false,
         timeoutMs: clampTimeout(a.timeoutMs),
         contextWindow: Number.isFinite(Number(a.contextWindow)) && Number(a.contextWindow) > 0 ? Math.floor(Number(a.contextWindow)) : null,
         maxOutput: Number.isFinite(Number(a.maxOutput)) && Number(a.maxOutput) > 0 ? Math.floor(Number(a.maxOutput)) : null
@@ -1215,6 +1217,7 @@ const masked = (cfg) => ({
     endpoint: a.endpoint,
     model: a.model,
     collapsed: a.collapsed,
+    enabled: a.enabled !== false,
     timeoutMs: a.timeoutMs,
     contextWindow: a.contextWindow,
     maxOutput: a.maxOutput,
@@ -1224,6 +1227,7 @@ const masked = (cfg) => ({
 
 function isCardValid(c) {
   if (!c) return false
+  if (c.enabled === false) return false // v2.12: disabled card excluded from failover
   const meta = PROVIDERS[c.provider]
   // 固定供应商的 endpoint 始终是内置的（非空），不看存储值
   const endpoint = (meta && meta.fixedUrl) ? meta.endpoint : c.endpoint
@@ -5014,6 +5018,7 @@ function applyPatch(cfg, patch) {
       } else if (field === 'provider' && PROVIDER_IDS.includes(value)) target.provider = value
       else if (field === 'protocol' && PROTOCOLS.includes(value)) target.protocol = value
       else if (field === 'collapsed') target.collapsed = value === true
+      else if (field === 'enabled') target.enabled = value === true
       else if (field === 'contextWindow') { if (value !== undefined && value !== null && String(value).trim() !== '') target.contextWindow = Math.max(1, Math.floor(Number(value) || 262144)) }
       else if (field === 'maxOutput') { if (value !== undefined && value !== null && String(value).trim() !== '') target.maxOutput = Math.max(1, Math.floor(Number(value) || 32768)) }
     }
