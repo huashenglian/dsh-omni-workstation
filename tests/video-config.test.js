@@ -132,57 +132,69 @@ test('buildVideoSubmit qwen-token-plan: dashscope-video at DashScope endpoint (�
 
 // ---- applyPatch ----
 
-test('applyPatch handles videoEnabled + videoConfig fields + videoReset', () => {
+test('applyPatch handles videoEnabled + videoCardPatch + saveVideoCardPreset + videoReset', () => {
   let cfg = applyPatch({}, {}) // normalizeConfig({}) equivalent
   assert.equal(cfg.videoEnabled, false) // default OFF
   cfg = applyPatch(cfg, { videoEnabled: true })
   assert.equal(cfg.videoEnabled, true)
 
-  cfg = applyPatch(cfg, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
-  assert.equal(cfg.videoConfig.provider, 'agnes-cn')
-  assert.equal(cfg.videoConfig.protocol, 'openai-videos')
-  assert.equal(cfg.videoConfig.endpoint, 'https://api.agnes-ai.cn/v1') // fixedUrl 自动填入
+  const cid = cfg.videoCards[0].id
 
-  cfg = applyPatch(cfg, { videoConfig: { field: 'apiKey', value: 'sk-x' } })
-  assert.equal(cfg.videoConfig.apiKey, 'sk-x')
-  cfg = applyPatch(cfg, { videoConfig: { field: 'apiKey', value: null } })
-  assert.equal(cfg.videoConfig.apiKey, '')
+  // Card-level field (no saveVideoCardPreset needed)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'name', value: 'My Video' } })
+  assert.equal(cfg.videoCards[0].name, 'My Video')
 
-  cfg = applyPatch(cfg, { videoConfig: { field: 'model', value: 'agnes-video-v2.0' } })
-  assert.equal(cfg.videoConfig.model, 'agnes-video-v2.0')
+  // Config fields (saveVideoCardPreset to persist)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
+  assert.equal(cfg.videoCards[0].config.protocol, 'openai-videos')
+  assert.equal(cfg.videoCards[0].config.endpoint, 'https://api.agnes-ai.cn/v1') // fixedUrl 自动填入
 
-  cfg = applyPatch(cfg, { videoConfig: { field: 'seconds', value: 10 } })
-  assert.equal(cfg.videoConfig.seconds, 10)
-  cfg = applyPatch(cfg, { videoConfig: { field: 'aspectRatio', value: '9:16' } })
-  assert.equal(cfg.videoConfig.aspectRatio, '9:16')
-  cfg = applyPatch(cfg, { videoConfig: { field: 'pollIntervalMs', value: 8000 } })
-  assert.equal(cfg.videoConfig.pollIntervalMs, 8000)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'apiKey', value: 'sk-x' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.apiKey, 'sk-x')
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'apiKey', value: null }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.apiKey, '')
 
-  cfg = applyPatch(cfg, { videoReset: true })
-  assert.equal(cfg.videoConfig.provider, 'custom')
-  assert.equal(cfg.videoConfig.apiKey, '')
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.model, 'agnes-video-v2.0')
+
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'seconds', value: 10 }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.seconds, 10)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'aspectRatio', value: '9:16' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.aspectRatio, '9:16')
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'pollIntervalMs', value: 8000 }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.pollIntervalMs, 8000)
+
+  // Reset via deleting all presets (auto-recreates with defaults)
+  const presetId = cfg.videoCards[0].activePreset
+  cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cid, presetId } })
+  assert.equal(cfg.videoCards[0].config.provider, 'custom')
+  assert.equal(cfg.videoCards[0].config.apiKey, '')
 })
 
 test('applyPatch: dashscope provider seeds editable default endpoint', () => {
-  const cfg = applyPatch(applyPatch({}, {}), { videoConfig: { field: 'provider', value: 'dashscope' } })
-  assert.equal(cfg.videoConfig.endpoint, 'https://dashscope.aliyuncs.com')
-  assert.equal(cfg.videoConfig.protocol, 'dashscope-video')
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cfg.videoCards[0].id, field: 'provider', value: 'dashscope' }, saveVideoCardPreset: { cardId: cfg.videoCards[0].id } })
+  assert.equal(cfg.videoCards[0].config.endpoint, 'https://dashscope.aliyuncs.com')
+  assert.equal(cfg.videoCards[0].config.protocol, 'dashscope-video')
 })
 
 test('applyPatch: qwen-token-plan seeds DashScope endpoint (百炼通道)', () => {
-  const cfg = applyPatch(applyPatch({}, {}), { videoConfig: { field: 'provider', value: 'qwen-token-plan' } })
-  assert.equal(cfg.videoConfig.endpoint, 'https://dashscope.aliyuncs.com')
-  assert.equal(cfg.videoConfig.protocol, 'dashscope-video')
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cfg.videoCards[0].id, field: 'provider', value: 'qwen-token-plan' }, saveVideoCardPreset: { cardId: cfg.videoCards[0].id } })
+  assert.equal(cfg.videoCards[0].config.endpoint, 'https://dashscope.aliyuncs.com')
+  assert.equal(cfg.videoCards[0].config.protocol, 'dashscope-video')
 })
 
-test('videoVisible gate = videoEnabled && isVideoConfigValid', () => {
+test('videoVisible gate = videoEnabled && any valid enabled card', () => {
   let cfg = applyPatch({}, {})
-  assert.equal(cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig), false)
+  assert.equal(cfg.videoEnabled === true && cfg.videoCards.some(c => c.enabled !== false && isVideoConfigValid(c.config)), false)
   cfg = applyPatch(cfg, { videoEnabled: true })
-  cfg = applyPatch(cfg, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
-  cfg = applyPatch(cfg, { videoConfig: { field: 'apiKey', value: 'sk' } })
-  cfg = applyPatch(cfg, { videoConfig: { field: 'model', value: 'm' } })
-  assert.equal(cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig), true)
+  const cid = cfg.videoCards[0].id
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'apiKey', value: 'sk' }, saveVideoCardPreset: { cardId: cid } })
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'm' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoEnabled === true && cfg.videoCards.some(c => c.enabled !== false && isVideoConfigValid(c.config)), true)
 })
 
 // ---- agnes helpers ----
@@ -483,50 +495,69 @@ test('VIDEO_PROTOCOLS / VIDEO_PROVIDERS integrity', () => {
   assert.ok(VIDEO_ASPECT_RATIOS['9:16'])
 })
 
-// ---- video presets (v2.8) ----
+// ---- video cards + presets (v2.11) ----
 
-test('video presets: default 预设 auto-created and runtime config follows it', () => {
-  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
-  assert.equal(cfg.videoConfig.provider, 'agnes-cn')
-  assert.ok(Array.isArray(cfg.videoPresets))
-  assert.equal(cfg.videoPresets.length, 1)
-  assert.equal(cfg.videoPresets[0].name, '默认')
-  assert.equal(cfg.activeVideoPreset, cfg.videoPresets[0].id)
-  assert.equal(cfg.videoConfig.provider, cfg.videoPresets[0].config.provider)
+test('video card: default preset auto-created and runtime config follows active preset', () => {
+  let cfg = applyPatch({}, {})
+  assert.ok(Array.isArray(cfg.videoCards))
+  assert.equal(cfg.videoCards.length, 1)
+  const card = cfg.videoCards[0]
+  const cid = card.id
+  assert.ok(Array.isArray(card.presets))
+  assert.equal(card.presets.length, 1)
+  assert.equal(card.presets[0].name, '默认')
+  assert.equal(card.activePreset, card.presets[0].id)
+  // Runtime config = active preset config
+  assert.equal(card.config.provider, card.presets[0].config.provider)
+
+  // Patch config + save to preset → both update
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
+  assert.equal(cfg.videoCards[0].presets[0].config.provider, 'agnes-cn')
 })
 
-test('video presets: videoConfig patches sync into active preset', () => {
-  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
-  cfg = applyPatch(cfg, { videoConfig: { field: 'model', value: 'agnes-video-v2.0' } })
-  assert.equal(cfg.videoConfig.model, 'agnes-video-v2.0')
-  assert.equal(cfg.videoPresets[0].config.model, 'agnes-video-v2.0')
+test('video card: videoCardPatch does NOT sync config to preset (manual-save)', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  const presetModel = cfg.videoCards[0].presets[0].config.model
+
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' } })
+  // Config change is reverted by normalizeConfig (preset is unchanged)
+  assert.equal(cfg.videoCards[0].config.model, presetModel)
+  assert.equal(cfg.videoCards[0].presets[0].config.model, presetModel) // preset unchanged
 })
 
-test('video presets: add / switch / rename / delete', () => {
-  let cfg = applyPatch({}, { videoConfig: { field: 'provider', value: 'agnes-cn' } })
-  const p0 = cfg.videoPresets[0].id
-  // add
-  cfg = applyPatch(cfg, { videoPresetAdd: true })
-  assert.equal(cfg.videoPresets.length, 2)
-  assert.equal(cfg.videoPresets[1].name, '新预设 1')
-  assert.equal(cfg.activeVideoPreset, cfg.videoPresets[1].id)
-  assert.equal(cfg.videoConfig.provider, 'custom') // 新预设默认配置
+test('video card: preset add / switch / rename / delete', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  const p0 = cfg.videoCards[0].presets[0].id
+
+  // add preset
+  cfg = applyPatch(cfg, { videoCardPresetAdd: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].presets.length, 2)
+  assert.equal(cfg.videoCards[0].presets[1].name, '新预设 1')
+  assert.equal(cfg.videoCards[0].activePreset, cfg.videoCards[0].presets[1].id)
+  assert.equal(cfg.videoCards[0].config.provider, 'custom') // 新预设默认配置
+
   // switch back to first
-  cfg = applyPatch(cfg, { videoPresetSwitch: p0 })
-  assert.equal(cfg.activeVideoPreset, p0)
-  assert.equal(cfg.videoConfig.provider, 'agnes-cn')
+  cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: cid, presetId: p0 } })
+  assert.equal(cfg.videoCards[0].activePreset, p0)
+  assert.equal(cfg.videoCards[0].config.provider, cfg.videoCards[0].presets[0].config.provider)
+
   // rename active
-  cfg = applyPatch(cfg, { videoPresetRename: 'Agnes 生产' })
-  assert.equal(cfg.videoPresets.find((p) => p.id === p0).name, 'Agnes 生产')
+  cfg = applyPatch(cfg, { videoCardPresetRename: { cardId: cid, name: 'Agnes 生产' } })
+  assert.equal(cfg.videoCards[0].presets.find((p) => p.id === p0).name, 'Agnes 生产')
+
   // delete the second preset (not active)
-  const p1 = cfg.videoPresets.find((p) => p.id !== p0).id
-  cfg = applyPatch(cfg, { videoPresetDelete: p1 })
-  assert.equal(cfg.videoPresets.length, 1)
-  assert.equal(cfg.activeVideoPreset, p0)
+  const p1 = cfg.videoCards[0].presets.find((p) => p.id !== p0).id
+  cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cid, presetId: p1 } })
+  assert.equal(cfg.videoCards[0].presets.length, 1)
+  assert.equal(cfg.videoCards[0].activePreset, p0)
+
   // delete the last one -> auto-recreate 默认
-  cfg = applyPatch(cfg, { videoPresetDelete: p0 })
-  assert.equal(cfg.videoPresets.length, 1)
-  assert.equal(cfg.videoPresets[0].name, '默认')
+  cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cid, presetId: p0 } })
+  assert.equal(cfg.videoCards[0].presets.length, 1)
+  assert.equal(cfg.videoCards[0].presets[0].name, '默认')
 })
 
 // ---- v2.8.x: video model list filter + tool description defaults ----
@@ -558,7 +589,7 @@ test('buildVideoSubmit: args.resolution / args.aspectRatio override panel defaul
 })
 
 test('buildVideoToolDef injects panel defaults and user-priority guidance', () => {
-  const def = buildVideoToolDef({ seconds: 10, aspectRatio: '1:1', retryCount: 3 })
+  const def = buildVideoToolDef({ seconds: 10, aspectRatio: '1:1', retryCount: 3 }, 'generate_video', '', 'general')
   assert.ok(def.description.includes('10s'))
   assert.ok(def.description.includes('1:1'))
   assert.ok(def.description.includes('3 次'))
@@ -566,4 +597,120 @@ test('buildVideoToolDef injects panel defaults and user-priority guidance', () =
   const props = def.parameters.properties
   assert.ok(props.resolution, 'resolution param present')
   assert.ok(props.aspect_ratio.description.includes('用户要求为准'))
+})
+
+// ---- v2.11: videoCards normalize/mask/CRUD/migration tests ----
+
+test('normalizeConfig fresh install: empty → one default 通用 card', () => {
+  const cfg = applyPatch({}, {})
+  assert.ok(Array.isArray(cfg.videoCards))
+  assert.equal(cfg.videoCards.length, 1)
+  const card = cfg.videoCards[0]
+  assert.equal(card.type, 'general')
+  assert.equal(card.toolName, 'generate_video')
+  assert.equal(card.enabled, true)
+  assert.ok(Array.isArray(card.presets))
+  assert.equal(card.presets.length, 1)
+  assert.equal(card.presets[0].name, '默认')
+  assert.equal(card.activePreset, card.presets[0].id)
+})
+
+test('normalizeConfig migration: legacy videoPresets → videoCards[0].presets', () => {
+  const legacy = {
+    videoConfig: { provider: 'agnes-cn', apiKey: 'sk', model: 'agnes-video-v2.0' },
+    videoPresets: [
+      { id: 'p1', name: 'Agnes', config: { provider: 'agnes-cn', apiKey: 'sk', model: 'agnes-video-v2.0' } },
+      { id: 'p2', name: 'Custom', config: { provider: 'custom', endpoint: 'https://relay.example.com', apiKey: 'sk', model: 'vid' } }
+    ],
+    activeVideoPreset: 'p1'
+  }
+  const cfg = applyPatch(legacy, {})
+  assert.ok(Array.isArray(cfg.videoCards))
+  assert.equal(cfg.videoCards.length, 1)
+  assert.equal(cfg.videoCards[0].presets.length, 2)
+  assert.equal(cfg.videoCards[0].presets[0].name, 'Agnes')
+  assert.equal(cfg.videoCards[0].activePreset, 'p1')
+  assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
+})
+
+test('masked(): videoCards have masked config + masked presets', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'apiKey', value: 'secret-key' }, saveVideoCardPreset: { cardId: cid } })
+  const card = cfg.videoCards[0]
+  // Verify card structure
+  assert.equal(typeof card.id, 'string')
+  assert.equal(typeof card.name, 'string')
+  assert.equal(typeof card.type, 'string')
+  assert.equal(typeof card.toolName, 'string')
+  assert.equal(typeof card.description, 'string')
+  assert.equal(typeof card.enabled, 'boolean')
+  assert.equal(typeof card.collapsed, 'boolean')
+  // Masked config (using maskedVideo on the real config)
+  const maskedConfig = maskedVideo(card.config)
+  assert.equal(maskedConfig.apiKey, undefined)
+  assert.equal(maskedConfig.apiKeySet, true)
+  // Masked presets
+  assert.ok(Array.isArray(card.presets))
+  const maskedPreset = maskedVideo(card.presets[0].config)
+  assert.equal(maskedPreset.apiKey, undefined)
+  assert.equal(maskedPreset.apiKeySet, true)
+})
+
+test('applyPatch videoCardAdd/Delete/Patch', () => {
+  let cfg = applyPatch({}, {})
+  assert.equal(cfg.videoCards.length, 1)
+
+  // Add a card (type determines toolName for non-general types via normalizeConfig)
+  cfg = applyPatch(cfg, { videoCardAdd: { name: 'Text to Video', type: 'text2video', toolName: 'generate_video_text2video', description: 'Text to video' } })
+  assert.equal(cfg.videoCards.length, 2)
+  assert.equal(cfg.videoCards[1].name, 'Text to Video')
+  assert.equal(cfg.videoCards[1].type, 'text2video')
+  assert.equal(cfg.videoCards[1].toolName, 'generate_video_text2video')
+
+  // Patch card-level fields
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cfg.videoCards[1].id, field: 'name', value: 'T2V Card' } })
+  assert.equal(cfg.videoCards[1].name, 'T2V Card')
+
+  // Delete the card
+  const cardId = cfg.videoCards[1].id
+  cfg = applyPatch(cfg, { videoCardDelete: cardId })
+  assert.equal(cfg.videoCards.length, 1)
+})
+
+test('applyPatch videoCardPatch with field=provider triggers cascade (provider→protocol/endpoint)', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
+  assert.equal(cfg.videoCards[0].config.protocol, 'openai-videos')
+  assert.equal(cfg.videoCards[0].config.endpoint, 'https://api.agnes-ai.cn/v1')
+})
+
+test('applyPatch videoCardPatch with field=enabled sets card.enabled (card-level)', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  assert.equal(cfg.videoCards[0].enabled, true)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'enabled', value: false } })
+  assert.equal(cfg.videoCards[0].enabled, false)
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'enabled', value: true } })
+  assert.equal(cfg.videoCards[0].enabled, true)
+})
+
+test('applyPatch saveVideoCardPreset copies config → preset', () => {
+  let cfg = applyPatch({}, {})
+  const cid = cfg.videoCards[0].id
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' }, saveVideoCardPreset: { cardId: cid } })
+  assert.equal(cfg.videoCards[0].config.model, 'agnes-video-v2.0')
+  assert.equal(cfg.videoCards[0].presets[0].config.model, 'agnes-video-v2.0')
+})
+
+test('buildVideoToolDef(vc, toolName, desc, cardType) closure-captures vc defaults', () => {
+  const def = buildVideoToolDef({ seconds: 10, aspectRatio: '1:1', retryCount: 3, model: 'my-model' }, 'generate_video', '', 'general')
+  assert.equal(def.name, 'generate_video')
+  assert.ok(def.description.includes('10s'))
+  assert.ok(def.description.includes('1:1'))
+  assert.ok(def.description.includes('3 次'))
+  assert.ok(def.description.includes('my-model'))
+  assert.ok(def.description.includes('以用户要求为最高优先级'))
 })
