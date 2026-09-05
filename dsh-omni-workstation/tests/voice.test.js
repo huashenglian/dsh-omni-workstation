@@ -349,20 +349,24 @@ test('voice gate: voiceEnabled=true + invalid config -> gate fails', () => {
 
 // ---- voicePresets via applyPatch ----
 
-test('voice presets: default preset auto-created with provider change', () => {
+test('voice presets: default preset auto-created (runtime config is source of truth)', () => {
   let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'minimax' } })
   assert.ok(Array.isArray(cfg.voicePresets))
   assert.equal(cfg.voicePresets.length, 1)
   assert.equal(cfg.voicePresets[0].name, '默认')
   assert.equal(cfg.activeVoicePreset, cfg.voicePresets[0].id)
-  assert.equal(cfg.voicePresets[0].config.provider, 'minimax')
+  // Runtime voiceConfig is the source of truth, not the preset
+  assert.equal(cfg.voiceConfig.provider, 'minimax')
+  // Preset is NOT auto-synced — retains its own config
+  assert.equal(cfg.voicePresets[0].config.provider, 'mimo') // default
 })
 
-test('voice presets: voiceConfig patches sync into active preset', () => {
+test('voice presets: voiceConfig patches do NOT sync into active preset (manual-save)', () => {
   let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'indextts' } })
   cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'custom-tts' } })
-  assert.equal(cfg.voiceConfig.model, 'custom-tts')
-  assert.equal(cfg.voicePresets[0].config.model, 'custom-tts')
+  assert.equal(cfg.voiceConfig.model, 'custom-tts') // runtime config updated
+  // Preset is NOT auto-synced
+  assert.equal(cfg.voicePresets[0].config.model, '') // default, unchanged
 })
 
 // ---- v2.9.1: subtab namespaced presets + extra fields ----
@@ -371,7 +375,8 @@ test('voice subtab STT: patches target voiceConfigStt namespace, do not touch TT
   let cfg = applyPatch({}, { voiceSubtab: 'stt', voiceConfig: { field: 'model', value: 'stt-model' } })
   assert.equal(cfg.voiceConfigStt.model, 'stt-model')
   assert.equal(cfg.voiceConfig.model, '')           // TTS untouched
-  assert.equal(cfg.voicePresetsStt[0].config.model, 'stt-model')
+  // STT preset is NOT auto-synced
+  assert.equal(cfg.voicePresetsStt[0].config.model, '') // default, unchanged
   assert.notEqual(cfg.activeVoicePresetStt, cfg.activeVoicePreset)
 
   // default 'stt' namespace is a separate list from TTS
@@ -642,12 +647,14 @@ test('applyPatch provider switch to voxcpm resets voiceId to empty', () => {
   assert.equal(cfg.voiceConfig.voiceId, '')
 })
 
-test('applyPatch provider switch resets voiceId in active preset too', () => {
+test('applyPatch provider switch resets voiceId in runtime config (not preset)', () => {
   let cfg = applyPatch({}, { voiceConfig: { field: 'provider', value: 'mimo' } })
   cfg = applyPatch(cfg, { voiceConfig: { field: 'provider', value: 'doubao' } })
+  assert.equal(cfg.voiceConfig.voiceId, 'zh_female_vv_uranus_bigtts') // runtime config updated
+  // Preset is NOT auto-synced — retains its own voiceId
   const vp = (cfg.voicePresets || []).find(p => p.id === cfg.activeVoicePreset)
   assert.ok(vp, 'active preset exists')
-  assert.equal(vp.config.voiceId, 'zh_female_vv_uranus_bigtts')
+  assert.equal(vp.config.voiceId, 'mimo_default') // default preset, unchanged
 })
 
 // ---- v2.9.8: doubao tool definitions + validation ----
@@ -966,4 +973,57 @@ test('buildCloneVoiceToolDef gptsovits: description mentions inline clone', () =
 test('buildCloneVoiceToolDef voxcpm: description mentions voxcpm upload', () => {
   const def = buildCloneVoiceToolDef({ provider: 'voxcpm', mode: 'clone', model: 'default' })
   assert.ok(def.description.indexOf('voxcpm') >= 0)
+})
+
+// ---- v2.11: runtime config source-of-truth tests ----
+
+test('voice normalizeConfig: runtime voiceConfig sourced from src.voiceConfig (not preset)', () => {
+  const src = {
+    voiceConfig: { provider: 'minimax', apiKey: 'sk-mm', model: 'speech-2.8-hd' },
+    voicePresets: [
+      { id: 'p1', name: '默认', config: { provider: 'mimo', apiKey: 'sk-mimo', model: 'mimo-v2.5-tts' } }
+    ]
+  }
+  const cfg = applyPatch(src, {})
+  // Runtime config = src.voiceConfig
+  assert.equal(cfg.voiceConfig.provider, 'minimax')
+  assert.equal(cfg.voiceConfig.model, 'speech-2.8-hd')
+  // Preset retains its own config
+  assert.equal(cfg.voicePresets[0].config.provider, 'mimo')
+})
+
+test('imggen normalizeConfig: runtime imggenConfig sourced from src.imggenConfig (not preset)', () => {
+  const src = {
+    imggenConfig: { provider: 'openai', model: 'gpt-image-1', apiKey: 'sk-x' },
+    imggenPresets: [
+      { id: 'p1', name: '默认', config: { provider: 'bailian', model: 'wanx' } }
+    ]
+  }
+  const cfg = applyPatch(src, {})
+  assert.equal(cfg.imggenConfig.provider, 'openai')
+  assert.equal(cfg.imggenConfig.model, 'gpt-image-1')
+  assert.equal(cfg.imggenPresets[0].config.provider, 'bailian')
+})
+
+test('saveImggenPreset: copies imggenConfig → active preset', () => {
+  let cfg = applyPatch({}, {})
+  // Modify imggenConfig
+  cfg = applyPatch(cfg, { imggenConfig: { field: 'model', value: 'gpt-image-2' } })
+  // Save to preset
+  cfg = applyPatch(cfg, { saveImggenPreset: true })
+  assert.equal(cfg.imggenPresets[0].config.model, 'gpt-image-2')
+})
+
+test('saveVoicePreset: copies voiceConfig → active preset', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'mimo-v2.5-tts-voiceclone' } })
+  cfg = applyPatch(cfg, { saveVoicePreset: 'tts' })
+  assert.equal(cfg.voicePresets[0].config.model, 'mimo-v2.5-tts-voiceclone')
+})
+
+test('saveVoicePreset: STT variant copies voiceConfigStt → active STT preset', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { voiceSubtab: 'stt', voiceConfig: { field: 'model', value: 'stt-model-x' } })
+  cfg = applyPatch(cfg, { saveVoicePreset: 'stt' })
+  assert.equal(cfg.voicePresetsStt[0].config.model, 'stt-model-x')
 })
