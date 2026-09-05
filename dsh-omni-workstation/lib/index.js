@@ -497,6 +497,50 @@ function dashscopeVideoBase(cfg) {
   return base + '/api/v1'
 }
 
+// v2.12: DashScope official file upload — 3-step (getPolicy → OSS multipart → oss:// URL)
+// Used for videoedit/r2v where local video files need to be uploaded to get a DashScope-usable URL.
+// Docs: https://help.aliyun.com/zh/model-studio/get-temporary-file-url
+async function dashscopeUploadFile(cfg, filePath) {
+  const { readFileSync } = await import('node:fs')
+  const { basename } = await import('node:path')
+  // Step 1: get upload policy
+  const policyUrl = dashscopeVideoBase(cfg) + '/uploads?action=getPolicy&model=' + encodeURIComponent(cfg.model)
+  const policyRes = await httpJson(policyUrl, 'GET', {
+    Authorization: 'Bearer ' + cfg.apiKey,
+    Accept: 'application/json'
+  }, null, 30000)
+  if (!policyRes.ok || !policyRes.body || !policyRes.body.data) {
+    throw new Error('generate_video: DashScope 上传凭证获取失败: ' + String(policyRes.message || '').slice(0, 300))
+  }
+  const d = policyRes.body.data
+  const { policy, signature, upload_dir, upload_host, oss_access_key_id, x_oss_object_acl, x_oss_forbid_overwrite, max_file_size_mb } = d
+  // Step 2: read file + check size
+  const buf = readFileSync(filePath)
+  const fileName = basename(filePath)
+  const maxBytes = Number(max_file_size_mb) * 1024 * 1024
+  if (buf.length > maxBytes) {
+    throw new Error('generate_video: 文件 ' + fileName + ' 超过 DashScope 上传限制 ' + max_file_size_mb + 'MB')
+  }
+  const key = upload_dir + '/' + fileName
+  // Step 3: upload to OSS via multipart/form-data (native fetch + FormData, Node 18+)
+  const form = new FormData()
+  form.append('OSSAccessKeyId', oss_access_key_id)
+  form.append('policy', policy)
+  form.append('Signature', signature)
+  form.append('key', key)
+  form.append('x-oss-object-acl', x_oss_object_acl)
+  form.append('x-oss-forbid-overwrite', x_oss_forbid_overwrite)
+  form.append('success_action_status', '200')
+  form.append('file', new Blob([buf]), fileName)
+  const upRes = await fetch(upload_host, { method: 'POST', body: form })
+  if (!upRes.ok) {
+    const errText = await upRes.text().catch(() => '')
+    throw new Error('generate_video: DashScope OSS 上传失败 HTTP ' + upRes.status + ': ' + errText.slice(0, 500))
+  }
+  // Step 4: construct oss:// URL
+  return 'oss://' + key
+}
+
 // 百炼原生模型列表 URL（文档第6章）：必须用 /api/v1/models，并按 capabilities=VG
 // 过滤出视频生成模型。依赖 dashscopeVideoBase 完成 URL 后缀归一/替换——它会把用户链接里
 // 不适配视频接口的兼容后缀（如 /compatible-mode/v1）在程序内部替换为原生 /api/v1 路径。
@@ -649,6 +693,10 @@ function buildVideoSubmit(cfg, args, image) {
         try { Object.assign(parameters, JSON.parse(args.extra_parameters)) } catch { /* invalid JSON, skip */ }
       }
       const body = { model: cfg.model, input, parameters }
+      // v2.12: if any media URL is oss://, add the OssResourceResolve header
+      if (refVideoUrl.startsWith('oss://') || (imageUrl && imageUrl.startsWith('oss://'))) {
+        headers['X-DashScope-OssResourceResolve'] = 'enable'
+      }
       const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/video-synthesis'
       return { url, method: 'POST', headers, body, i2v: hasMediaInput }
     }
@@ -2894,6 +2942,22 @@ async function runVideoGeneration(cfg, args, exec) {
       }
     }
   }
+  // v2.12: auto-upload local reference_video to DashScope OSS for videoedit/r2v
+  const rawRefVideo = args.reference_video ? String(args.reference_video).trim() : ''
+  if (rawRefVideo && !/^https?:\/\//i.test(rawRefVideo) && !rawRefVideo.startsWith('oss://')) {
+    // local file path — resolve relative to session cwd
+    let refPath = rawRefVideo
+    const cwd2 = sessionCwd(exec)
+    if (cwd2 && !/^[A-Za-z]:[\\/]/.test(refPath) && !refPath.startsWith('/') && !refPath.startsWith('\\\\')) {
+      refPath = join(cwd2, refPath)
+    }
+    // only upload for dashscope-video protocol (other protocols may not support oss://)
+    if (cfg.protocol === 'dashscope-video') {
+      const ossUrl = await dashscopeUploadFile(cfg, refPath)
+      // tool args are frozen/read-only in the harness — shallow copy before mutating
+      args = Object.assign({}, args, { reference_video: ossUrl })
+    }
+  }
   const built = buildVideoSubmit(cfg, args, image)
   const i2v = built.i2v === true
   const attempts0 = Math.max(1, Math.min(cfg.retryCount || 1, 5))
@@ -3656,7 +3720,7 @@ const buildVideoToolDef = (vc) => defineTool({
     resolution: { type: 'string', description: '分辨率（720p/1080p/768p，部分协议支持），由 AI 按需自行决定；不传用面板默认 720p' },
     output_dir: { type: 'string', description: '保存目录，绝对路径或相对当前工作区的相对路径。不指定则保存到 .omni-workstation/artifacts/videos/ 目录。如项目有专门的视频目录，可传入该路径。' },
     ...(vc && vc.protocol === 'dashscope-video' ? {
-      reference_video: { type: 'string', description: '参考视频或待编辑视频的公网 URL（仅 DashScope 协议）。用于 wan2.7-r2v（参考视频）或 wan2.7-videoedit（视频编辑）。注意：视频输入只接受公网 URL，不支持本地文件路径。' },
+      reference_video: { type: 'string', description: '参考视频或待编辑视频的路径：本地文件路径或公网 URL（仅 DashScope 协议）。用于 wan2.7-r2v（参考视频）或 wan2.7-videoedit（视频编辑）。本地文件会自动上传到 DashScope 临时存储（48h 有效）。' },
       extra_input: { type: 'string', description: '自定义 DashScope input 字段，JSON 字符串格式（如 \'{"key":"value"}\'），浅合并到请求 input 中。用于全能模型（如 wan3.0）的模型专属字段。' },
       extra_parameters: { type: 'string', description: '自定义 DashScope parameters 字段，JSON 字符串格式（如 \'{"seed":123}\'），浅合并到请求 parameters 中。用于模型专属参数。' }
     } : {})
