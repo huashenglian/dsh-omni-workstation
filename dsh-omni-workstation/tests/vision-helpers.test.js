@@ -180,10 +180,10 @@ test('drawBoxes 返回新 RGBA 并绘制边框（不改原数据）', () => {
   assert.equal(src[o], 0)
 })
 
-test('saveArtifact 落盘到 exec.meta.cwd/.omni-workstation/artifacts', () => {
+test('saveArtifact 落盘到 exec.meta.cwd/.omni-workstation/images', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'omni-workstation-art-'))
   const exec = { agent: { meta: { cwd } } }
   const file = saveArtifact(exec, 'x_123.png', Buffer.from([1, 2, 3]))
   assert.ok(existsSync(file))
-  assert.equal(file, join(cwd, '.omni-workstation', 'artifacts', 'x_123.png'))
+  assert.equal(file, join(cwd, '.omni-workstation', 'images', 'x_123.png'))
 })
