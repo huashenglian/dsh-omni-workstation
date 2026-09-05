@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.10.1 — Agnes VLM 协议修正 + 工件子目录约定 + 工具描述澄清
+
+- **Agnes/agnes-cn VLM 协议修正**：`PROVIDERS['agnes']` 和 `PROVIDERS['agnes-cn']` 的 `protocol` 由 `anthropic-messages` 改为 `openai-completions`（Agnes 实为 OpenAI 兼容 API，**不支持** Anthropic messages），端点补 `/v1` 后缀（agnes→`https://apihub.agnes-ai.com/v1`、agnes-cn→`https://api.agnes-ai.cn/v1`）。旧错配导致 VLM 调用失败、全部落到 fallback 模型（attempts>1）；修正后 E2E 验证 model=agnes-2.5-flash、card=VLM API 单卡一次成功（attempts=1）。
+
+- **工件子目录约定**：generate_image 默认输出 `.omni-workstation/artifacts/images/`（替代工作区根）、generate_video 默认输出 `.omni-workstation/artifacts/videos/`、全部 7 个 TTS 函数（runMimoTts/runMinimaxTts/runDoubaoTts/runIndexTtsTts/runGptSovitsTts/runVoxCpmTts/runTtsWebuiTts）默认输出 `.omni-workstation/artifacts/audio/`（替代旧的扁平 `.omni-workstation/artifacts/`）；工具描述已同步更新反映新默认值。视觉工具箱工具（vision-tools.js）的工件路径仍为 `.omni-workstation/artifacts/`。
+
+- **工具描述澄清**：analyze_image 标记为「【图片分析主工具】」（AI 应优先使用它进行图片理解）；show_image 澄清为「仅展示，不分析」（仅用于向用户呈现图片，不做内容分析）；ocr_image 澄清为「仅返回图中文字内容」（文本提取，非图片理解）。E2E 验证 AI 直接使用 analyze_image 而非 show_image 进行图片分析。
+
 ## v2.10 — 本地语音供应商完善（IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI 桥接）
 
 - **4 个本地语音供应商接入动态工具注册**：IndexTTS（POST /api/v1/tts/tasks，prompt_audio 参考音频，Bearer 可选认证）、GPT-SoVITS（POST /infer_classic，app_key 在 body 不在 header，version `::` 解析 + `custom_refs/` 路径补全）、VoxCPM（双端点 /v1/audio/clone | /v1/audio/design，X-API-Key 认证，指令前缀 `(style) text`）、TTS-WebUI（POST /v1/audio/speech，OpenAI 兼容协议）。所有合成函数严格对照 Siren-Voice 参考项目 API 模式实现。
