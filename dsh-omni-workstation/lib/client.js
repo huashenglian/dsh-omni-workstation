@@ -955,7 +955,11 @@ voiceSovitsModel: "SoVITS model name",
 			".omni-toolview-val { font-size: 12px; opacity: 0.9; word-break: break-all; min-width: 0; }",
 			".omni-tab-body { display: flex; flex-direction: column; gap: 14px; }",
 				".omni-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; white-space: nowrap; flex-wrap: nowrap; }",
-".omni-filter-inline { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }",
+".omni-filter-inline { display: flex; align-items: center; gap: 4px; font-size: 11px; white-space: nowrap; flex: 0 0 auto; }",
+".omni-filter-label { color: var(--omni-text-muted, #888); }",
+".omni-model-label-row { display: flex; justify-content: space-between; align-items: center; }",
+".omni-switch-sm { width: 26px; height: 14px; }",
+".omni-switch-sm input:checked + .omni-switch-slider::before { transform: translateX(12px); }",
 			".omni-tool-desc { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
 			".omni-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
 			".omni-switch input { opacity: 0; width: 0; height: 0; }",
@@ -2366,7 +2370,17 @@ voiceSovitsModel: "SoVITS model name",
 					]),
 				React.createElement("div", { className: "omni-row" }, [
 					React.createElement("div", { className: "omni-field omni-grow" }, [
-						React.createElement("span", { className: "omni-label" }, t("imggenModelLabel")),
+						// v2.12: label row — "模型" left, filter toggle right (skip for ComfyUI)
+						React.createElement("div", { className: "omni-model-label-row" }, [
+							React.createElement("span", { className: "omni-label" }, t("imggenModelLabel")),
+							isComfy ? null : React.createElement("div", { className: "omni-filter-inline" }, [
+								React.createElement("span", { className: "omni-filter-label" }, t("imggenFilterLabel")),
+								React.createElement("label", { className: "omni-switch omni-switch-sm" }, [
+									React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
+									React.createElement("span", { className: "omni-switch-slider" })
+								])
+							])
+						]),
 						React.createElement("div", { className: "omni-model-wrap" }, [
 							React.createElement("input", {
 								className: "omni-input omni-model-input",
@@ -2393,15 +2407,7 @@ voiceSovitsModel: "SoVITS model name",
 						className: "omni-btn",
 						disabled: busy !== "",
 						onClick: function () { props.onFetchModels(); }
-				}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn")),
-				// v2.11: filter toggle moved inline into model row (label left, switch right)
-				isComfy ? null : React.createElement("div", { className: "omni-filter-inline" }, [
-					React.createElement("span", { className: "omni-label" }, t("imggenFilterLabel")),
-					React.createElement("label", { className: "omni-switch" }, [
-						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
-						React.createElement("span", { className: "omni-switch-slider" })
-					])
-				])
+				}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn"))
 			]),
 			isComfy ? React.createElement("div", { className: "omni-row" }, [
 				React.createElement("div", { className: "omni-field omni-grow" }, [
@@ -2933,7 +2939,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				// 4. 整行模型：输入框 + ▾ 指示图标 + 获取按钮同行
 				React.createElement("div", { className: "omni-row" }, [
 					React.createElement("div", { className: "omni-field omni-grow" }, [
-						React.createElement("span", { className: "omni-label" }, t("videoModelLabel")),
+						// v2.12: label row — "模型" left, filter toggle right
+						React.createElement("div", { className: "omni-model-label-row" }, [
+							React.createElement("span", { className: "omni-label" }, t("videoModelLabel")),
+							React.createElement("div", { className: "omni-filter-inline" }, [
+								React.createElement("span", { className: "omni-filter-label" }, t("videoFilterLabel")),
+								React.createElement("label", { className: "omni-switch omni-switch-sm" }, [
+									React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
+									React.createElement("span", { className: "omni-switch-slider" })
+								])
+							])
+						]),
 						React.createElement("div", { className: "omni-model-wrap" }, [
 							React.createElement("input", {
 								className: "omni-input omni-model-input",
@@ -2958,15 +2974,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						className: "omni-btn",
 						disabled: busy !== "",
 						onClick: props.onFetchModels
-					}, busy === "video-mdl" ? t("videoFetching") : t("videoFetchBtn")),
-					// v2.11: filter toggle moved inline into model row (label left, switch right)
-					React.createElement("div", { className: "omni-filter-inline" }, [
-						React.createElement("span", { className: "omni-label" }, t("videoFilterLabel")),
-						React.createElement("label", { className: "omni-switch" }, [
-							React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
-							React.createElement("span", { className: "omni-switch-slider" })
-						])
-					])
+					}, busy === "video-mdl" ? t("videoFetching") : t("videoFetchBtn"))
 				]),
 				cfg.provider === "kling" ? React.createElement("p", { className: "omni-status" }, t("videoKeyKlingHint")) : null,
 				// 6. 单行四字段：轮询间隔 (s)｜重试次数｜默认时长 (s)｜画幅
