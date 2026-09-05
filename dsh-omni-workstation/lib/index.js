@@ -2167,16 +2167,13 @@ let toolVisible = false
 let imggenDisposer = null
 let imggenVisible = false
 let imggenComfyMode = false
-// v2.8: video tool gate (registered only when videoEnabled && valid config)
-let videoDisposer = null
+// v2.11: per-card video tool registration (array of disposers, one per valid card)
+let videoDisposers = []
 let videoVisible = false
+let videoCardSigMap = {}
 // v2.9: voice tools (speak + clone_voice) gate — registered only when voiceEnabled + ttsEnabled + valid voice config
 let voiceDisposer = null, voiceVisible = false, voiceSigSeen = ''
 let cloneDisposer = null, cloneVisible = false
-// v2.8.x: track the panel-default signature injected into the tool description;
-// changing seconds/aspectRatio/retryCount re-registers so the model sees fresh
-// initial defaults (user prompt overrides always win).
-let videoSigSeen = ''
 // v2.7.2: analyze_image is gated on the VLM module switch; when unregistered,
 // image markers must point at the vision toolkit (whose local tools and
 // card-backed ocr/detect both work with the VLM module off) instead of a dead
@@ -3806,9 +3803,11 @@ async function runTtsWebui(vc, args, exec) {
   return { ok: true, path, model, format: ext }
 }
 
-const buildVideoToolDef = (vc) => defineTool({
-  name: 'generate_video',
-  description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区 .omni-workstation/videos/ 目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。' + (vc && vc.model ? ' 当前模型: ' + vc.model + '。' + dashscopeModeDescription(vc.model) : ''),
+const buildVideoToolDef = (vc, toolName, desc, cardType) => defineTool({
+  name: toolName,
+  description: (cardType === 'general')
+    ? '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区 .omni-workstation/videos/ 目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。' + (vc && vc.model ? ' 当前模型: ' + vc.model + '。' + dashscopeModeDescription(vc.model) : '')
+    : (desc || '生成视频并保存到指定目录，返回文件路径。'),
   parameters: {
     prompt: { type: 'string', required: true, description: '视频内容提示词：详细描述画面主体、动作、运镜、风格、光线、环境等' },
     image: { type: 'string', description: '图片路径（本地文件）或公网图片 URL（可选）。在 i2v 模式下作为首帧；在 r2v 模式下作为参考图（reference_image）；在 videoedit 模式下作为参考图。' },
@@ -3846,12 +3845,9 @@ const buildVideoToolDef = (vc) => defineTool({
   },
   async execute(args, exec) {
     const prompt = String(args && args.prompt || '').trim()
-    if (!prompt) throw new Error('generate_video: 缺少参数 prompt（视频描述）')
-    const ctx = appCtx
-    const cfg = await loadConfig(ctx)
-    const vc = cfg.videoConfig || defaultVideoConfig()
+    if (!prompt) throw new Error(toolName + ': 缺少参数 prompt（视频描述）')
     if (!isVideoConfigValid(vc)) {
-      throw new Error('generate_video: 视频配置无效。请在设置页「视频」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
+      throw new Error(toolName + ': 视频配置无效。请在设置页「视频」面板配置完整的 API（供应商 + 端点 + Key + 模型）。')
     }
     return runVideoGeneration(vc, args, exec)
   }
@@ -4480,27 +4476,28 @@ async function syncToolRegistration() {
     imggenVisible = false
     imggenComfyMode = false
   }
-  // video tool (v2.8): registered ONLY when the module switch is ON and the
-  // video config is valid — switch OFF / invalid config => the tool schema is
-  // never injected into the model prompt (0 token cost).
-  const shouldVideo = cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig)
-  // v2.8.x: the tool description injects the panel defaults (seconds/aspect/
-  // retry) as initial values the model can override per user prompt; re-register
-  // when that signature changes so the model always sees current defaults.
-  const videoSig = shouldVideo ? [cfg.videoConfig.seconds, cfg.videoConfig.aspectRatio, cfg.videoConfig.retryCount, cfg.videoConfig.model, cfg.videoConfig.provider, cfg.videoConfig.protocol].join('|') : ''
-  if (shouldVideo && (!videoVisible || videoSig !== videoSigSeen)) {
-    if (videoDisposer) { try { videoDisposer() } catch { /* best-effort */ } }
-    videoDisposer = appCtx.tools.register(buildVideoToolDef(cfg.videoConfig))
-    videoVisible = true
-    videoSigSeen = videoSig
-  } else if (!shouldVideo && videoVisible) {
-    if (videoDisposer) {
-      try { videoDisposer() } catch { /* best-effort */ }
-      videoDisposer = null
+  // video tools (v2.11): per-card registration — each valid card gets its own
+  // tool with a closure-captured config. 0 token cost when no valid cards.
+  for (const card of (cfg.videoCards || [])) {
+    const valid = cfg.videoEnabled === true && card.enabled !== false && isVideoConfigValid(card.config)
+    const sig = valid ? (card.id + '|' + card.toolName + '|' + card.description + '|' + card.enabled + '|' + JSON.stringify(card.config)) : ''
+    if (valid && videoCardSigMap[card.id] !== sig) {
+      const idx = videoDisposers.findIndex(d => d._cardId === card.id)
+      if (idx >= 0) { try { videoDisposers[idx]() } catch {} videoDisposers.splice(idx, 1) }
+      const disposer = (() => { try { return appCtx.tools.register(buildVideoToolDef(card.config, card.toolName, card.description, card.type)) } catch (e) { console.warn('[omni] video tool register failed:', card.toolName, e.message); return null } })()
+      if (disposer) { disposer._cardId = card.id; videoDisposers.push(disposer); videoCardSigMap[card.id] = sig }
+    } else if (!valid && videoCardSigMap[card.id]) {
+      const idx = videoDisposers.findIndex(d => d._cardId === card.id)
+      if (idx >= 0) { try { videoDisposers[idx]() } catch {} videoDisposers.splice(idx, 1) }
+      delete videoCardSigMap[card.id]
     }
-    videoVisible = false
-    videoSigSeen = ''
   }
+  for (let i = videoDisposers.length - 1; i >= 0; i--) {
+    if (!cfg.videoCards || !cfg.videoCards.find(c => c.id === videoDisposers[i]._cardId)) {
+      try { videoDisposers[i]() } catch {} videoDisposers.splice(i, 1)
+    }
+  }
+  videoVisible = videoDisposers.length > 0
   // voice tools (v2.9): speak + clone_voice registered ONLY when the module
   // switch is ON, TTS sub-switch is ON, and the voice config is valid.
   // Switch OFF / sub-switch OFF / invalid config => 0 token cost.
@@ -5227,7 +5224,8 @@ function apply(ctx) {
           visible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)),
           twinVisible: cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg)),
           imggenVisible: cfg.imggenEnabled !== false && isImggenConfigValid(cfg.imggenConfig),
-          videoVisible: cfg.videoEnabled === true && isVideoConfigValid(cfg.videoConfig),
+          videoVisible: cfg.videoEnabled === true && (Array.isArray(cfg.videoCards) ? cfg.videoCards : []).some(c => c.enabled !== false && isVideoConfigValid(c.config)),
+          videoTools: (Array.isArray(cfg.videoCards) ? cfg.videoCards : []).map(c => ({ id: c.id, name: c.name, type: c.type, toolName: c.toolName, visible: cfg.videoEnabled === true && c.enabled !== false && isVideoConfigValid(c.config) })),
           voiceVisible: cfg.voiceEnabled === true && cfg.ttsEnabled === true && isVoiceConfigValid(cfg.voiceConfig),
           ttsVisible: cfg.voiceEnabled === true && cfg.ttsEnabled === true && isVoiceConfigValid(cfg.voiceConfig),
           sttVisible: false,
@@ -5291,7 +5289,7 @@ function apply(ctx) {
           const next = applyPatch(cfg, patch)
           await storeConfig(ctx, next)
           await syncToolRegistration()
-          jsonOut(res, 200, { ok: true, config: masked(next), path: await configFile(ctx), visible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), twinVisible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), imggenVisible: next.imggenEnabled !== false && isImggenConfigValid(next.imggenConfig), videoVisible: next.videoEnabled === true && isVideoConfigValid(next.videoConfig), fallbackConfig: masked(next).fallbackConfig, fallbackVisible: fallbackHasModels(next), globalConfig: masked(next).globalConfig })
+          jsonOut(res, 200, { ok: true, config: masked(next), path: await configFile(ctx), visible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), twinVisible: next.vlmEnabled !== false && (validCards(next).length > 0 || fallbackHasModels(next)), imggenVisible: next.imggenEnabled !== false && isImggenConfigValid(next.imggenConfig), videoVisible: next.videoEnabled === true && (Array.isArray(next.videoCards) ? next.videoCards : []).some(c => c.enabled !== false && isVideoConfigValid(c.config)), videoTools: (Array.isArray(next.videoCards) ? next.videoCards : []).map(c => ({ id: c.id, name: c.name, type: c.type, toolName: c.toolName, visible: next.videoEnabled === true && c.enabled !== false && isVideoConfigValid(c.config) })), fallbackConfig: masked(next).fallbackConfig, fallbackVisible: fallbackHasModels(next), globalConfig: masked(next).globalConfig })
         } catch (e) {
           jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
         }
@@ -5313,7 +5311,10 @@ function apply(ctx) {
         // v2.8: video model list (async protocols expose /models on the OpenAI
         // compatible layer or DashScope /api/v1/services/aigc/video-generation)
         if (args.video === true) {
-          const vc = cfg.videoConfig || defaultVideoConfig()
+          const cards = Array.isArray(cfg.videoCards) ? cfg.videoCards : []
+          const card = (args.cardId ? cards.find(c => c.id === args.cardId) : null) || cards.find(c => c.enabled !== false && isVideoConfigValid(c.config)) || cards[0]
+          if (!card || !card.config) return jsonOut(res, 400, { ok: false, error: 'no video card found' })
+          const vc = card.config
           const vmeta = VIDEO_PROVIDERS[vc.provider]
           let endpoint = (vmeta && vmeta.fixedUrl) ? vmeta.endpoint : (args.endpoint && typeof args.endpoint === 'string' && args.endpoint.trim() ? args.endpoint.trim() : vc.endpoint)
           const protocol = vc.protocol
@@ -5549,8 +5550,10 @@ function apply(ctx) {
         const args = raw ? JSON.parse(raw) : {}
         const cfg = await loadConfig(ctx)
         if (args.video === true) {
-          const vc = cfg.videoConfig || defaultVideoConfig()
-          return jsonOut(res, 200, { ok: true, apiKey: vc.apiKey || '' })
+          const cards = Array.isArray(cfg.videoCards) ? cfg.videoCards : []
+          const card = (args.cardId ? cards.find(c => c.id === args.cardId) : null) || cards.find(c => c.enabled !== false && isVideoConfigValid(c.config)) || cards[0]
+          if (!card || !card.config) return jsonOut(res, 200, { ok: true, apiKey: '' })
+          return jsonOut(res, 200, { ok: true, apiKey: card.config.apiKey || '' })
         }
         if (args.imggen === true) {
           const igc = cfg.imggenConfig || defaultImggenConfig()
