@@ -955,6 +955,7 @@ voiceSovitsModel: "SoVITS model name",
 			".omni-toolview-val { font-size: 12px; opacity: 0.9; word-break: break-all; min-width: 0; }",
 			".omni-tab-body { display: flex; flex-direction: column; gap: 14px; }",
 				".omni-module-row { display: flex; align-items: center; gap: 10px; font-size: 13px; white-space: nowrap; flex-wrap: nowrap; }",
+".omni-filter-inline { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }",
 			".omni-tool-desc { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
 			".omni-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
 			".omni-switch input { opacity: 0; width: 0; height: 0; }",
@@ -2392,7 +2393,15 @@ voiceSovitsModel: "SoVITS model name",
 						className: "omni-btn",
 						disabled: busy !== "",
 						onClick: function () { props.onFetchModels(); }
-				}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn"))
+				}, busy === "ig-mdl" ? t("imggenFetching") : t("imggenFetchBtn")),
+				// v2.11: filter toggle moved inline into model row (label left, switch right)
+				isComfy ? null : React.createElement("div", { className: "omni-filter-inline" }, [
+					React.createElement("span", { className: "omni-label" }, t("imggenFilterLabel")),
+					React.createElement("label", { className: "omni-switch" }, [
+						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
+						React.createElement("span", { className: "omni-switch-slider" })
+					])
+				])
 			]),
 			isComfy ? React.createElement("div", { className: "omni-row" }, [
 				React.createElement("div", { className: "omni-field omni-grow" }, [
@@ -2444,14 +2453,7 @@ voiceSovitsModel: "SoVITS model name",
 					])
 				])
 			]) : null,
-			isComfy ? null : React.createElement("div", { className: "omni-module-row" }, [
-					React.createElement("label", { className: "omni-switch" }, [
-						React.createElement("input", { type: "checkbox", checked: !!cfg.filterImageModels, onChange: function () { props.onToggleFilter(); } }),
-						React.createElement("span", { className: "omni-switch-slider" })
-					]),
-						React.createElement("span", { className: "omni-label" }, t("imggenFilterLabel"))
-					]),
-				React.createElement("div", { className: "omni-row" }, [
+			isComfy ? null : React.createElement("div", { className: "omni-row" }, [
 					React.createElement(Field, {
 						label: t("imggenRetryLabel"),
 						number: true,
@@ -2956,17 +2958,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						className: "omni-btn",
 						disabled: busy !== "",
 						onClick: props.onFetchModels
-					}, busy === "video-mdl" ? t("videoFetching") : t("videoFetchBtn"))
+					}, busy === "video-mdl" ? t("videoFetching") : t("videoFetchBtn")),
+					// v2.11: filter toggle moved inline into model row (label left, switch right)
+					React.createElement("div", { className: "omni-filter-inline" }, [
+						React.createElement("span", { className: "omni-label" }, t("videoFilterLabel")),
+						React.createElement("label", { className: "omni-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
+							React.createElement("span", { className: "omni-switch-slider" })
+						])
+					])
 				]),
 				cfg.provider === "kling" ? React.createElement("p", { className: "omni-status" }, t("videoKeyKlingHint")) : null,
-				// 5. 开关说明行独占一行
-				React.createElement("div", { className: "omni-module-row" }, [
-					React.createElement("label", { className: "omni-switch" }, [
-						React.createElement("input", { type: "checkbox", checked: cfg.filterVideoModels !== false, onChange: props.onToggleFilter }),
-						React.createElement("span", { className: "omni-switch-slider" })
-					]),
-						React.createElement("span", { className: "omni-label" }, t("videoFilterLabel"))
-					]),
 				// 6. 单行四字段：轮询间隔 (s)｜重试次数｜默认时长 (s)｜画幅
 				//（分辨率已移除 UI：由 AI 通过 generate_video 的 resolution 参数自行决定）
 				React.createElement("div", { className: "omni-row" }, [

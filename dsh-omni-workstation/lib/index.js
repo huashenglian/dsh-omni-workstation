@@ -522,6 +522,31 @@ function filterVideoModelIds(ids) {
   })
 }
 
+// v2.11: Detect DashScope wan2.7 model mode from model name string.
+// Returns 'videoedit' | 'r2v' | 'i2v' | 't2v' | 'universal'.
+// Order matters: videoedit first (contains 'video' which would match 'video' in other checks),
+// then r2v, i2v, t2v, then universal fallback.
+function dashscopeVideoMode(model) {
+  const m = String(model || '').toLowerCase()
+  if (m.includes('videoedit')) return 'videoedit'
+  if (m.includes('r2v')) return 'r2v'
+  if (m.includes('i2v')) return 'i2v'
+  if (m.includes('t2v')) return 't2v'
+  return 'universal'
+}
+
+// v2.11: Human-readable description of the current DashScope video mode for the tool definition.
+function dashscopeModeDescription(model) {
+  const mode = dashscopeVideoMode(model)
+  switch (mode) {
+    case 't2v': return '当前为文生视频（t2v）模式：只需 prompt 参数，不传 image。支持 ratio 参数。'
+    case 'i2v': return '当前为图生视频（i2v）模式：传入 image 参数作为首帧（first_frame）。不传 ratio（输出跟随首帧比例）。'
+    case 'r2v': return '当前为参考生视频（r2v）模式：image 参数作为参考图（reference_image），reference_video 参数作为参考视频。prompt 中用"图1/图2"指代参考图，"视频1"指代参考视频。'
+    case 'videoedit': return '当前为视频编辑（videoedit）模式：reference_video 参数传入待编辑视频（公网 URL），image 参数可传参考图。prompt 描述编辑指令。duration 默认 0 表示沿用原视频时长。'
+    default: return '当前为全能模式：可通过 extra_input/extra_parameters 自定义请求字段。image 参数作为 first_frame。'
+  }
+}
+
 // Build the submit request for a protocol. `image` is {kind:'url'|'b64'|'dataUrl', value}
 // or null for t2v. args: {prompt, seconds, aspectRatio, resolution}.
 function buildVideoSubmit(cfg, args, image) {
@@ -558,28 +583,74 @@ function buildVideoSubmit(cfg, args, image) {
     case 'dashscope-video': {
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
       headers['X-DashScope-Async'] = 'enable'
-      const input = { prompt }
-      // wan i2v：media[].url 支持公网 URL 或 data:{mime};base64,...（DashScope 原生口径）
-      if (image) input.media = [{
-        type: 'first_frame',
-        url: image.kind === 'url' ? image.value
-          : (image.kind === 'dataUrl' ? image.value
-            : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)
-      }]
+      // v2.11: mode-aware body construction for wan2.7 t2v/i2v/r2v/videoedit + universal
+      const mode = dashscopeVideoMode(cfg.model)
       const resDash = res === '1080p' ? '1080P' : '720P'
-      const dur = Math.max(2, Math.min(Number(seconds) || 5, 15))
-      const body = {
-        model: cfg.model,
-        input,
-        parameters: {
-          resolution: resDash,
-          duration: dur,
-          prompt_extend: true,
-          watermark: false
-        }
+      const refVideoUrl = String(args.reference_video || '').trim()
+      const imageUrl = image ? (image.kind === 'url' ? image.value : (image.kind === 'dataUrl' ? image.value : 'data:' + (image.mime || 'image/png') + ';base64,' + image.value)) : ''
+      const input = { prompt }
+      const parameters = {}
+      let hasMediaInput = false
+      switch (mode) {
+        case 't2v':
+          parameters.resolution = resDash
+          parameters.ratio = aspectRatio
+          parameters.duration = Math.max(2, Math.min(Number(seconds) || 5, 15))
+          parameters.prompt_extend = true
+          parameters.watermark = false
+          break
+        case 'i2v':
+          if (imageUrl) { input.media = [{ type: 'first_frame', url: imageUrl }]; hasMediaInput = true }
+          parameters.resolution = resDash
+          parameters.duration = Math.max(2, Math.min(Number(seconds) || 5, 15))
+          parameters.prompt_extend = true
+          parameters.watermark = false
+          break
+        case 'r2v':
+          {
+            const media = []
+            if (imageUrl) { media.push({ type: 'reference_image', url: imageUrl }); hasMediaInput = true }
+            if (refVideoUrl) { media.push({ type: 'reference_video', url: refVideoUrl }); hasMediaInput = true }
+            if (media.length > 0) input.media = media
+          }
+          parameters.resolution = resDash
+          parameters.ratio = aspectRatio
+          parameters.duration = refVideoUrl
+              ? Math.max(2, Math.min(Number(seconds) || 5, 10))
+              : Math.max(2, Math.min(Number(seconds) || 5, 15))
+          parameters.prompt_extend = true
+          parameters.watermark = false
+          break
+        case 'videoedit':
+          {
+            const media = []
+            if (refVideoUrl) { media.push({ type: 'video', url: refVideoUrl }); hasMediaInput = true }
+            if (imageUrl) { media.push({ type: 'reference_image', url: imageUrl }) }
+            if (media.length > 0) input.media = media
+          }
+          // videoedit: duration 0 = use input video length; [2,10] = truncate
+          { const ed = Number(seconds) || 0; parameters.duration = ed > 0 ? Math.max(2, Math.min(ed, 10)) : 0 }
+          parameters.audio_setting = 'auto'
+          break
+        default: // universal (wan3.0 etc)
+          if (imageUrl) { input.media = [{ type: 'first_frame', url: imageUrl }]; hasMediaInput = true }
+          parameters.resolution = resDash
+          parameters.ratio = aspectRatio
+          parameters.duration = Math.max(2, Math.min(Number(seconds) || 5, 15))
+          parameters.prompt_extend = true
+          parameters.watermark = false
+          break
       }
+      // v2.11: extra_input/extra_parameters merge — LAST step after media assignment (shallow, parse JSON string)
+      if (args.extra_input && typeof args.extra_input === 'string') {
+        try { Object.assign(input, JSON.parse(args.extra_input)) } catch { /* invalid JSON, skip */ }
+      }
+      if (args.extra_parameters && typeof args.extra_parameters === 'string') {
+        try { Object.assign(parameters, JSON.parse(args.extra_parameters)) } catch { /* invalid JSON, skip */ }
+      }
+      const body = { model: cfg.model, input, parameters }
       const url = dashscopeVideoBase(cfg) + '/services/aigc/video-generation/video-synthesis'
-      return { url, method: 'POST', headers, body, i2v: !!image }
+      return { url, method: 'POST', headers, body, i2v: hasMediaInput }
     }
     case 'kling-video': {
       const [ak, sk] = String(cfg.apiKey || '').split('|')
@@ -602,6 +673,8 @@ function buildVideoSubmit(cfg, args, image) {
     case 'minimax-video': {
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey
       const body = { model: cfg.model, prompt, duration: seconds, resolution: res === '1080p' ? '1080P' : '720P' }
+      // v2.11: fix minimax i2v — image was silently dropped; MiniMax native API uses first_frame_image
+      if (image) body.first_frame_image = image.kind === 'url' ? image.value : imageDataUrl
       const url = base + '/v1/video_generation'
       return { url, method: 'POST', headers, body, i2v: !!image }
     }
@@ -3574,14 +3647,19 @@ async function runTtsWebui(vc, args, exec) {
 
 const buildVideoToolDef = (vc) => defineTool({
   name: 'generate_video',
-  description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区 .omni-workstation/artifacts/videos/ 目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。',
+  description: '生成视频并保存到指定目录，返回文件路径。prompt 描述视频内容；image 可选——传入图片路径或公网图片 URL 时以图生视频（i2v），否则文生视频（t2v）。output_dir 指定保存目录（不指定则保存到工作区 .omni-workstation/artifacts/videos/ 目录）。视频生成是异步任务，可能耗时数分钟。当前面板初始默认：时长 ' + (vc && vc.seconds ? vc.seconds : 5) + 's、画幅 ' + (vc && vc.aspectRatio ? vc.aspectRatio : '16:9') + '、重试 ' + (vc && vc.retryCount ? vc.retryCount : 1) + ' 次——这些仅为初始默认值；若用户在对话中明确要求其他值（如"改为1:1""生成10秒""1080p"），必须以用户要求为最高优先级，通过 seconds / aspect_ratio / resolution 参数覆盖面板默认。' + (vc && vc.model ? ' 当前模型: ' + vc.model + '。' + dashscopeModeDescription(vc.model) : ''),
   parameters: {
     prompt: { type: 'string', required: true, description: '视频内容提示词：详细描述画面主体、动作、运镜、风格、光线、环境等' },
-    image: { type: 'string', description: '首帧图片路径（本地文件）或公网图片 URL（可选）。传入后以图生视频（i2v）模式生成。' },
+    image: { type: 'string', description: '图片路径（本地文件）或公网图片 URL（可选）。在 i2v 模式下作为首帧；在 r2v 模式下作为参考图（reference_image）；在 videoedit 模式下作为参考图。' },
     seconds: { type: 'number', description: '视频时长（秒）。默认取面板初始值；用户提示词明确指定的时长优先' },
     aspect_ratio: { type: 'string', description: '画幅，如 16:9 / 9:16 / 1:1 / 4:3 / 3:4。默认取面板初始值；用户提示词明确指定（如"改为1:1"）时必须以用户要求为准' },
     resolution: { type: 'string', description: '分辨率（720p/1080p/768p，部分协议支持），由 AI 按需自行决定；不传用面板默认 720p' },
-    output_dir: { type: 'string', description: '保存目录，绝对路径或相对当前工作区的相对路径。不指定则保存到 .omni-workstation/artifacts/videos/ 目录。如项目有专门的视频目录，可传入该路径。' }
+    output_dir: { type: 'string', description: '保存目录，绝对路径或相对当前工作区的相对路径。不指定则保存到 .omni-workstation/artifacts/videos/ 目录。如项目有专门的视频目录，可传入该路径。' },
+    ...(vc && vc.protocol === 'dashscope-video' ? {
+      reference_video: { type: 'string', description: '参考视频或待编辑视频的公网 URL（仅 DashScope 协议）。用于 wan2.7-r2v（参考视频）或 wan2.7-videoedit（视频编辑）。注意：视频输入只接受公网 URL，不支持本地文件路径。' },
+      extra_input: { type: 'string', description: '自定义 DashScope input 字段，JSON 字符串格式（如 \'{"key":"value"}\'），浅合并到请求 input 中。用于全能模型（如 wan3.0）的模型专属字段。' },
+      extra_parameters: { type: 'string', description: '自定义 DashScope parameters 字段，JSON 字符串格式（如 \'{"seed":123}\'），浅合并到请求 parameters 中。用于模型专属参数。' }
+    } : {})
   },
   output: {
     schema: {
@@ -4248,7 +4326,7 @@ async function syncToolRegistration() {
   // v2.8.x: the tool description injects the panel defaults (seconds/aspect/
   // retry) as initial values the model can override per user prompt; re-register
   // when that signature changes so the model always sees current defaults.
-  const videoSig = shouldVideo ? [cfg.videoConfig.seconds, cfg.videoConfig.aspectRatio, cfg.videoConfig.retryCount].join('|') : ''
+  const videoSig = shouldVideo ? [cfg.videoConfig.seconds, cfg.videoConfig.aspectRatio, cfg.videoConfig.retryCount, cfg.videoConfig.model, cfg.videoConfig.provider, cfg.videoConfig.protocol].join('|') : ''
   if (shouldVideo && (!videoVisible || videoSig !== videoSigSeen)) {
     if (videoDisposer) { try { videoDisposer() } catch { /* best-effort */ } }
     videoDisposer = appCtx.tools.register(buildVideoToolDef(cfg.videoConfig))
