@@ -534,7 +534,7 @@ export function buildVisionToolDefs(deps) {
   // ---------- ocr_image：OCR（本地优先自动降级） ----------
   const ocrTool = defineTool({
     name: 'ocr_image',
-    description: '对图片进行文字识别（OCR）。本地安装了 Tesseract 时用算力引擎（默认自动），否则自动降级到视觉模型转写；也可显式指定 engine。仅读取图片文字，不要当作看图失败的重试。',
+    description: '对图片进行文字提取（OCR），仅返回图中文字内容。适用场景：提取截图/文档中的纯文字、读取表格数据、获取界面文字标签。不适用于理解图片整体含义或回答图片内容问题——那些请用 analyze_image。仅读取图片文字，不要当作看图失败的重试。',
     parameters: {
       image_path: { type: 'string', description: '图片文件路径。与 attachment_id 二选一。' },
       attachment_id: { type: 'string', description: '上传图片的附件 id（形如 "sha256:..."）。与 attachment_id 二选一。' },
@@ -717,7 +717,7 @@ export function buildVisionToolDefs(deps) {
   // ---------- show_image：图片展示 ----------
   const showImageTool = defineTool({
     name: 'show_image',
-    description: '把一张图片展示给用户查看（本地图片、附件或 generate_image 生成的图片均可）。返回图片在对话中的展示与可访问的本地路径。可用展示本地图片、附件、generate_image 生成的图片，让用户在对话中查看；如想细看请结合 analyze_image。',
+    description: '把一张图片展示给用户查看（仅展示，不分析）。本地图片、附件或 generate_image 生成的图片均可。注意：本工具只负责在对话中显示图片让用户看到，不会分析图片内容。如需理解图片内容、回答图片相关问题，请使用 analyze_image 工具。',
     parameters: {
       image_path: { type: 'string', description: '图片文件路径。与 attachment_id 二选一。' },
       attachment_id: { type: 'string', description: '上传图片的附件 id（形如 "sha256:..."）。与 image_path 二选一。' },
