@@ -198,7 +198,7 @@ ddHint: "选择模型",
 			imggenStatusPrefix: "生图有效配置",
 			presetNamePh: "预设名称",
 			presetNew: "新建",
-			presetSaved: "预设已保存",
+			presetSaved: "保存",
 			presetDelete: "删除",
 			presetDeleteTitle: "删除预设",
 			presetDeleteConfirm: "确认删除",
@@ -358,6 +358,7 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoResetHint: "重置所有视频配置为初始状态",
 			videoNoConfig: "未配置有效的视频 API，generate_video 工具已隐藏。",
 			videoCardModalTitle: "添加视频模型",
+			videoCardEditTitle: "编辑视频模型",
 			videoCardModelName: "模型名称",
 			videoCardModelType: "模型类型",
 			videoCardToolName: "工具名称",
@@ -409,6 +410,7 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoToolOn: "generate_video 工具已启用",
 			videoToolHidden: "未配置有效视频 API，generate_video 工具已隐藏",
 			videoCardModalTitle: "添加视频模型",
+			videoCardEditTitle: "编辑视频模型",
 			videoCardModelName: "模型名称",
 			videoCardModelNamePh: "视频模型名称",
 			videoCardModelType: "模型类型",
@@ -663,7 +665,7 @@ ddHint: "Pick a model",
 			imggenStatusPrefix: "Image gen valid config",
 			presetNamePh: "Preset name",
 			presetNew: "New",
-			presetSaved: "Preset saved",
+			presetSaved: "Save",
 			presetDelete: "Delete",
 			presetDeleteTitle: "Delete Preset",
 			presetDeleteConfirm: "Confirm Delete",
@@ -823,6 +825,7 @@ voiceSovitsModel: "SoVITS model name",
 			videoResetHint: "Reset all video-generation config to defaults",
 			videoNoConfig: "No valid video-generation API configured; generate_video is hidden.",
 			videoCardModalTitle: "Add Video Model",
+			videoCardEditTitle: "Edit Video Model",
 			videoCardModelName: "Model Name",
 			videoCardModelType: "Model Type",
 			videoCardToolName: "Tool Name",
@@ -873,6 +876,7 @@ voiceSovitsModel: "SoVITS model name",
 			videoToolOn: "generate_video tool enabled",
 			videoToolHidden: "No valid video API configured; generate_video is hidden",
 			videoCardModalTitle: "Add Video Model",
+			videoCardEditTitle: "Edit Video Model",
 			videoCardModelName: "Model Name",
 			videoCardModelNamePh: "Video model name",
 			videoCardModelType: "Model Type",
@@ -1102,7 +1106,7 @@ voiceSovitsModel: "SoVITS model name",
 		".omni-preset-input-wrap { position: relative; flex: 1; min-width: 120px; }",
 		".omni-preset-name-input { width: 100%; padding-right: 36px !important; box-sizing: border-box; }",
 		".omni-preset-dd-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; color: var(--dsh-fg, #e6e6e6); padding: 0; flex: 0 0 auto; }",
-		".omni-preset-dd-btn:hover { color: var(--dsh-fg, #eee); }",
+		".omni-preset-dd-btn:hover { background: rgba(128,128,128,0.2); border-radius: 4px; }",
 		".omni-preset-menu { position: absolute; left: 0; top: calc(100% + 2px); right: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--dsh-bg-2, #262626); border: 1px solid var(--dsh-border, #555); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.35); z-index: 115; padding: 4px; }",
 			".omni-preset-menu-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }",
 			".omni-preset-menu-item:hover { background: rgba(88,166,255,0.12); }",
@@ -1225,7 +1229,7 @@ voiceSovitsModel: "SoVITS model name",
 			"  .omni-dd-group { color: light-dark(#666, #888); }",
 			// ---- preset dropdown + confirm/tool modal light theme (white bg + dark text) ----
 			"  .omni-preset-dd-btn { color: light-dark(#fff, #eee); }",
-			"  .omni-preset-dd-btn:hover { color: light-dark(#333, #fff); }",
+			"  .omni-preset-dd-btn:hover { background: rgba(128,128,128,0.2); border-radius: 4px; }",
 			"  .omni-preset-menu { background-color: light-dark(#fff, #262626); border-color: light-dark(#ccc, #555); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }",
 			"  .omni-preset-menu-item { color: light-dark(#222, #eee); }",
 			"  .omni-preset-menu-item:hover { background-color: light-dark(rgba(0,120,255,0.10), rgba(88,166,255,0.12)); }",
@@ -2402,6 +2406,7 @@ voiceSovitsModel: "SoVITS model name",
 			React.createElement("button", {
 				className: "omni-btn omni-save-btn", type: "button",
 				title: t("presetSaved"),
+				disabled: props.presetSaved === true,
 				onClick: props.onSavePreset
 			}, t("presetSaved")),
 			React.createElement("button", {
@@ -2885,92 +2890,104 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		}
 
 		// ---------- AddVideoCardModal (v2.11) ----------
-		function AddVideoCardModal(props) {
-			var t = props.t;
-			var BUILTIN_TYPES = [
-				{ value: "general", label: t("videoCardTypeGeneral") },
-				{ value: "t2v", label: t("videoCardTypeT2v") },
-				{ value: "i2v", label: t("videoCardTypeI2v") },
-				{ value: "edit", label: t("videoCardTypeEdit") },
-				{ value: "ref", label: t("videoCardTypeRef") }
-			];
-			var nameDraft = React.useState("");
-			var typeDraft = React.useState("general");
-			var toolNameDraft = React.useState("generate_video");
-			var descDraft = React.useState("");
-			var typeDdOpen = React.useState(false);
-			var customTypes = React.useState([]);
+	function AddVideoCardModal(props) {
+		var t = props.t;
+		var BUILTIN_TYPES = [
+			{ value: "general", label: t("videoCardTypeGeneral") },
+			{ value: "t2v", label: t("videoCardTypeT2v") },
+			{ value: "i2v", label: t("videoCardTypeI2v") },
+			{ value: "edit", label: t("videoCardTypeEdit") },
+			{ value: "ref", label: t("videoCardTypeRef") }
+		];
+		var isEdit = !!props.editCard;
+		var nameDraft = React.useState(isEdit ? (props.editCard.name || "") : "");
+		var typeDraft = React.useState(isEdit ? (props.editCard.type || "general") : "general");
+		var toolNameDraft = React.useState(isEdit ? (props.editCard.toolName || "generate_video") : "generate_video");
+		var descDraft = React.useState(isEdit ? (props.editCard.description || "") : "");
+		var typeDdOpen = React.useState(false);
+		var customTypes = React.useState([]);
 
-			var existingTypes = (props.cards || []).map(function (c) { return c.type; });
-			var atMax = (props.cards || []).length >= 10;
-			var selectedType = typeDraft[0];
-			var isGeneral = selectedType === "general";
-			var typeExists = existingTypes.indexOf(selectedType) >= 0;
-			var toolNameTaken = (props.cards || []).some(function (c) { return c.toolName === toolNameDraft[0]; });
-			var canConfirm = !atMax && nameDraft[0].trim().length > 0 && !typeExists && !toolNameTaken;
+		// Track initial values for edit mode (to detect changes)
+		var initialValues = React.useState(isEdit ? { name: props.editCard.name || "", type: props.editCard.type || "general", toolName: props.editCard.toolName || "generate_video", description: props.editCard.description || "" } : {});
 
-			function onSelectType(typeVal) {
-				typeDraft[1](typeVal);
+		var existingTypes = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).map(function (c) { return c.type; });
+		var atMax = (props.cards || []).length >= 10;
+		var selectedType = typeDraft[0];
+		var isBuiltin = BUILTIN_TYPES.some(function (bt) { return bt.value === selectedType; });
+		var typeExists = existingTypes.indexOf(selectedType) >= 0;
+		var toolNameTaken = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).some(function (c) { return c.toolName === toolNameDraft[0]; });
+		var hasChanges = !isEdit || nameDraft[0] !== initialValues[0].name || typeDraft[0] !== initialValues[0].type || toolNameDraft[0] !== initialValues[0].toolName || descDraft[0] !== initialValues[0].description;
+		var canConfirm = !atMax && nameDraft[0].trim().length > 0 && !typeExists && !toolNameTaken && (isEdit ? hasChanges : true);
+
+		function onSelectType(typeVal) {
+			typeDraft[1](typeVal);
+			var bt = BUILTIN_TYPES.find(function (b) { return b.value === typeVal; });
+			if (bt) {
+				// Built-in type: auto-fill tool name + description, set fields to read-only (disabled)
 				if (typeVal === "general") { toolNameDraft[1]("generate_video"); descDraft[1](""); }
 				else { toolNameDraft[1]("generate_video_" + typeVal); var tmpl = typeVal === "t2v" ? "文生视频：根据文字描述生成视频并保存。仅接受文字提示词，不支持图片输入。"
 					: typeVal === "i2v" ? "图生视频：根据输入图片和文字描述生成视频并保存。需要图片输入。"
 					: typeVal === "edit" ? "视频编辑：对输入视频/图片进行编辑生成新视频并保存。"
 					: typeVal === "ref" ? "参考生成：根据参考素材（图片/视频）生成视频并保存。"
 					: "生成视频：根据描述生成视频并保存。"; descDraft[1](tmpl); }
-				typeDdOpen[1](false);
 			}
+			typeDdOpen[1](false);
+		}
 
-			function addCustomType() {
-				var name = typeDraft[0].trim();
-				if (!name || BUILTIN_TYPES.some(function (t) { return t.value === name; }) || customTypes[0].indexOf(name) >= 0) return;
-				customTypes[1](customTypes[0].concat([name]));
-				onSelectType(name);
-			}
+		function addCustomType() {
+			var name = typeDraft[0].trim();
+			if (!name || BUILTIN_TYPES.some(function (bt) { return bt.value === name; }) || customTypes[0].indexOf(name) >= 0) return;
+			customTypes[1](customTypes[0].concat([name]));
+			// Don't auto-fill toolName/desc for custom types — user can edit
+			typeDdOpen[1](false);
+		}
 
-			function deleteCustomType(name) {
-				customTypes[1](customTypes[0].filter(function (t) { return t !== name; }));
-			}
+		function deleteCustomType(name) {
+			customTypes[1](customTypes[0].filter(function (t) { return t !== name; }));
+		}
 
-			var allTypes = BUILTIN_TYPES.concat(customTypes[0].map(function (t) { return { value: t, label: t, custom: true }; }));
+		var allTypes = BUILTIN_TYPES.concat(customTypes[0].map(function (t) { return { value: t, label: t, custom: true }; }));
 
-			return React.createElement("div", { className: "omni-confirm-overlay", onClick: props.onCancel }, [
-				React.createElement("div", { className: "omni-card-modal", onClick: function (e) { e.stopPropagation(); } }, [
-					React.createElement("span", { className: "omni-confirm-title" }, t("videoCardModalTitle")),
-					React.createElement("div", { className: "omni-card-modal-field" }, [
-						React.createElement("label", null, t("videoCardModelName")),
-						React.createElement("input", { className: "omni-input", type: "text", value: nameDraft[0], placeholder: "Video Model", onChange: function (e) { nameDraft[1](e.target.value); }, autoFocus: true })
-					]),
-					React.createElement("div", { className: "omni-card-modal-field" }, [
-						React.createElement("label", null, t("videoCardModelType")),
-						React.createElement("div", { className: "omni-provider-wrap" }, [
-							React.createElement("input", { className: "omni-input omni-provider-btn", type: "text", value: typeDraft[0], onChange: function (e) { typeDraft[1](e.target.value); }, readOnly: false }),
+		return React.createElement("div", { className: "omni-confirm-overlay", onClick: props.onCancel }, [
+			React.createElement("div", { className: "omni-card-modal", onClick: function (e) { e.stopPropagation(); } }, [
+				React.createElement("span", { className: "omni-confirm-title" }, isEdit ? t("videoCardEditTitle") : t("videoCardModalTitle")),
+				React.createElement("div", { className: "omni-card-modal-field" }, [
+					React.createElement("label", null, t("videoCardModelName")),
+					React.createElement("input", { className: "omni-input", type: "text", value: nameDraft[0], placeholder: "Video Model", onChange: function (e) { nameDraft[1](e.target.value); }, autoFocus: true })
+				]),
+				React.createElement("div", { className: "omni-card-modal-field" }, [
+					React.createElement("label", null, t("videoCardModelType")),
+					React.createElement("div", { className: "omni-preset-bar", style: { marginBottom: 0 } }, [
+						React.createElement("div", { className: "omni-preset-input-wrap" }, [
+							React.createElement("input", { className: "omni-input omni-preset-name-input", type: "text", value: typeDraft[0], placeholder: t("videoCardTypeGeneral"), onChange: function (e) { typeDraft[1](e.target.value); } }),
 							React.createElement("button", { className: "omni-preset-dd-btn", type: "button", onClick: function () { typeDdOpen[1](!typeDdOpen[0]); } }, React.createElement(SvgIcon, { d: typeDdOpen[0] ? I_COLLAPSE : I_EXPAND })),
 							typeDdOpen[0] ? React.createElement("div", { className: "omni-preset-menu", ref: menuDdRef }, allTypes.map(function (tp) {
 								var used = existingTypes.indexOf(tp.value) >= 0;
 								return React.createElement("div", { key: tp.value, className: "omni-preset-menu-item" + (tp.value === selectedType ? " active" : "") + (used ? " omni-menu-disabled" : ""), onClick: function () { if (!used) onSelectType(tp.value); } }, tp.label + (used ? " ✓" : ""));
 							})) : null
 						]),
-						React.createElement("button", { className: "omni-btn omni-save-btn", type: "button", title: t("videoCardAddType"), onClick: addCustomType }, "+"),
-						React.createElement("button", { className: "omni-btn omni-del-btn", type: "button", title: t("videoCardDeleteType"), disabled: !BUILTIN_TYPES.some(function (bt) { return bt.value === selectedType; }) && customTypes[0].indexOf(selectedType) < 0, onClick: function () { if (customTypes[0].indexOf(selectedType) >= 0) deleteCustomType(selectedType); } }, React.createElement(SvgIcon, { d: I_TRASH }))
-					]),
-					React.createElement("div", { className: "omni-card-modal-field" }, [
-						React.createElement("label", null, t("videoCardToolName")),
-						React.createElement("input", { className: "omni-input", type: "text", value: toolNameDraft[0], readOnly: isGeneral, onChange: function (e) { toolNameDraft[1](e.target.value); } })
-					]),
-					React.createElement("div", { className: "omni-card-modal-field" }, [
-						React.createElement("label", null, t("videoCardModelDef")),
-						React.createElement("textarea", { className: "omni-input", rows: 3, value: descDraft[0], readOnly: isGeneral, onChange: function (e) { descDraft[1](e.target.value); } })
-					]),
-					atMax ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardMaxCards")) : null,
-					typeExists ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardTypeExists")) : null,
-					toolNameTaken ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardToolNameTaken")) : null,
-					React.createElement("div", { className: "omni-confirm-btns" }, [
-						React.createElement("button", { className: "omni-btn", onClick: props.onCancel }, t("videoCardCancel")),
-						React.createElement("button", { className: "omni-btn omni-confirm-danger", disabled: !canConfirm, onClick: function () { props.onConfirm({ name: nameDraft[0].trim(), type: typeDraft[0], toolName: toolNameDraft[0], description: descDraft[0] }); } }, t("videoCardConfirm"))
+						React.createElement("button", { className: "omni-btn omni-preset-new-btn", type: "button", title: t("videoCardAddType"), onClick: addCustomType }, React.createElement(SvgIcon, { d: I_PLUS })),
+						React.createElement("button", { className: "omni-btn omni-preset-del-btn omni-del-btn", type: "button", title: t("videoCardDeleteType"), disabled: isBuiltin, onClick: function () { if (!isBuiltin) deleteCustomType(selectedType); } }, React.createElement(SvgIcon, { d: I_TRASH }))
 					])
+				]),
+				React.createElement("div", { className: "omni-card-modal-field" }, [
+					React.createElement("label", null, t("videoCardToolName")),
+					React.createElement("input", { className: "omni-input", type: "text", value: toolNameDraft[0], readOnly: isBuiltin, onChange: function (e) { toolNameDraft[1](e.target.value); } })
+				]),
+				React.createElement("div", { className: "omni-card-modal-field" }, [
+					React.createElement("label", null, t("videoCardModelDef")),
+					React.createElement("textarea", { className: "omni-input", rows: 3, value: descDraft[0], readOnly: isBuiltin, onChange: function (e) { descDraft[1](e.target.value); } })
+				]),
+				atMax ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardMaxCards")) : null,
+				typeExists ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardTypeExists")) : null,
+				toolNameTaken ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardToolNameTaken")) : null,
+				React.createElement("div", { className: "omni-confirm-btns" }, [
+					React.createElement("button", { className: "omni-btn", onClick: props.onCancel }, t("videoCardCancel")),
+					React.createElement("button", { className: "omni-btn omni-confirm-danger", disabled: !canConfirm, onClick: function () { props.onConfirm({ name: nameDraft[0].trim(), type: typeDraft[0], toolName: toolNameDraft[0], description: descDraft[0] }); } }, t("videoCardConfirm"))
 				])
-			]);
-		}
+			])
+		]);
+	}
 
 		// ---------- video generation panel (v2.8) ----------
 		// Mirrors ImggenPanel but slimmer: single config, async-task fields,
@@ -3043,9 +3060,10 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 
 			var head = React.createElement("div", { className: "omni-card-head omni-head-clickable" + (!isCardEnabled ? " omni-card-disabled" : ""), onClick: function () { props.onPatch(card.id, "collapsed", !cardCollapsed); } }, [
 				React.createElement("span", { className: "omni-video-type-label" }, VIDEO_TYPE_LABELS[card.type] || card.type || t("videoCardTypeGeneral")),
-				React.createElement("div", { className: "omni-card-name" }, [
-					React.createElement("span", { className: "omni-card-name-text" }, card.name || "Video Card")
-				]),
+			React.createElement("div", { className: "omni-card-name" }, [
+				React.createElement("span", { className: "omni-card-name-text" }, card.name || "Video Card")
+			]),
+				React.createElement("button", { className: "omni-icon-btn", title: t("videoCardEditTitle"), onClick: function (e) { e.stopPropagation(); if (props.onEditClick) props.onEditClick(card); } }, React.createElement(SvgIcon, { d: I_EDIT })),
 				React.createElement("div", { className: "omni-card-menu-wrap" }, [
 					React.createElement("button", {
 						className: "omni-icon-btn omni-card-menu-btn",
@@ -3741,11 +3759,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							})
 						) : null
 					]),
-					React.createElement("button", {
-						className: "omni-btn omni-save-btn", type: "button",
-						title: t("presetSaved"),
-						onClick: function () { props.onSavePreset(activeSubtab[0]); }
-					}, t("presetSaved")),
+				React.createElement("button", {
+					className: "omni-btn omni-save-btn", type: "button",
+					title: t("presetSaved"),
+					disabled: props.voicePresetSaved === true,
+					onClick: function () { props.onSavePreset(activeSubtab[0]); }
+				}, t("presetSaved")),
 					React.createElement("button", {
 						className: "omni-btn omni-preset-new-btn", type: "button",
 						title: t("presetNew"),
@@ -4387,8 +4406,9 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var vcPresetDdOpen = React.useState({});
 			var vcPresetDeleteConfirm = React.useState(null);
 			var vcPresetNameDraft = React.useState({});
-			var vcAddModalOpen = React.useState(false);
-			var vcBatchOpen = React.useState(false);
+		var vcAddModalOpen = React.useState(false);
+		var vcEditCard = React.useState(null);
+		var vcBatchOpen = React.useState(false);
 			// v2.8.1: voice panel state
 			var voiceKeyDraft = React.useState("");
 			var voiceRevealed = React.useState(false);
@@ -5624,8 +5644,9 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 								onToggleProv: function () { toggleVideoCardProv(card.id); },
 								onToggleFilter: function () { toggleVideoCardFilter(card.id); },
 								onResetClick: function () { resetVideoCard(card.id); },
-								onDeleteClick: deleteVideoCardClick,
-								onToggleMenu: function () { toggleVideoCardMenu(card.id); },
+							onDeleteClick: deleteVideoCardClick,
+							onEditClick: function (card) { vcEditCard[1](card); },
+							onToggleMenu: function () { toggleVideoCardMenu(card.id); },
 								onCloseMenu: function () { vcConfirmReset[1](null); vcConfirmDel[1](null); },
 								onSwitchPreset: function (presetId) { switchVideoCardPreset(card.id, presetId); },
 								onAddPreset: function () { addVideoCardPreset(card.id); },
@@ -5640,6 +5661,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						})
 					]),
 					vcAddModalOpen[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, onCancel: function () { vcAddModalOpen[1](false); }, onConfirm: function (data) { vcAddModalOpen[1](false); commitStructure({ videoCardAdd: data }, null, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
+					vcEditCard[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, editCard: vcEditCard[0], onCancel: function () { vcEditCard[1](null); }, onConfirm: function (data) { var cid = vcEditCard[0].id; vcEditCard[1](null); commitStructure({ videoCardPatch: { id: cid, field: "name", value: data.name }, videoCardPatchName: data.name, videoCardPatchType: data.type, videoCardPatchToolName: data.toolName, videoCardPatchDesc: data.description }, function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cid; }); if (card) { card.name = data.name; card.type = data.type; card.toolName = data.toolName; card.description = data.description; } return d; }, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
 					null
 				]);
 
