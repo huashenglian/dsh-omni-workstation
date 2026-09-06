@@ -522,8 +522,9 @@ test('video card: videoCardPatch does NOT sync config to preset (manual-save)', 
   const presetModel = cfg.videoCards[0].presets[0].config.model
 
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' } })
-  // Config change is reverted by normalizeConfig (preset is unchanged)
-  assert.equal(cfg.videoCards[0].config.model, presetModel)
+  // Config IS updated (runtime config is source of truth — v2.11 fix)
+  assert.equal(cfg.videoCards[0].config.model, 'agnes-video-v2.0')
+  // Preset is NOT synced (manual-save only)
   assert.equal(cfg.videoCards[0].presets[0].config.model, presetModel) // preset unchanged
 })
 

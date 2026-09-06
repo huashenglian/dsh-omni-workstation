@@ -1040,7 +1040,7 @@ function normalizeConfig(raw) {
           description: desc,
           enabled: c.enabled !== false,
           collapsed: c.collapsed === true,
-          config: normalizeVideoConfig(activePresetObj.config),
+          config: normalizeVideoConfig(c.config),
           presets: cardPresets,
           activePreset
         }
@@ -1073,7 +1073,7 @@ function normalizeConfig(raw) {
     } else {
       // Fresh install: one default 通用 card
       const dc = normalizeVideoConfig(src.videoConfig || defaultVideoConfig())
-      const np = { id: genPresetId(), name: '默认', config: dc }
+      const np = { id: genPresetId(), name: '默认', config: JSON.parse(JSON.stringify(dc)) }
       videoCards = [{
         id: genId(),
         name: '视频模型',
