@@ -1042,15 +1042,20 @@ function normalizeConfig(raw) {
     const dc = normalizeVideoConfig(src.videoConfig || defaultVideoConfig())
     videoPresets = [{ id: genPresetId(), name: '默认', config: dc }]
   }
+  // v2.12.1: 持久化自定义类型列表（添加/编辑视频模型弹窗的类型快照，与配置预设同语义）
+  const videoCustomTypes = Array.isArray(src.videoCustomTypes)
+    ? src.videoCustomTypes.filter((s) => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim().slice(0, 30))
+    : []
 
   let videoCards = []
   if (Array.isArray(src.videoCards) && src.videoCards.length > 0) {
     videoCards = src.videoCards
       .filter((c) => c && typeof c === 'object' && !Array.isArray(c))
       .map((c) => {
-        const type = typeof c.type === 'string' && c.type.trim().length > 0 ? c.type.trim() : 'general'
+        // v2.12.1: type 允许为空（不属于任何类型预设）；仅内置默认卡为 'general'
+        const type = typeof c.type === 'string' && c.type.trim().length > 0 ? c.type.trim() : ''
         let toolName = typeof c.toolName === 'string' && c.toolName.trim().length > 0 ? c.toolName.trim() : 'generate_video'
-        if (type !== 'general') {
+        if (type && type !== 'general') {
           toolName = 'generate_video_' + (type.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'custom')
         }
         const desc = typeof c.description === 'string' ? c.description : ''
@@ -1261,7 +1266,7 @@ function normalizeConfig(raw) {
       }))
     : [{ id: 'dcp_' + Date.now().toString(36), name: '默认', speakerId: '', refAudioPath: '', cloneModel: 'seed-icl-2.0', appId: '', accessToken: '', apiKey: '', apiVersion: 'v1' }]
   let activeDoubaoClonePreset = typeof src.activeDoubaoClonePreset === 'string' && doubaoClonePresets.some((p) => p.id === src.activeDoubaoClonePreset) ? src.activeDoubaoClonePreset : doubaoClonePresets[0].id
-  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoCards, videoPresets, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, doubaoClonePresets, activeDoubaoClonePreset, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
+  return { retryCount, vlmEnabled, imggenEnabled, videoEnabled, videoCards, videoPresets, videoCustomTypes, voiceEnabled, ttsEnabled, sttEnabled, voiceConfig, voicePresets, activeVoicePreset, voiceConfigStt, voicePresetsStt, activeVoicePresetStt, voiceLibrary, doubaoClonePresets, activeDoubaoClonePreset, visionToolsEnabled, visionToolToggles, mirrorConfig, apis, imggenConfig: runtimeImggenConfig, imggenPresets, activeImggenPreset, fallbackConfig, globalConfig, comfyWorkflows, activeComfyWorkflow }
 }
 
 const masked = (cfg) => ({
@@ -1275,6 +1280,7 @@ const masked = (cfg) => ({
     for (const c of (cfg.videoCards || [])) { if (c && Array.isArray(c.presets)) for (const p of c.presets) { if (p && typeof p === 'object' && !Array.isArray(p) && !byId.has(p.id)) byId.set(p.id, { id: p.id, name: p.name, config: p.config }) } }
     return Array.from(byId.values())
   })()).map((p) => ({ id: p.id, name: p.name, config: maskedVideo(p.config || defaultVideoConfig()) })),
+  videoCustomTypes: Array.isArray(cfg.videoCustomTypes) ? cfg.videoCustomTypes : [],
   videoCards: (Array.isArray(cfg.videoCards) ? cfg.videoCards : []).map((c) => ({
     id: c.id, name: c.name, type: c.type, toolName: c.toolName, description: c.description,
     enabled: c.enabled !== false, collapsed: c.collapsed === true,
@@ -4595,7 +4601,7 @@ function applyPatch(cfg, patch) {
     const sharedVp = (c.videoPresets || [])
     const activeVp = sharedVp.length > 0 ? sharedVp[0] : { id: genPresetId(), name: '默认', config: defaultVideoConfig() }
     if (sharedVp.length === 0) c.videoPresets = [activeVp]
-    c.videoCards = (c.videoCards || []).concat([{ id, name: typeof a.name === 'string' && a.name.length > 0 ? String(a.name).slice(0, 60) : 'Video Card', type: typeof a.type === 'string' && a.type.length > 0 ? a.type : 'general', toolName, description: typeof a.description === 'string' ? a.description : '', enabled: true, collapsed: false, config: JSON.parse(JSON.stringify(activeVp.config)), activePreset: activeVp.id }])
+    c.videoCards = (c.videoCards || []).concat([{ id, name: typeof a.name === 'string' && a.name.length > 0 ? String(a.name).slice(0, 60) : 'Video Card', type: typeof a.type === 'string' ? a.type.trim().slice(0, 30) : '', toolName, description: typeof a.description === 'string' ? a.description : '', enabled: true, collapsed: false, config: JSON.parse(JSON.stringify(activeVp.config)), activePreset: activeVp.id }])
   }
   if (p.videoCardDelete && typeof p.videoCardDelete === 'string') c.videoCards = (c.videoCards || []).filter((card) => card.id !== p.videoCardDelete)
   if (p.videoCardPatch && p.videoCardPatch.id) {
@@ -4606,10 +4612,24 @@ function applyPatch(cfg, patch) {
         if (field === 'enabled') card.enabled = value !== false
         else if (field === 'collapsed') card.collapsed = value === true
         else if (field === 'name') card.name = String(value || '').slice(0, 60)
-        else if (field === 'type') card.type = typeof value === 'string' && value.length > 0 ? value : 'general'
+        else if (field === 'type') card.type = typeof value === 'string' ? value.trim().slice(0, 30) : 'general'
         else if (field === 'toolName') card.toolName = String(value || '').trim()
         else if (field === 'description') card.description = String(value || '')
       } else { applyVideoConfigField(card.config, field, value) }
+    }
+  }
+  // v2.12.1: 编辑弹窗整卡保存 —— videoCardPatchName/Type/ToolName/Desc 与 videoCardPatch.id 同提交
+  if (p.videoCardPatch && p.videoCardPatch.id && (p.videoCardPatchName !== undefined || p.videoCardPatchType !== undefined || p.videoCardPatchToolName !== undefined || p.videoCardPatchDesc !== undefined)) {
+    const editCard = (c.videoCards || []).find((card) => card.id === p.videoCardPatch.id)
+    if (editCard) {
+      if (p.videoCardPatchName !== undefined) editCard.name = String(p.videoCardPatchName || '').slice(0, 60)
+      if (p.videoCardPatchType !== undefined) editCard.type = typeof p.videoCardPatchType === 'string' ? p.videoCardPatchType.trim().slice(0, 30) : ''
+      if (p.videoCardPatchToolName !== undefined) {
+        const tn = String(p.videoCardPatchToolName || '').trim()
+        if ((c.videoCards || []).some((oc) => oc.id !== editCard.id && oc.toolName === tn)) throw new Error('工具名称已存在：' + tn)
+        editCard.toolName = tn
+      }
+      if (p.videoCardPatchDesc !== undefined) editCard.description = String(p.videoCardPatchDesc || '')
     }
   }
   // v2.12: 以下预设操作均作用于顶层共享池 c.videoPresets（跨卡片共用同一套快照）
@@ -4650,6 +4670,15 @@ function applyPatch(cfg, patch) {
     if (card) { const ap = (c.videoPresets || []).find((pr) => pr.id === card.activePreset); if (ap) ap.config = JSON.parse(JSON.stringify(card.config)) }
   }
   if (p.videoReset && typeof p.videoReset === 'object' && p.videoReset.cardId) { const card = (c.videoCards || []).find((card) => card.id === p.videoReset.cardId); if (card) card.config = defaultVideoConfig() }
+  // v2.12.1: 自定义类型快照（添加/编辑弹窗的类型菜单持久化）
+  if (typeof p.videoCustomTypeAdd === 'string' && p.videoCustomTypeAdd.trim().length > 0) {
+    const nm = p.videoCustomTypeAdd.trim().slice(0, 30)
+    c.videoCustomTypes = c.videoCustomTypes || []
+    if (c.videoCustomTypes.indexOf(nm) < 0) c.videoCustomTypes = c.videoCustomTypes.concat([nm])
+  }
+  if (typeof p.videoCustomTypeDelete === 'string' && p.videoCustomTypeDelete.trim().length > 0) {
+    c.videoCustomTypes = (c.videoCustomTypes || []).filter((s) => s !== p.videoCustomTypeDelete)
+  }
   // v2.8.1: voice toggles
   if (p.voiceEnabled !== undefined) c.voiceEnabled = p.voiceEnabled === true
   if (p.ttsEnabled !== undefined) c.ttsEnabled = p.ttsEnabled === true
