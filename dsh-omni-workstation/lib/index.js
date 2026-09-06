@@ -1042,9 +1042,22 @@ function normalizeConfig(raw) {
     const dc = normalizeVideoConfig(src.videoConfig || defaultVideoConfig())
     videoPresets = [{ id: genPresetId(), name: '默认', config: dc }]
   }
-  // v2.12.1: 持久化自定义类型列表（添加/编辑视频模型弹窗的类型快照，与配置预设同语义）
+  // v2.12.2: 自定义类型快照 = {name, toolName, description}（旧字符串条目迁移为仅名称；按名去重）
   const videoCustomTypes = Array.isArray(src.videoCustomTypes)
-    ? src.videoCustomTypes.filter((s) => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim().slice(0, 30))
+    ? (() => {
+        const out = []
+        const seen = new Set()
+        for (const raw of src.videoCustomTypes) {
+          let entry = null
+          if (typeof raw === 'string' && raw.trim().length > 0) {
+            entry = { name: raw.trim().slice(0, 30), toolName: '', description: '' }
+          } else if (raw && typeof raw === 'object' && !Array.isArray(raw) && typeof raw.name === 'string' && raw.name.trim().length > 0) {
+            entry = { name: raw.name.trim().slice(0, 30), toolName: String(raw.toolName || '').trim().slice(0, 60), description: String(raw.description || '').slice(0, 300) }
+          }
+          if (entry && !seen.has(entry.name)) { seen.add(entry.name); out.push(entry) }
+        }
+        return out
+      })()
     : []
 
   let videoCards = []
@@ -4671,13 +4684,22 @@ function applyPatch(cfg, patch) {
   }
   if (p.videoReset && typeof p.videoReset === 'object' && p.videoReset.cardId) { const card = (c.videoCards || []).find((card) => card.id === p.videoReset.cardId); if (card) card.config = defaultVideoConfig() }
   // v2.12.1: 自定义类型快照（添加/编辑弹窗的类型菜单持久化）
-  if (typeof p.videoCustomTypeAdd === 'string' && p.videoCustomTypeAdd.trim().length > 0) {
-    const nm = p.videoCustomTypeAdd.trim().slice(0, 30)
+  // v2.12.2: 自定义类型 upsert —— 字符串=仅登记名称（保留既有配置）；对象={name,toolName,description} 整体保存
+  if (p.videoCustomTypeAdd !== undefined && p.videoCustomTypeAdd !== null) {
     c.videoCustomTypes = c.videoCustomTypes || []
-    if (c.videoCustomTypes.indexOf(nm) < 0) c.videoCustomTypes = c.videoCustomTypes.concat([nm])
+    const isObj = typeof p.videoCustomTypeAdd === 'object' && !Array.isArray(p.videoCustomTypeAdd)
+    const nm = String(isObj ? (p.videoCustomTypeAdd.name || '') : p.videoCustomTypeAdd).trim().slice(0, 30)
+    if (nm.length > 0) {
+      const entry = isObj
+        ? { name: nm, toolName: String(p.videoCustomTypeAdd.toolName || '').trim().slice(0, 60), description: String(p.videoCustomTypeAdd.description || '').slice(0, 300) }
+        : { name: nm, toolName: '', description: '' }
+      const idx = c.videoCustomTypes.findIndex((s) => (typeof s === 'string' ? s : (s && s.name)) === nm)
+      if (idx < 0) c.videoCustomTypes = c.videoCustomTypes.concat([entry])
+      else if (isObj) c.videoCustomTypes[idx] = entry
+    }
   }
   if (typeof p.videoCustomTypeDelete === 'string' && p.videoCustomTypeDelete.trim().length > 0) {
-    c.videoCustomTypes = (c.videoCustomTypes || []).filter((s) => s !== p.videoCustomTypeDelete)
+    c.videoCustomTypes = (c.videoCustomTypes || []).filter((s) => (typeof s === 'string' ? s : (s && s.name)) !== p.videoCustomTypeDelete)
   }
   // v2.8.1: voice toggles
   if (p.voiceEnabled !== undefined) c.voiceEnabled = p.voiceEnabled === true

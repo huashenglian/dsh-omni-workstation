@@ -785,16 +785,36 @@ test('videoCardPatchToolName duplicate throws', () => {
 test('videoCustomTypeAdd/Delete persists custom type snapshot with dedupe', () => {
   let cfg = applyPatch({}, {})
   assert.deepEqual(cfg.videoCustomTypes, [])
+  // v2.12.2: string add registers a name-only entry (object shape)
   cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 1' })
-  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1'])
-  // duplicate add is a no-op
+  assert.deepEqual(cfg.videoCustomTypes, [{ name: '自定义 1', toolName: '', description: '' }])
+  // duplicate string add is a no-op (keeps existing config)
   cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 1' })
-  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1'])
+  assert.deepEqual(cfg.videoCustomTypes, [{ name: '自定义 1', toolName: '', description: '' }])
   cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 2' })
-  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1', '自定义 2'])
+  assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 1', '自定义 2'])
   // persisted through normalize (re-apply round trip)
   cfg = applyPatch(cfg, {})
-  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1', '自定义 2'])
+  assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 1', '自定义 2'])
   cfg = applyPatch(cfg, { videoCustomTypeDelete: '自定义 1' })
-  assert.deepEqual(cfg.videoCustomTypes, ['自定义 2'])
+  assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 2'])
+})
+
+test('videoCustomType object upsert saves toolName/description snapshot', () => {
+  let cfg = applyPatch({}, {})
+  // object add creates entry with config
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: { name: '自定义 1', toolName: 'generate_video_my', description: '我的定义' } })
+  assert.deepEqual(cfg.videoCustomTypes, [{ name: '自定义 1', toolName: 'generate_video_my', description: '我的定义' }])
+  // object upsert overwrites config
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: { name: '自定义 1', toolName: 'generate_video_new', description: '新定义' } })
+  assert.deepEqual(cfg.videoCustomTypes, [{ name: '自定义 1', toolName: 'generate_video_new', description: '新定义' }])
+  // string add on existing entry preserves its config
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 1' })
+  assert.deepEqual(cfg.videoCustomTypes, [{ name: '自定义 1', toolName: 'generate_video_new', description: '新定义' }])
+  // legacy string entries migrate to object shape via normalize round trip
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: { name: '自定义 2', toolName: '', description: '' } })
+  assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 1', '自定义 2'])
+  // delete by name works on object entries
+  cfg = applyPatch(cfg, { videoCustomTypeDelete: '自定义 2' })
+  assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 1'])
 })

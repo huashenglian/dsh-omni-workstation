@@ -1392,6 +1392,15 @@ voiceSovitsModel: "SoVITS model name",
 			return out;
 		}
 
+		// v2.12.2: key-order-insensitive JSON — dirty checks must not flake when
+		// the server normalizes config objects into a different key order
+		function stableJson(v) {
+			if (v === null || v === undefined || typeof v !== "object") return JSON.stringify(v === undefined ? null : v);
+			if (Array.isArray(v)) return "[" + v.map(stableJson).join(",") + "]";
+			var keys = Object.keys(v).sort();
+			return "{" + keys.map(function (k) { return JSON.stringify(k) + ":" + stableJson(v[k]); }).join(",") + "}";
+		}
+
 		var pendingPatch = null;
 		var scheduleSave = debounce(function () {
 			if (pendingPatch === null) return;
@@ -2916,8 +2925,11 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var toolNameDraft = React.useState(isEdit ? (props.editCard.toolName || "generate_video") : "generate_video");
 		var descDraft = React.useState(isEdit ? (props.editCard.description || "") : "");
 		var typeDdOpen = React.useState(false);
-		// v2.12.1: 自定义类型列表持久化于 config.videoCustomTypes（props 传入），与配置预设同语义
-		var customTypes = Array.isArray(props.customTypes) ? props.customTypes : [];
+		// v2.12.2: 自定义类型快照 = {name, toolName, description}（兼容旧字符串条目），与配置预设同语义
+		var ctList = (Array.isArray(props.customTypes) ? props.customTypes : []).map(function (c) {
+			if (typeof c === "string") return { name: c, toolName: "", description: "" };
+			return (c && typeof c === "object") ? { name: String(c.name || ""), toolName: String(c.toolName || ""), description: String(c.description || "") } : null;
+		}).filter(function (c) { return c && c.name; });
 
 		// Track initial values for edit mode (to detect changes)
 		var initialValues = React.useState(isEdit ? { name: props.editCard.name || "", type: props.editCard.type || "", toolName: props.editCard.toolName || "generate_video", description: props.editCard.description || "" } : {});
@@ -2926,7 +2938,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var atMax = (props.cards || []).length >= 10;
 		var selectedType = typeDraft[0];
 		var isBuiltin = BUILTIN_TYPES.some(function (bt) { return bt.value === selectedType; });
-		var isCustomType = customTypes.indexOf(selectedType) >= 0;
+		var isCustomType = ctList.some(function (ct) { return ct.name === selectedType; });
 		var typeExists = selectedType && existingTypes.indexOf(selectedType) >= 0;
 		var toolNameTaken = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).some(function (c) { return c.toolName === toolNameDraft[0]; });
 		var hasChanges = !isEdit || nameDraft[0] !== initialValues[0].name || typeDraft[0] !== initialValues[0].type || toolNameDraft[0] !== initialValues[0].toolName || descDraft[0] !== initialValues[0].description;
@@ -2946,24 +2958,28 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					: typeVal === "edit" ? "视频编辑：对输入视频/图片进行编辑生成新视频并保存。"
 					: typeVal === "ref" ? "参考生成：根据参考素材（图片/视频）生成视频并保存。"
 					: "生成视频：根据描述生成视频并保存。"; descDraft[1](tmpl); }
+			} else {
+				// v2.12.2: 自定义类型 —— 从快照回填已保存的工具名/定义（仅回填非空字段）
+				var ct = ctList.find(function (x) { return x.name === typeVal; });
+				if (ct) { if (ct.toolName) toolNameDraft[1](ct.toolName); if (ct.description) descDraft[1](ct.description); }
 			}
 			typeDdOpen[1](false);
 		}
 
 		function addCustomType() {
-			// v2.12.1: 无条件新建"自定义 N"入菜单（与配置预设"新预设 N"同语义），持久化并选中
+			// v2.12.2: 无条件新建「自定义 N」（空配置）入菜单（与配置预设"新预设 N"同语义），持久化并选中
 			var mx = 0;
-			customTypes.forEach(function (ct) { var m = /^自定义(?:\s(\d+))?$/.exec(ct); if (m) mx = Math.max(mx, m[1] ? Number(m[1]) : 1); });
+			ctList.forEach(function (ct) { var m = /^自定义(?:\s(\d+))?$/.exec(ct.name); if (m) mx = Math.max(mx, m[1] ? Number(m[1]) : 1); });
 			var nm = "自定义 " + (mx + 1);
-			if (props.onAddCustomType) props.onAddCustomType(nm);
+			if (props.onAddCustomType) props.onAddCustomType({ name: nm, toolName: "", description: "" });
 			typeDraft[1](nm);
 		}
 
 		function saveCustomType() {
-			// v2.12.1: 手动保存当前自定义类型（含名称）到类型快照；空/内置类型禁用
+			// v2.12.2: 把当前 类型名+工具名+定义 upsert 进类型快照（仅保存，不代表应用；确认键始终应用）
 			var nm = typeDraft[0].trim();
 			if (!nm || isBuiltin) return;
-			if (props.onAddCustomType) props.onAddCustomType(nm);
+			if (props.onAddCustomType) props.onAddCustomType({ name: nm, toolName: toolNameDraft[0].trim(), description: descDraft[0] });
 		}
 
 		function deleteCustomType(name) {
@@ -2971,7 +2987,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			if (typeDraft[0] === name) typeDraft[1]("");
 		}
 
-		var allTypes = BUILTIN_TYPES.concat(customTypes.map(function (t) { return { value: t, label: t, custom: true }; }));
+		var allTypes = BUILTIN_TYPES.concat(ctList.map(function (ct) { return { value: ct.name, label: ct.name, custom: true }; }));
 
 		var dragStartedOnOverlay = React.useState(false);
 
@@ -3043,8 +3059,9 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var presetNameDraft = React.useState(props.activePresetName || "");
 		React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
 		var vcSnapshot = React.useState("");
-		React.useEffect(function () { vcSnapshot[1](JSON.stringify({ name: props.activePresetName || "", provider: (card.config || {}).provider || "" })); }, [props.activePresetId]);
-		var vcDirty = JSON.stringify({ name: presetNameDraft[0], provider: cfg.provider || "" }) !== vcSnapshot[0];
+		// v2.12.2: dirty = 名称 + 完整配置（任何字段变更都算修改，如切换模型），键序无关
+		React.useEffect(function () { vcSnapshot[1](stableJson({ name: props.activePresetName || "", cfg: card.config || {} })); }, [props.activePresetId]);
+		var vcDirty = stableJson({ name: presetNameDraft[0], cfg: cfg || {} }) !== vcSnapshot[0];
 		var isCardEnabled = card.enabled !== false;
 			var cardCollapsed = card.collapsed === true;
 			var VIDEO_TYPE_LABELS = { general: t("videoCardTypeGeneral"), t2v: t("videoCardTypeT2v"), i2v: t("videoCardTypeI2v"), edit: t("videoCardTypeEdit"), ref: t("videoCardTypeRef") };
@@ -3151,7 +3168,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			className: "omni-btn omni-save-btn", type: "button",
 			title: t("presetSaved"),
 			disabled: !vcDirty,
-			onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); vcSnapshot[1](JSON.stringify({ name: presetNameDraft[0], provider: cfg.provider || "" })); }
+			onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); vcSnapshot[1](stableJson({ name: presetNameDraft[0], cfg: cfg || {} })); }
 		}, React.createElement(SvgFillIcon, { d: I_SAVE_FLOPPY })),
 			React.createElement("button", {
 				className: "omni-btn omni-preset-new-btn", type: "button",
@@ -5698,8 +5715,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							});
 						})
 					]),
-					vcAddModalOpen[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, customTypes: draft[0].videoCustomTypes || [], onAddCustomType: function (nm) { commitStructure({ videoCustomTypeAdd: nm }, function (d) { if ((d.videoCustomTypes || []).indexOf(nm) < 0) d.videoCustomTypes = (d.videoCustomTypes || []).concat([nm]); return d; }, null); }, onDeleteCustomType: function (nm) { commitStructure({ videoCustomTypeDelete: nm }, function (d) { d.videoCustomTypes = (d.videoCustomTypes || []).filter(function (s) { return s !== nm; }); return d; }, null); }, onCancel: function () { vcAddModalOpen[1](false); }, onConfirm: function (data) { vcAddModalOpen[1](false); commitStructure({ videoCardAdd: data }, null, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
-					vcEditCard[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, editCard: vcEditCard[0], customTypes: draft[0].videoCustomTypes || [], onAddCustomType: function (nm) { commitStructure({ videoCustomTypeAdd: nm }, function (d) { if ((d.videoCustomTypes || []).indexOf(nm) < 0) d.videoCustomTypes = (d.videoCustomTypes || []).concat([nm]); return d; }, null); }, onDeleteCustomType: function (nm) { commitStructure({ videoCustomTypeDelete: nm }, function (d) { d.videoCustomTypes = (d.videoCustomTypes || []).filter(function (s) { return s !== nm; }); return d; }, null); }, onCancel: function () { vcEditCard[1](null); }, onConfirm: function (data) { var cid = vcEditCard[0].id; vcEditCard[1](null); commitStructure({ videoCardPatch: { id: cid, field: "name", value: data.name }, videoCardPatchName: data.name, videoCardPatchType: data.type, videoCardPatchToolName: data.toolName, videoCardPatchDesc: data.description }, function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cid; }); if (card) { card.name = data.name; card.type = data.type; card.toolName = data.toolName; card.description = data.description; } return d; }, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
+					vcAddModalOpen[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, customTypes: draft[0].videoCustomTypes || [], onAddCustomType: function (entry) { commitStructure({ videoCustomTypeAdd: entry }, function (d) { var arr = (d.videoCustomTypes || []).map(function (s) { return (typeof s === "string") ? { name: s, toolName: "", description: "" } : s; }); var nm = (typeof entry === "object") ? entry.name : entry; var i = -1; for (var k = 0; k < arr.length; k++) if (arr[k].name === nm) { i = k; break; } var ent = (typeof entry === "object") ? { name: entry.name, toolName: entry.toolName || "", description: entry.description || "" } : { name: nm, toolName: "", description: "" }; if (i >= 0) { if (typeof entry === "object") arr[i] = ent; } else { arr = arr.concat([ent]); } d.videoCustomTypes = arr; return d; }, null); }, onDeleteCustomType: function (nm) { commitStructure({ videoCustomTypeDelete: nm }, function (d) { d.videoCustomTypes = (d.videoCustomTypes || []).filter(function (s) { return s !== nm; }); return d; }, null); }, onCancel: function () { vcAddModalOpen[1](false); }, onConfirm: function (data) { vcAddModalOpen[1](false); commitStructure({ videoCardAdd: data }, null, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
+					vcEditCard[0] ? React.createElement(AddVideoCardModal, { t: t, cards: videoCards, editCard: vcEditCard[0], customTypes: draft[0].videoCustomTypes || [], onAddCustomType: function (entry) { commitStructure({ videoCustomTypeAdd: entry }, function (d) { var arr = (d.videoCustomTypes || []).map(function (s) { return (typeof s === "string") ? { name: s, toolName: "", description: "" } : s; }); var nm = (typeof entry === "object") ? entry.name : entry; var i = -1; for (var k = 0; k < arr.length; k++) if (arr[k].name === nm) { i = k; break; } var ent = (typeof entry === "object") ? { name: entry.name, toolName: entry.toolName || "", description: entry.description || "" } : { name: nm, toolName: "", description: "" }; if (i >= 0) { if (typeof entry === "object") arr[i] = ent; } else { arr = arr.concat([ent]); } d.videoCustomTypes = arr; return d; }, null); }, onDeleteCustomType: function (nm) { commitStructure({ videoCustomTypeDelete: nm }, function (d) { d.videoCustomTypes = (d.videoCustomTypes || []).filter(function (s) { return s !== nm; }); return d; }, null); }, onCancel: function () { vcEditCard[1](null); }, onConfirm: function (data) { var cid = vcEditCard[0].id; vcEditCard[1](null); commitStructure({ videoCardPatch: { id: cid, field: "name", value: data.name }, videoCardPatchName: data.name, videoCardPatchType: data.type, videoCardPatchToolName: data.toolName, videoCardPatchDesc: data.description }, function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cid; }); if (card) { card.name = data.name; card.type = data.type; card.toolName = data.toolName; card.description = data.description; } return d; }, function () { showToast('success', t('cardAdded'), ''); }); } }) : null,
 					null
 				]);
 
