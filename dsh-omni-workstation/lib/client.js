@@ -2930,14 +2930,15 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var typeExists = selectedType && existingTypes.indexOf(selectedType) >= 0;
 		var toolNameTaken = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).some(function (c) { return c.toolName === toolNameDraft[0]; });
 		var hasChanges = !isEdit || nameDraft[0] !== initialValues[0].name || typeDraft[0] !== initialValues[0].type || toolNameDraft[0] !== initialValues[0].toolName || descDraft[0] !== initialValues[0].description;
-		var canConfirm = !atMax && nameDraft[0].trim().length > 0 && selectedType.trim().length > 0 && !typeExists && !toolNameTaken && (isEdit ? hasChanges : true);
+		// 硬性要求：仅模型名称 / 工具名称 必填；模型类型 / 模型定义均可留空（后端回落 general / 空描述）
+		var canConfirm = !atMax && nameDraft[0].trim().length > 0 && toolNameDraft[0].trim().length > 0 && !typeExists && !toolNameTaken && (isEdit ? hasChanges : true);
 
 		function onSelectType(typeVal) {
 			typeDraft[1](typeVal);
 			var bt = BUILTIN_TYPES.find(function (b) { return b.value === typeVal; });
 			if (bt) {
 				// Built-in type: auto-fill tool name + description, set fields to read-only (disabled)
-				if (typeVal === "general") { toolNameDraft[1]("generate_video"); descDraft[1](""); }
+				if (typeVal === "general") { toolNameDraft[1]("generate_video"); descDraft[1]("生成视频：根据描述生成视频并保存。"); }
 				else { toolNameDraft[1]("generate_video_" + typeVal); var tmpl = typeVal === "t2v" ? "文生视频：根据文字描述生成视频并保存。仅接受文字提示词，不支持图片输入。"
 					: typeVal === "i2v" ? "图生视频：根据输入图片和文字描述生成视频并保存。需要图片输入。"
 					: typeVal === "edit" ? "视频编辑：对输入视频/图片进行编辑生成新视频并保存。"
@@ -2991,14 +2992,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				]),
 				React.createElement("div", { className: "omni-card-modal-field" }, [
 					React.createElement("label", null, t("videoCardModelDef")),
-					React.createElement("textarea", { className: "omni-input", rows: 3, value: descDraft[0], readOnly: isBuiltin, onChange: function (e) { descDraft[1](e.target.value); } })
+					React.createElement("textarea", { className: "omni-input", rows: 3, value: descDraft[0], readOnly: isBuiltin && !isEdit, onChange: function (e) { descDraft[1](e.target.value); } })
 				]),
 				atMax ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardMaxCards")) : null,
 				typeExists ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardTypeExists")) : null,
 				toolNameTaken ? React.createElement("p", { className: "omni-msg omni-menu-danger" }, t("videoCardToolNameTaken")) : null,
 				React.createElement("div", { className: "omni-confirm-btns" }, [
 					React.createElement("button", { className: "omni-btn", onClick: props.onCancel }, t("videoCardCancel")),
-					React.createElement("button", { className: "omni-btn omni-confirm-danger", disabled: !canConfirm, onClick: function () { props.onConfirm({ name: nameDraft[0].trim(), type: typeDraft[0], toolName: toolNameDraft[0], description: descDraft[0] }); } }, t("videoCardConfirm"))
+					React.createElement("button", { className: "omni-btn omni-confirm-danger", disabled: !canConfirm, onClick: function () { props.onConfirm({ name: nameDraft[0].trim(), type: typeDraft[0].trim(), toolName: toolNameDraft[0].trim(), description: descDraft[0].trim() }); } }, t("videoCardConfirm"))
 				])
 			])
 		]);
