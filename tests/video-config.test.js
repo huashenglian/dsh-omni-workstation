@@ -497,68 +497,107 @@ test('VIDEO_PROTOCOLS / VIDEO_PROVIDERS integrity', () => {
 
 // ---- video cards + presets (v2.11) ----
 
-test('video card: default preset auto-created and runtime config follows active preset', () => {
+test('video card: default preset auto-created (shared pool) and runtime config follows active preset', () => {
   let cfg = applyPatch({}, {})
   assert.ok(Array.isArray(cfg.videoCards))
   assert.equal(cfg.videoCards.length, 1)
   const card = cfg.videoCards[0]
   const cid = card.id
-  assert.ok(Array.isArray(card.presets))
-  assert.equal(card.presets.length, 1)
-  assert.equal(card.presets[0].name, '默认')
-  assert.equal(card.activePreset, card.presets[0].id)
+  assert.ok(Array.isArray(cfg.videoPresets))
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoPresets[0].name, '默认')
+  assert.equal(card.activePreset, cfg.videoPresets[0].id)
   // Runtime config = active preset config
-  assert.equal(card.config.provider, card.presets[0].config.provider)
+  assert.equal(card.config.provider, cfg.videoPresets[0].config.provider)
 
   // Patch config + save to preset → both update
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
   assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
-  assert.equal(cfg.videoCards[0].presets[0].config.provider, 'agnes-cn')
+  assert.equal(cfg.videoPresets[0].config.provider, 'agnes-cn')
 })
 
 test('video card: videoCardPatch does NOT sync config to preset (manual-save)', () => {
   let cfg = applyPatch({}, {})
   const cid = cfg.videoCards[0].id
-  const presetModel = cfg.videoCards[0].presets[0].config.model
+  const presetModel = cfg.videoPresets[0].config.model
 
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' } })
   // Config IS updated (runtime config is source of truth — v2.11 fix)
   assert.equal(cfg.videoCards[0].config.model, 'agnes-video-v2.0')
   // Preset is NOT synced (manual-save only)
-  assert.equal(cfg.videoCards[0].presets[0].config.model, presetModel) // preset unchanged
+  assert.equal(cfg.videoPresets[0].config.model, presetModel) // preset unchanged
 })
 
-test('video card: preset add / switch / rename / delete', () => {
+test('video card: preset add / switch / rename / delete (shared pool)', () => {
   let cfg = applyPatch({}, {})
   const cid = cfg.videoCards[0].id
-  const p0 = cfg.videoCards[0].presets[0].id
+  const p0 = cfg.videoPresets[0].id
 
-  // add preset
+  // add preset (shared pool grows)
   cfg = applyPatch(cfg, { videoCardPresetAdd: { cardId: cid } })
-  assert.equal(cfg.videoCards[0].presets.length, 2)
-  assert.equal(cfg.videoCards[0].presets[1].name, '新预设 1')
-  assert.equal(cfg.videoCards[0].activePreset, cfg.videoCards[0].presets[1].id)
+  assert.equal(cfg.videoPresets.length, 2)
+  assert.equal(cfg.videoPresets[1].name, '新预设 1')
+  assert.equal(cfg.videoCards[0].activePreset, cfg.videoPresets[1].id)
   assert.equal(cfg.videoCards[0].config.provider, 'custom') // 新预设默认配置
 
   // switch back to first
   cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: cid, presetId: p0 } })
   assert.equal(cfg.videoCards[0].activePreset, p0)
-  assert.equal(cfg.videoCards[0].config.provider, cfg.videoCards[0].presets[0].config.provider)
+  assert.equal(cfg.videoCards[0].config.provider, cfg.videoPresets[0].config.provider)
 
   // rename active
   cfg = applyPatch(cfg, { videoCardPresetRename: { cardId: cid, name: 'Agnes 生产' } })
-  assert.equal(cfg.videoCards[0].presets.find((p) => p.id === p0).name, 'Agnes 生产')
+  assert.equal(cfg.videoPresets.find((p) => p.id === p0).name, 'Agnes 生产')
 
   // delete the second preset (not active)
-  const p1 = cfg.videoCards[0].presets.find((p) => p.id !== p0).id
+  const p1 = cfg.videoPresets.find((p) => p.id !== p0).id
   cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cid, presetId: p1 } })
-  assert.equal(cfg.videoCards[0].presets.length, 1)
+  assert.equal(cfg.videoPresets.length, 1)
   assert.equal(cfg.videoCards[0].activePreset, p0)
 
   // delete the last one -> auto-recreate 默认
   cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cid, presetId: p0 } })
-  assert.equal(cfg.videoCards[0].presets.length, 1)
-  assert.equal(cfg.videoCards[0].presets[0].name, '默认')
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoPresets[0].name, '默认')
+})
+
+test('video presets shared across cards: card A save visible to card B', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardAdd: { name: 'Card B', type: 'general', toolName: 'generate_video_b', description: '' } })
+  const cidA = cfg.videoCards[0].id
+  const cidB = cfg.videoCards[1].id
+  // shared pool starts at 1
+  assert.equal(cfg.videoPresets.length, 1)
+  // card A adds a preset to the shared pool → card B sees it
+  cfg = applyPatch(cfg, { videoCardPresetAdd: { cardId: cidA } })
+  assert.equal(cfg.videoPresets.length, 2)
+  const newPid = cfg.videoPresets[1].id
+  // card B switches to the preset created by card A
+  cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: cidB, presetId: newPid } })
+  assert.equal(cfg.videoCards[1].activePreset, newPid)
+  // card A saves config into that shared preset
+  cfg = applyPatch(cfg, { videoCardPatch: { id: cidA, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cidA } })
+  assert.equal(cfg.videoPresets[1].config.provider, 'agnes-cn')
+  // card B switching to that preset reflects card A's saved snapshot
+  cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: cidB, presetId: newPid } })
+  assert.equal(cfg.videoCards[1].config.provider, 'agnes-cn')
+})
+
+test('delete shared preset repairs activePreset of every card', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardAdd: { name: 'B', type: 'general', toolName: 'generate_video_b' } })
+  const cidA = cfg.videoCards[0].id
+  const cidB = cfg.videoCards[1].id
+  cfg = applyPatch(cfg, { videoCardPresetAdd: { cardId: cidA } })
+  const p1 = cfg.videoPresets[1].id
+  // B activates the preset that A created
+  cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: cidB, presetId: p1 } })
+  assert.equal(cfg.videoCards[1].activePreset, p1)
+  // A deletes p1 (shared) → both cards repaired to the remaining default
+  cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: cidA, presetId: p1 } })
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoCards[0].activePreset, cfg.videoPresets[0].id)
+  assert.equal(cfg.videoCards[1].activePreset, cfg.videoPresets[0].id)
 })
 
 // ---- v2.8.x: video model list filter + tool description defaults ----
@@ -610,13 +649,13 @@ test('normalizeConfig fresh install: empty → one default 通用 card', () => {
   assert.equal(card.type, 'general')
   assert.equal(card.toolName, 'generate_video')
   assert.equal(card.enabled, true)
-  assert.ok(Array.isArray(card.presets))
-  assert.equal(card.presets.length, 1)
-  assert.equal(card.presets[0].name, '默认')
-  assert.equal(card.activePreset, card.presets[0].id)
+  assert.ok(Array.isArray(cfg.videoPresets))
+  assert.equal(cfg.videoPresets.length, 1)
+  assert.equal(cfg.videoPresets[0].name, '默认')
+  assert.equal(card.activePreset, cfg.videoPresets[0].id)
 })
 
-test('normalizeConfig migration: legacy videoPresets → videoCards[0].presets', () => {
+test('normalizeConfig migration: legacy videoPresets → shared videoPresets pool', () => {
   const legacy = {
     videoConfig: { provider: 'agnes-cn', apiKey: 'sk', model: 'agnes-video-v2.0' },
     videoPresets: [
@@ -628,8 +667,8 @@ test('normalizeConfig migration: legacy videoPresets → videoCards[0].presets',
   const cfg = applyPatch(legacy, {})
   assert.ok(Array.isArray(cfg.videoCards))
   assert.equal(cfg.videoCards.length, 1)
-  assert.equal(cfg.videoCards[0].presets.length, 2)
-  assert.equal(cfg.videoCards[0].presets[0].name, 'Agnes')
+  assert.equal(cfg.videoPresets.length, 2)
+  assert.equal(cfg.videoPresets[0].name, 'Agnes')
   assert.equal(cfg.videoCards[0].activePreset, 'p1')
   assert.equal(cfg.videoCards[0].config.provider, 'agnes-cn')
 })
@@ -651,9 +690,9 @@ test('masked(): videoCards have masked config + masked presets', () => {
   const maskedConfig = maskedVideo(card.config)
   assert.equal(maskedConfig.apiKey, undefined)
   assert.equal(maskedConfig.apiKeySet, true)
-  // Masked presets
-  assert.ok(Array.isArray(card.presets))
-  const maskedPreset = maskedVideo(card.presets[0].config)
+  // Masked shared presets
+  assert.ok(Array.isArray(cfg.videoPresets))
+  const maskedPreset = maskedVideo(cfg.videoPresets[0].config)
   assert.equal(maskedPreset.apiKey, undefined)
   assert.equal(maskedPreset.apiKeySet, true)
 })
@@ -703,7 +742,7 @@ test('applyPatch saveVideoCardPreset copies config → preset', () => {
   const cid = cfg.videoCards[0].id
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'agnes-video-v2.0' }, saveVideoCardPreset: { cardId: cid } })
   assert.equal(cfg.videoCards[0].config.model, 'agnes-video-v2.0')
-  assert.equal(cfg.videoCards[0].presets[0].config.model, 'agnes-video-v2.0')
+  assert.equal(cfg.videoPresets[0].config.model, 'agnes-video-v2.0')
 })
 
 test('buildVideoToolDef(vc, toolName, desc, cardType) closure-captures vc defaults', () => {
