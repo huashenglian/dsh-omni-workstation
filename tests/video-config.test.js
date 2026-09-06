@@ -754,3 +754,47 @@ test('buildVideoToolDef(vc, toolName, desc, cardType) closure-captures vc defaul
   assert.ok(def.description.includes('my-model'))
   assert.ok(def.description.includes('以用户要求为最高优先级'))
 })
+
+// ---- v2.12.1: empty type + edit-modal full-card patch + custom type snapshot ----
+
+test('videoCardAdd without type stores empty type (no general fallback)', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardAdd: { name: 'No Type Card', toolName: 'generate_video_nt', description: '' } })
+  const card = cfg.videoCards[1]
+  assert.equal(card.type, '')
+  assert.equal(card.toolName, 'generate_video_nt')
+  // edit-modal patch keeps empty type empty
+  cfg = applyPatch(cfg, { videoCardPatch: { id: card.id, field: 'name', value: card.name }, videoCardPatchName: card.name, videoCardPatchType: '', videoCardPatchToolName: 'generate_video_nt2', videoCardPatchDesc: 'updated desc' })
+  assert.equal(cfg.videoCards[1].type, '')
+  assert.equal(cfg.videoCards[1].toolName, 'generate_video_nt2')
+  assert.equal(cfg.videoCards[1].description, 'updated desc')
+  // patching type to a real value works too
+  cfg = applyPatch(cfg, { videoCardPatch: { id: card.id, field: 'name', value: card.name }, videoCardPatchType: 't2v' })
+  assert.equal(cfg.videoCards[1].type, 't2v')
+})
+
+test('videoCardPatchToolName duplicate throws', () => {
+  let cfg = applyPatch({}, {})
+  cfg = applyPatch(cfg, { videoCardAdd: { name: 'B', type: '', toolName: 'generate_video_b' } })
+  const cidA = cfg.videoCards[0].id
+  assert.throws(function () {
+    applyPatch(cfg, { videoCardPatch: { id: cidA, field: 'name', value: cfg.videoCards[0].name }, videoCardPatchToolName: 'generate_video_b' })
+  }, /工具名称已存在/)
+})
+
+test('videoCustomTypeAdd/Delete persists custom type snapshot with dedupe', () => {
+  let cfg = applyPatch({}, {})
+  assert.deepEqual(cfg.videoCustomTypes, [])
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 1' })
+  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1'])
+  // duplicate add is a no-op
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 1' })
+  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1'])
+  cfg = applyPatch(cfg, { videoCustomTypeAdd: '自定义 2' })
+  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1', '自定义 2'])
+  // persisted through normalize (re-apply round trip)
+  cfg = applyPatch(cfg, {})
+  assert.deepEqual(cfg.videoCustomTypes, ['自定义 1', '自定义 2'])
+  cfg = applyPatch(cfg, { videoCustomTypeDelete: '自定义 1' })
+  assert.deepEqual(cfg.videoCustomTypes, ['自定义 2'])
+})
