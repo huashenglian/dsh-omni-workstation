@@ -364,6 +364,7 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoCardToolName: "工具名称",
 			videoCardModelDef: "模型定义",
 			videoCardTypeGeneral: "通用",
+			videoCardTypeCustom: "自定义",
 			videoCardTypeT2v: "文生视频",
 			videoCardTypeI2v: "图生视频",
 			videoCardTypeEdit: "视频编辑",
@@ -417,6 +418,7 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoCardToolName: "工具名称",
 			videoCardModelDef: "模型定义",
 			videoCardTypeGeneral: "通用",
+			videoCardTypeCustom: "自定义",
 			videoCardTypeT2v: "文生视频",
 			videoCardTypeI2v: "图生视频",
 			videoCardTypeEdit: "视频编辑",
@@ -831,6 +833,7 @@ voiceSovitsModel: "SoVITS model name",
 			videoCardToolName: "Tool Name",
 			videoCardModelDef: "Model Definition",
 			videoCardTypeGeneral: "General",
+			videoCardTypeCustom: "Custom",
 			videoCardTypeT2v: "Text-to-Video",
 			videoCardTypeI2v: "Image-to-Video",
 			videoCardTypeEdit: "Video Edit",
@@ -883,6 +886,7 @@ voiceSovitsModel: "SoVITS model name",
 			videoCardToolName: "Tool Name",
 			videoCardModelDef: "Model Definition",
 			videoCardTypeGeneral: "General",
+			videoCardTypeCustom: "Custom",
 			videoCardTypeT2v: "Text-to-Video",
 			videoCardTypeI2v: "Image-to-Video",
 			videoCardTypeEdit: "Video Edit",
@@ -1068,7 +1072,9 @@ voiceSovitsModel: "SoVITS model name",
 ".omni-card-modal { position: relative; width: 90vw; max-width: 500px; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }",
 ".omni-card-modal-field { display: flex; flex-direction: column; gap: 4px; }",
 ".omni-card-modal-field label { font-size: 12px; font-weight: 500; opacity: 0.7; }",
-".omni-save-btn { flex: 0 0 auto; padding: 4px 12px; font-size: 12px; }",
+".omni-save-btn { flex: 0 0 auto; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; background: transparent; color: var(--dsh-fg, #eee); cursor: pointer; border-radius: 5px; }",
+	".omni-save-btn:hover { background: rgba(128,128,128,0.2); }",
+	".omni-save-btn:disabled { opacity: 0.35; cursor: not-allowed; }",
 			".omni-tool-desc { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
 			".omni-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; }",
 			".omni-switch input { opacity: 0; width: 0; height: 0; }",
@@ -1449,6 +1455,7 @@ voiceSovitsModel: "SoVITS model name",
 		var I_PIN_BOTTOM = ["M8 3v10", "M4 9l4 4 4-4"];
 		var I_TRASH = ["M3 4h10", "M6 4V3h4v1", "M5 4l.5 9.5h5L11 4", "M8 6.5v3.5", "M6 6.5v3"];
 	var I_EDIT = ["M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z", "M10 4l2 2"];
+	var I_SAVE = ["M5 8.5L7 10.5L11.5 5.5"];
 	var I_TOAST_INFO = ["M8 2a6 6 0 100 12A6 6 0 008 2zm0 3a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6a.75.75 0 100 1.5.75.75 0 000-1.5z"];
 	var I_HELP = ["M8 2a6 6 0 100 12A6 6 0 008 2z", "M6.1 6.2a1.9 1.9 0 113.1 1.5c-.7.5-.9.8-1 1.3", "M8 11.4v.1"];
 	var I_TOAST_SUCCESS = ["M8 2a6 6 0 100 12A6 6 0 008 2zm3 4.5L7 10.5 5 8.5"];
@@ -2403,12 +2410,12 @@ voiceSovitsModel: "SoVITS model name",
 					})
 				) : null
 			]),
-			React.createElement("button", {
-				className: "omni-btn omni-save-btn", type: "button",
-				title: t("presetSaved"),
-				disabled: props.presetSaved === true,
-				onClick: props.onSavePreset
-			}, t("presetSaved")),
+		React.createElement("button", {
+			className: "omni-btn omni-save-btn", type: "button",
+			title: t("presetSaved"),
+			disabled: props.presetSaved === true,
+			onClick: props.onSavePreset
+		}, React.createElement(SvgIcon, { d: I_SAVE })),
 			React.createElement("button", {
 				className: "omni-btn omni-preset-new-btn", type: "button",
 				title: t("presetNew"),
@@ -2901,23 +2908,24 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		];
 		var isEdit = !!props.editCard;
 		var nameDraft = React.useState(isEdit ? (props.editCard.name || "") : "");
-		var typeDraft = React.useState(isEdit ? (props.editCard.type || "general") : "general");
+		var typeDraft = React.useState(isEdit ? (props.editCard.type || "") : "");
 		var toolNameDraft = React.useState(isEdit ? (props.editCard.toolName || "generate_video") : "generate_video");
 		var descDraft = React.useState(isEdit ? (props.editCard.description || "") : "");
 		var typeDdOpen = React.useState(false);
 		var customTypes = React.useState([]);
 
 		// Track initial values for edit mode (to detect changes)
-		var initialValues = React.useState(isEdit ? { name: props.editCard.name || "", type: props.editCard.type || "general", toolName: props.editCard.toolName || "generate_video", description: props.editCard.description || "" } : {});
+		var initialValues = React.useState(isEdit ? { name: props.editCard.name || "", type: props.editCard.type || "", toolName: props.editCard.toolName || "generate_video", description: props.editCard.description || "" } : {});
 
 		var existingTypes = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).map(function (c) { return c.type; });
 		var atMax = (props.cards || []).length >= 10;
 		var selectedType = typeDraft[0];
 		var isBuiltin = BUILTIN_TYPES.some(function (bt) { return bt.value === selectedType; });
-		var typeExists = existingTypes.indexOf(selectedType) >= 0;
+		var isCustomType = customTypes[0].indexOf(selectedType) >= 0;
+		var typeExists = selectedType && existingTypes.indexOf(selectedType) >= 0;
 		var toolNameTaken = (props.cards || []).filter(function (c) { return !isEdit || c.id !== props.editCard.id; }).some(function (c) { return c.toolName === toolNameDraft[0]; });
 		var hasChanges = !isEdit || nameDraft[0] !== initialValues[0].name || typeDraft[0] !== initialValues[0].type || toolNameDraft[0] !== initialValues[0].toolName || descDraft[0] !== initialValues[0].description;
-		var canConfirm = !atMax && nameDraft[0].trim().length > 0 && !typeExists && !toolNameTaken && (isEdit ? hasChanges : true);
+		var canConfirm = !atMax && nameDraft[0].trim().length > 0 && selectedType.trim().length > 0 && !typeExists && !toolNameTaken && (isEdit ? hasChanges : true);
 
 		function onSelectType(typeVal) {
 			typeDraft[1](typeVal);
@@ -2938,7 +2946,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var name = typeDraft[0].trim();
 			if (!name || BUILTIN_TYPES.some(function (bt) { return bt.value === name; }) || customTypes[0].indexOf(name) >= 0) return;
 			customTypes[1](customTypes[0].concat([name]));
-			// Don't auto-fill toolName/desc for custom types — user can edit
+			// Select the newly added custom type (already current value, just close menu)
 			typeDdOpen[1](false);
 		}
 
@@ -2949,7 +2957,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var allTypes = BUILTIN_TYPES.concat(customTypes[0].map(function (t) { return { value: t, label: t, custom: true }; }));
 
 		return React.createElement("div", { className: "omni-confirm-overlay", onClick: props.onCancel }, [
-			React.createElement("div", { className: "omni-card-modal", onClick: function (e) { e.stopPropagation(); } }, [
+		React.createElement("div", { className: "omni-card-modal", onClick: function (e) { e.stopPropagation(); if (typeDdOpen[0]) typeDdOpen[1](false); } }, [
 				React.createElement("span", { className: "omni-confirm-title" }, isEdit ? t("videoCardEditTitle") : t("videoCardModalTitle")),
 				React.createElement("div", { className: "omni-card-modal-field" }, [
 					React.createElement("label", null, t("videoCardModelName")),
@@ -2959,7 +2967,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement("label", null, t("videoCardModelType")),
 					React.createElement("div", { className: "omni-preset-bar", style: { marginBottom: 0 } }, [
 						React.createElement("div", { className: "omni-preset-input-wrap" }, [
-							React.createElement("input", { className: "omni-input omni-preset-name-input", type: "text", value: typeDraft[0], placeholder: t("videoCardTypeGeneral"), onChange: function (e) { typeDraft[1](e.target.value); } }),
+							React.createElement("input", { className: "omni-input omni-preset-name-input", type: "text", value: typeDraft[0], placeholder: t("videoCardTypeCustom"), onChange: function (e) { typeDraft[1](e.target.value); } }),
 							React.createElement("button", { className: "omni-preset-dd-btn", type: "button", onClick: function () { typeDdOpen[1](!typeDdOpen[0]); } }, React.createElement(SvgIcon, { d: typeDdOpen[0] ? I_COLLAPSE : I_EXPAND })),
 							typeDdOpen[0] ? React.createElement("div", { className: "omni-preset-menu", ref: menuDdRef }, allTypes.map(function (tp) {
 								var used = existingTypes.indexOf(tp.value) >= 0;
@@ -3112,11 +3120,11 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						})
 					) : null
 				]),
-				React.createElement("button", {
-					className: "omni-btn omni-save-btn", type: "button",
-					title: t("presetSaved"),
-					onClick: props.onSavePreset
-				}, t("presetSaved")),
+			React.createElement("button", {
+				className: "omni-btn omni-save-btn", type: "button",
+				title: t("presetSaved"),
+				onClick: props.onSavePreset
+			}, React.createElement(SvgIcon, { d: I_SAVE })),
 				React.createElement("button", {
 					className: "omni-btn omni-preset-new-btn", type: "button",
 					title: t("presetNew"),
@@ -3759,12 +3767,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							})
 						) : null
 					]),
-				React.createElement("button", {
-					className: "omni-btn omni-save-btn", type: "button",
-					title: t("presetSaved"),
-					disabled: props.voicePresetSaved === true,
-					onClick: function () { props.onSavePreset(activeSubtab[0]); }
-				}, t("presetSaved")),
+			React.createElement("button", {
+				className: "omni-btn omni-save-btn", type: "button",
+				title: t("presetSaved"),
+				disabled: props.voicePresetSaved === true,
+				onClick: function () { props.onSavePreset(activeSubtab[0]); }
+			}, React.createElement(SvgIcon, { d: I_SAVE })),
 					React.createElement("button", {
 						className: "omni-btn omni-preset-new-btn", type: "button",
 						title: t("presetNew"),
