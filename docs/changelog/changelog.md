@@ -2,6 +2,24 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.11 — 视频多卡片面板 + 手动保存预设 + 删除全部模态框
+
+- **视频面板重构为多卡片列表**（对标 VLM 面板）：`videoCards[]` 数组替代旧 `videoConfig`/`videoPresets`/`activeVideoPreset`。每张卡片 = `{id, name, type, toolName, description, enabled, collapsed, config, presets[], activePreset}`。卡片头 = [类型标签] + [卡片名] + [...菜单] + [启用开关] + [折叠按钮]（无拖动块）。卡片"..."菜单 = [删除(二次确认)] + [重置配置(二次确认)]。批量菜单 = [收纳全部] + [展开全部] + [删除全部(模态框)]。
+
+- **每卡片独立工具注册**：`buildVideoToolDef(vc, toolName, desc, cardType)` 闭包捕获 vc（不再 loadConfig 重读）；`videoDisposers[]` 数组 + `videoCardSigMap{}` per-card 签名（sig = `card.id + toolName + description + enabled + JSON.stringify(config)`，覆盖全部配置字段）。`syncToolRegistration` 循环 `videoCards`，每卡独立检查 `cfg.videoEnabled === true && card.enabled !== false && isVideoConfigValid(card.config)`，try/catch per card 注册。5 个内置类型（通用/文生视频/图生视频/视频编辑/参考生成）+ 自定义类型，每类型限一张卡片，最多 10 张。
+
+- **AddVideoCardModal 模态窗口**：模型名称 + 模型类型（组合框：5 内置 + 自定义，已存在类型灰显）+ 工具名称（通用只读，其他可编辑自动建议 `generate_video_<type>`）+ 模型定义（通用只读动态生成，其他可编辑模板）+ 取消/确定。自定义类型可添加/删除（内置不可删改）。
+
+- **手动保存预设（3 模块统一）**：imggen + video(每卡片) + voice(TTS+STT) 预设栏均新增"保存"按钮（"+"左侧）。移除三处自动同步镜像（imggen L4762-4766、voice L4637-4641、video 旧 L4532-4536）。`normalizeConfig` 改为 `src.imggenConfig`/`src.voiceConfig`/`src.voiceConfigStt` 作为运行时真值源（不再从活跃预设派生）。新增 `saveImggenPreset`/`saveVoicePreset(subtab)`/`saveVideoCardPreset(cardId)` applyPatch 操作。"保存" = 将当前运行时配置覆写到活跃预设快照。
+
+- **删除全部模态框**：共享 `ConfirmDialog` 组件（复用 `omni-confirm-modal` CSS），替代 VLM + video 的二次确认状态。VLM `confirmDelAll` 状态移除，改为模态框。
+
+- **路由扩展**：`/omni/config` GET+POST 返回 `videoTools[]` 数组 + `videoVisible` 从 videoCards 重算；`/omni/models` + `/omni/key` 接受 `cardId` 参数（缺失时回退首个有效卡片）。
+
+- **normalizeConfig 关键修复**：卡片 `config` 从 `normalizeVideoConfig(c.config)` 派生（卡片自身配置 = 运行时真值源），**不**从 `activePresetObj.config` 派生（那会导致 videoCardPatch 修改被静默回滚）。默认卡片创建时 preset config 使用 `JSON.parse(JSON.stringify(dc))` 深拷贝（防止共享引用破坏手动保存模型）。
+
+- **验证**：253/253 单元测试通过（+13 新测试：迁移、fresh install、masked()、CRUD、手动保存、闭包捕获、provider 级联、card-level vs config-level 路由、normalizeConfig 运行时保留）；8/8 E2E API 测试通过（添加卡片→工具注册、配置填充→visible、禁用→invisible、启用→re-visible、模块开关 OFF→全 invisible、ON→re-visible、saveVideoCardPreset、toolName 唯一性）；Playwright 快照验证 UI 结构（类型标签+卡片名+菜单+开关+折叠+预设栏+保存按钮+配置字段）。
+
 ## v2.10.1 — Agnes VLM 协议修正 + 工件子目录约定 + 工具描述澄清
 
 - **Agnes/agnes-cn VLM 协议修正**：`PROVIDERS['agnes']` 和 `PROVIDERS['agnes-cn']` 的 `protocol` 由 `anthropic-messages` 改为 `openai-completions`（Agnes 实为 OpenAI 兼容 API，**不支持** Anthropic messages），端点补 `/v1` 后缀（agnes→`https://apihub.agnes-ai.com/v1`、agnes-cn→`https://api.agnes-ai.cn/v1`）。旧错配导致 VLM 调用失败、全部落到 fallback 模型（attempts>1）；修正后 E2E 验证 model=agnes-2.5-flash、card=VLM API 单卡一次成功（attempts=1）。
