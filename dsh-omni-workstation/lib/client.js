@@ -4913,7 +4913,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			function switchVideoCardPreset(cardId, presetId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetSwitch: { cardId: cardId, presetId: presetId } }, null, function () { showToast('success', t('presetSwitched'), ''); }); }
 			function addVideoCardPreset(cardId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetAdd: { cardId: cardId } }, null, function () { showToast('success', t('presetAdded'), ''); }); }
 			function deleteVideoCardPreset(cardId, presetId) { vcPresetDeleteConfirm[1](null); commitStructure({ videoCardPresetDelete: { cardId: cardId, presetId: presetId } }, null, function () { showToast('success', t('presetDeleted'), ''); }); }
-			function renameVideoCardPreset(cardId, name) { queueSave({ videoCardPresetRename: { cardId: cardId, name: name } }); updateDraft(function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cardId; }); if (card) { var ap = (card.presets || []).find(function (p) { return p.id === card.activePreset; }); if (ap) ap.name = String(name).slice(0, 60); } return d; }); }
+			function renameVideoCardPreset(cardId, name) { queueSave({ videoCardPresetRename: { cardId: cardId, name: name } }); updateDraft(function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cardId; }); if (card) { d.videoPresets = (d.videoPresets || []).map(function (p) { if (p.id === card.activePreset) return Object.assign({}, p, { name: String(name).slice(0, 60) }); return p; }); } return d; }); }
 			function toggleVideoCardPresetDd(cardId) { var cur = !!vcPresetDdOpen[0][cardId]; vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: !cur })); }
 			function batchVideoCollapse(all) { vcBatchOpen[1](false); commitStructure({ videoCards: (draft[0].videoCards || []).map(function (c) { return Object.assign({}, c, { collapsed: all }); }) }, function (d) { d.videoCards = (d.videoCards || []).map(function (c) { return Object.assign({}, c, { collapsed: all }); }); return d; }, function () { showToast('success', all ? t('cardsCollapsedAll') : t('cardsExpandedAll'), ''); }); }
 			function batchVideoDeleteAll() { commitStructure({ videoCards: [] }, function (d) { d.videoCards = []; return d; }, function () { showToast('success', t('cardsDeletedAll'), ''); }); }
@@ -5636,8 +5636,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement("div", { className: "omni-list" }, [
 						videoCards.length === 0 ? React.createElement("p", { className: "omni-msg" }, t("videoCardNoCards")) : null,
 						videoCards.map(function (card, index) {
-							var cardPresets = card.presets || [];
-							var activePreset = cardPresets.find(function (p) { return p.id === card.activePreset; }) || cardPresets[0];
+							var sharedPresets = draft[0].videoPresets || [];
+							var activePreset = sharedPresets.find(function (p) { return p.id === card.activePreset; }) || sharedPresets[0];
 							return React.createElement(VideoPanel, {
 								key: card.id, t: t, card: card, index: index,
 								busy: vcBusy[0][card.id] || "",
@@ -5650,12 +5650,12 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 								menuOpen: vcMenuOpen[0] === card.id,
 								modelList: vcModelList[0][card.id] || [],
 								modelCount: vcModelCount[0][card.id] || null,
-								presets: cardPresets,
-								activePresetId: card.activePreset || (cardPresets[0] || {}).id || "",
-								activePresetName: (activePreset || {}).name || "",
-								presetDdOpen: !!vcPresetDdOpen[0][card.id],
-								presetDeleteConfirm: vcPresetDeleteConfirm[0] === card.id,
-								presetNameDraft: (activePreset || {}).name || "",
+							presets: sharedPresets,
+							activePresetId: card.activePreset || (sharedPresets[0] || {}).id || "",
+							activePresetName: (activePreset || {}).name || "",
+							presetDdOpen: !!vcPresetDdOpen[0][card.id],
+							presetDeleteConfirm: vcPresetDeleteConfirm[0] === card.id,
+							presetNameDraft: (activePreset || {}).name || "",
 							onPatch: function (field, value) { patchVideoCard(card.id, field, value); },
 							onSaveKey: function (value) { saveVideoCardKey(card.id, value); },
 							onToggleReveal: function () { toggleVideoCardReveal(card.id); },
@@ -5678,7 +5678,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 								onSavePreset: function () { saveVideoCardPreset(card.id); },
 								onConfirmDeletePreset: function () { vcPresetDeleteConfirm[1](card.id); },
 								onCancelDeletePreset: function () { vcPresetDeleteConfirm[1](null); },
-								onConfirmDelete: function () { deleteVideoCardPreset(card.id, card.activePreset || (cardPresets[0] || {}).id || ""); }
+								onConfirmDelete: function () { deleteVideoCardPreset(card.id, card.activePreset || (sharedPresets[0] || {}).id || ""); }
 							});
 						})
 					]),
