@@ -818,3 +818,44 @@ test('videoCustomType object upsert saves toolName/description snapshot', () => 
   cfg = applyPatch(cfg, { videoCustomTypeDelete: '自定义 2' })
   assert.deepEqual(cfg.videoCustomTypes.map((s) => s.name), ['自定义 1'])
 })
+
+test('video card collapsed/enabled patch does not pollute card config', () => {
+  let cfg = applyPatch({}, { videoCardAdd: { name: 'A', toolName: 'generate_video_a', type: '' } })
+  const id = cfg.videoCards[0].id
+  cfg = applyPatch(cfg, { videoCardPatch: { id, field: 'collapsed', value: true } })
+  assert.equal(cfg.videoCards[0].collapsed, true)
+  assert.equal(Object.prototype.hasOwnProperty.call(cfg.videoCards[0].config, 'collapsed'), false)
+  assert.equal(cfg.videoCards[0].config[id], undefined)
+  cfg = applyPatch(cfg, { videoCardPatch: { id, field: 'enabled', value: false } })
+  assert.equal(cfg.videoCards[0].enabled, false)
+  assert.equal(Object.prototype.hasOwnProperty.call(cfg.videoCards[0].config, 'enabled'), false)
+  // toggle back
+  cfg = applyPatch(cfg, { videoCardPatch: { id, field: 'collapsed', value: false } })
+  assert.equal(cfg.videoCards[0].collapsed, false)
+})
+
+test('video preset read keeps 仅显示视频模型 switch state (UI-only)', () => {
+  let cfg = applyPatch({}, { videoCardAdd: { name: 'A', toolName: 'generate_video_a', type: '' } })
+  const id = cfg.videoCards[0].id
+  // turn the filter switch OFF
+  cfg = applyPatch(cfg, { videoCardPatch: { id, field: 'filterVideoModels', value: false } })
+  assert.equal(cfg.videoCards[0].config.filterVideoModels, false)
+  // adding a preset must not flip it back on
+  cfg = applyPatch(cfg, { videoCardPresetAdd: { cardId: id } })
+  assert.equal(cfg.videoCards[0].config.filterVideoModels, false)
+  // switching to another preset must not flip it either
+  cfg = applyPatch(cfg, { videoCardPresetSwitch: { cardId: id, presetId: cfg.videoPresets[0].id } })
+  assert.equal(cfg.videoCards[0].config.filterVideoModels, false)
+  // and it stays off when the active preset is deleted and repaired
+  cfg = applyPatch(cfg, { videoCardPresetDelete: { cardId: id, presetId: cfg.videoCards[0].activePreset } })
+  assert.equal(cfg.videoCards[0].config.filterVideoModels, false)
+})
+
+test('imggen preset read keeps 仅显示生图模型 switch state (UI-only)', () => {
+  let cfg = applyPatch({}, { imggenConfig: { field: 'filterImageModels', value: false } })
+  assert.equal(cfg.imggenConfig.filterImageModels, false)
+  cfg = applyPatch(cfg, { imggenPresetAdd: true })
+  assert.equal(cfg.imggenConfig.filterImageModels, false, 'new preset must not reset the filter switch')
+  cfg = applyPatch(cfg, { imggenPresetSwitch: cfg.imggenPresets[0].id })
+  assert.equal(cfg.imggenConfig.filterImageModels, false, 'reading a preset must not flip the filter switch')
+})
