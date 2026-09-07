@@ -4649,7 +4649,13 @@ function applyPatch(cfg, patch) {
   if (p.videoCardPresetSwitch && p.videoCardPresetSwitch.cardId) {
     const card = (c.videoCards || []).find((card) => card.id === p.videoCardPresetSwitch.cardId)
     const preset = (c.videoPresets || []).find((pr) => pr.id === p.videoCardPresetSwitch.presetId)
-    if (card && preset) { card.activePreset = preset.id; card.config = JSON.parse(JSON.stringify(preset.config)) }
+    // v2.12.3: 读取预设不改变「仅显示视频模型」开关（UI 状态，不随快照走）
+    if (card && preset) {
+      const keepFilter = card.config && card.config.filterVideoModels !== false
+      card.activePreset = preset.id
+      card.config = JSON.parse(JSON.stringify(preset.config))
+      card.config.filterVideoModels = keepFilter
+    }
   }
   if (p.videoCardPresetAdd && p.videoCardPresetAdd.cardId) {
     const card = (c.videoCards || []).find((card) => card.id === p.videoCardPresetAdd.cardId)
@@ -4658,8 +4664,10 @@ function applyPatch(cfg, patch) {
       let mx = 0; for (const pr of c.videoPresets) { const m = /^新预设(?:\s(\d+))?$/.exec(pr.name || ''); if (m) mx = Math.max(mx, m[1] ? Number(m[1]) : 1) }
       const np = { id: genPresetId(), name: '新预设 ' + (mx + 1), config: defaultVideoConfig() }
       c.videoPresets = c.videoPresets.concat([np])
+      const keepFilterAdd = card.config && card.config.filterVideoModels !== false
       card.activePreset = np.id
       card.config = JSON.parse(JSON.stringify(np.config))
+      card.config.filterVideoModels = keepFilterAdd
     }
   }
   if (p.videoCardPresetDelete && p.videoCardPresetDelete.cardId) {
@@ -4669,8 +4677,10 @@ function applyPatch(cfg, patch) {
     // 修复所有卡片的 activePreset 引用：若指向被删预设或已不存在，重置为共享池第一个
     for (const cc of (c.videoCards || [])) {
       if (cc.activePreset === delId || !c.videoPresets.some((pr) => pr.id === cc.activePreset)) {
+        const keepFilterDel = cc.config && cc.config.filterVideoModels !== false
         cc.activePreset = c.videoPresets[0].id
         cc.config = JSON.parse(JSON.stringify(c.videoPresets[0].config))
+        cc.config.filterVideoModels = keepFilterDel
       }
     }
   }
@@ -4902,7 +4912,8 @@ function applyPatch(cfg, patch) {
     const target = (c.imggenPresets || []).find((pr) => pr.id === p.imggenPresetSwitch)
     if (target) {
       c.activeImggenPreset = target.id
-      c.imggenConfig = Object.assign({}, target.config)
+      // v2.12.3: 「仅显示生图模型」是 UI 状态，读取预设不改变它
+      c.imggenConfig = Object.assign({}, target.config, { filterImageModels: c.imggenConfig && c.imggenConfig.filterImageModels !== false })
     }
   }
   if (p.imggenPresetAdd === true) {
@@ -4915,7 +4926,7 @@ function applyPatch(cfg, patch) {
     const np = { id: genPresetId(), name: '新预设 ' + (max + 1), config: defaultImggenConfig() }
     c.imggenPresets = (c.imggenPresets || []).concat([np])
     c.activeImggenPreset = np.id
-    c.imggenConfig = Object.assign({}, np.config)
+    c.imggenConfig = Object.assign({}, np.config, { filterImageModels: c.imggenConfig && c.imggenConfig.filterImageModels !== false })
   }
   if (p.imggenPresetDelete && typeof p.imggenPresetDelete === 'string') {
     c.imggenPresets = (c.imggenPresets || []).filter((pr) => pr.id !== p.imggenPresetDelete)
