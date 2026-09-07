@@ -1394,11 +1394,44 @@ voiceSovitsModel: "SoVITS model name",
 
 		// v2.12.2: key-order-insensitive JSON — dirty checks must not flake when
 		// the server normalizes config objects into a different key order
-		function stableJson(v) {
-			if (v === null || v === undefined || typeof v !== "object") return JSON.stringify(v === undefined ? null : v);
-			if (Array.isArray(v)) return "[" + v.map(stableJson).join(",") + "]";
+		// v2.12.4: additionally normalizes scalar values (numeric strings == numbers)
+		// so that "改回原值" (60000 -> 6000 -> 60000) compares equal again.
+		function normDirtyVal(v) {
+			if (typeof v === "number") return isFinite(v) ? v : null;
+			if (typeof v === "string") {
+				var s = v.trim();
+				if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+				return s;
+			}
+			if (v === undefined) return null;
+			return v;
+		}
+		function dirtyJson(v) {
+			if (v === null || v === undefined || typeof v !== "object") return JSON.stringify(normDirtyVal(v));
+			if (Array.isArray(v)) return "[" + v.map(dirtyJson).join(",") + "]";
 			var keys = Object.keys(v).sort();
-			return "{" + keys.map(function (k) { return JSON.stringify(k) + ":" + stableJson(v[k]); }).join(",") + "}";
+			return "{" + keys.map(function (k) { return JSON.stringify(k) + ":" + dirtyJson(v[k]); }).join(",") + "}";
+		}
+
+		// v2.12.4: 脏判定基线表。放在组件之外（闭包级）是为了让基线在
+		// 切换 Tab（面板被卸载→重挂）后依然存在 —— 未保存的修改不会因为切面板而"消失"。
+		// key = "<作用域>|<实体 id>|<预设 id>"
+		var DIRTY_BASE = {};
+		function dirtyKey(scope, id) { return scope + "|" + (id || ""); }
+		// 首次见到某个 key 时把当前值记为基线（未改动 = 不脏）；已存在则原样返回
+		function baselineFor(key, cur) {
+			if (!Object.prototype.hasOwnProperty.call(DIRTY_BASE, key)) DIRTY_BASE[key] = cur;
+			return DIRTY_BASE[key];
+		}
+		function setBaseline(key, cur) { DIRTY_BASE[key] = cur; }
+		function forgetBaseline(key) { delete DIRTY_BASE[key]; }
+		function forgetBaselineScope(scope) {
+			var pre = scope + "|";
+			Object.keys(DIRTY_BASE).forEach(function (k) { if (k.indexOf(pre) === 0) delete DIRTY_BASE[k]; });
+		}
+		// 服务端配置重新载入时清空全部基线（重新以服务端配置为准）
+		function resetAllBaselines() {
+			Object.keys(DIRTY_BASE).forEach(function (k) { delete DIRTY_BASE[k]; });
 		}
 
 		var pendingPatch = null;
@@ -2318,11 +2351,15 @@ voiceSovitsModel: "SoVITS model name",
 		var helpOpen = React.useState(false);
 		var presetNameDraft = React.useState(props.activePresetName || "");
 		React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
-			var igSnapshot = React.useState("");
-			// v2.12.3: 「仅显示生图模型」是 UI 状态 —— 不计入修改判定
-			function igDirtyCfg(cf) { var o = Object.assign({}, cf || {}); delete o.filterImageModels; return o; }
-			React.useEffect(function () { igSnapshot[1](stableJson({ name: props.activePresetName || "", cfg: igDirtyCfg(props.cfg) })); }, [props.activePresetId]);
-			var igDirty = stableJson({ name: presetNameDraft[0], cfg: igDirtyCfg(props.cfg) }) !== igSnapshot[0];
+		// v2.12.3: 「仅显示生图模型」是 UI 状态 —— 不计入修改判定
+		function igDirtyCfg(cf) { var o = Object.assign({}, cf || {}); delete o.filterImageModels; return o; }
+		// v2.12.4: 基线存在组件外 —— 切 Tab 回来仍然是脏的；改回原值则不脏。
+		// 基线名用「加载后的权威名」(props.activePresetName)，避免 editable 草稿名
+		// 异步追平首帧造成的瞬时脏；cur 用 editable 草稿名。
+		var igBaseKey = dirtyKey("imggen", props.activePresetId);
+		var igBaseline = baselineFor(igBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: igDirtyCfg(props.cfg) }));
+		var igCur = dirtyJson({ name: presetNameDraft[0], cfg: igDirtyCfg(props.cfg) });
+		var igDirty = igCur !== igBaseline;
 
 		// v2.8: keep the edited workflow in sync with the draft-derived `props.workflows`
 			// so that optimistic updates from updateWfConfig/updateWfMapping/renameWorkflow
@@ -2429,7 +2466,7 @@ voiceSovitsModel: "SoVITS model name",
 		className: "omni-btn omni-save-btn", type: "button",
 		title: t("presetSaved"),
 		disabled: !igDirty,
-		onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); igSnapshot[1](stableJson({ name: presetNameDraft[0], cfg: igDirtyCfg(props.cfg) })); }
+		onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); setBaseline(igBaseKey, igCur); }
 	}, React.createElement(SvgFillIcon, { d: I_SAVE_FLOPPY })),
 			React.createElement("button", {
 				className: "omni-btn omni-preset-new-btn", type: "button",
@@ -3060,12 +3097,15 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var menuOpen = React.useState(false);
 		var presetNameDraft = React.useState(props.activePresetName || "");
 		React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
-		var vcSnapshot = React.useState("");
-		// v2.12.3: 只有白名单内的配置字段算「未保存的修改」（收纳/展开、仅显示视频模型开关等均不算）
-		var VIDEO_DIRTY_KEYS = ["provider", "timeoutMs", "endpoint", "apiKey", "model", "pollIntervalMs", "retryCount", "seconds", "aspectRatio"];
-		function dirtyCfg(cf) { var o = {}; for (var i = 0; i < VIDEO_DIRTY_KEYS.length; i++) o[VIDEO_DIRTY_KEYS[i]] = (cf || {})[VIDEO_DIRTY_KEYS[i]]; return o; }
-		React.useEffect(function () { vcSnapshot[1](stableJson({ name: props.activePresetName || "", cfg: dirtyCfg(card.config) })); }, [props.activePresetId]);
-		var vcDirty = stableJson({ name: presetNameDraft[0], cfg: dirtyCfg(cfg) }) !== vcSnapshot[0];
+	// v2.12.3: 只有白名单内的配置字段算「未保存的修改」（收纳/展开、仅显示视频模型开关等均不算）
+	var VIDEO_DIRTY_KEYS = ["provider", "timeoutMs", "endpoint", "apiKey", "model", "pollIntervalMs", "retryCount", "seconds", "aspectRatio"];
+	function dirtyCfg(cf) { var o = {}; for (var i = 0; i < VIDEO_DIRTY_KEYS.length; i++) o[VIDEO_DIRTY_KEYS[i]] = (cf || {})[VIDEO_DIRTY_KEYS[i]]; return o; }
+	// v2.12.4: 基线存在组件外 —— 切 Tab 回来仍然是脏的；改回原值则不脏。
+	// 基线名用「加载后的权威名」(props.activePresetName)，避免 editable 草稿名异步追平首帧的瞬时脏。
+	var vcbBaseKey = dirtyKey("video", card.id + "|" + (props.activePresetId || ""));
+	var vcbBaseline = baselineFor(vcbBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: dirtyCfg(card.config) }));
+	var vcbCur = dirtyJson({ name: presetNameDraft[0], cfg: dirtyCfg(cfg) });
+	var vcDirty = vcbCur !== vcbBaseline;
 		var isCardEnabled = card.enabled !== false;
 			var cardCollapsed = card.collapsed === true;
 			var VIDEO_TYPE_LABELS = { general: t("videoCardTypeGeneral"), t2v: t("videoCardTypeT2v"), i2v: t("videoCardTypeI2v"), edit: t("videoCardTypeEdit"), ref: t("videoCardTypeRef") };
@@ -3172,7 +3212,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			className: "omni-btn omni-save-btn", type: "button",
 			title: t("presetSaved"),
 			disabled: !vcDirty,
-			onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); vcSnapshot[1](stableJson({ name: presetNameDraft[0], cfg: dirtyCfg(cfg) })); }
+			onClick: function () { if (presetNameDraft[0] !== (props.activePresetName || "")) props.onRenamePreset(presetNameDraft[0]); props.onSavePreset(); setBaseline(vcbBaseKey, vcbCur); }
 		}, React.createElement(SvgFillIcon, { d: I_SAVE_FLOPPY })),
 			React.createElement("button", {
 				className: "omni-btn omni-preset-new-btn", type: "button",
@@ -3739,9 +3779,14 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				var activePresetName = isStt ? (props.activePresetNameStt || "") : (props.activePresetName || "");
 			var presetNameDraft = React.useState(activePresetName);
 			React.useEffect(function () { presetNameDraft[1](activePresetName); }, [activeSubtab[0], activePresetName]);
-			var vcSnap = React.useState("");
-			React.useEffect(function () { vcSnap[1](JSON.stringify({ name: activePresetName, cfg: cfg })); }, [activeSubtab[0], activePresetId]);
-			var vcDirty = JSON.stringify({ name: presetNameDraft[0], cfg: cfg }) !== vcSnap[0];
+		// v2.12.4: 基线存在组件外 —— 切 Tab 回来仍然是脏的；改回原值则不脏。
+		// 同 v2.12.3：UI 级开关（仅显示语音模型）不计入修改判定。
+		// 基线名用「加载后的权威名」(activePresetName)，避免 editable 草稿名异步追平首帧的瞬时脏。
+		function voiceDirtyCfg(cf) { var o = Object.assign({}, cf || {}); delete o.filterVoiceModels; return o; }
+		var vpBaseKey = dirtyKey("voice", activeSubtab[0] + "|" + (activePresetId || ""));
+		var vpBaseline = baselineFor(vpBaseKey, dirtyJson({ name: activePresetName, cfg: voiceDirtyCfg(cfg) }));
+		var vpCur = dirtyJson({ name: presetNameDraft[0], cfg: voiceDirtyCfg(cfg) });
+		var vcDirty = vpCur !== vpBaseline;
 
 			// close the reset menu on outside click
 				React.useEffect(function () {
@@ -3822,7 +3867,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			className: "omni-btn omni-save-btn", type: "button",
 			title: t("presetSaved"),
 			disabled: !vcDirty,
-			onClick: function () { if (presetNameDraft[0] !== activePresetName) props.onRenamePreset(presetNameDraft[0], activeSubtab[0]); props.onSavePreset(activeSubtab[0]); vcSnap[1](JSON.stringify({ name: presetNameDraft[0], cfg: cfg })); }
+			onClick: function () { if (presetNameDraft[0] !== activePresetName) props.onRenamePreset(presetNameDraft[0], activeSubtab[0]); props.onSavePreset(activeSubtab[0]); setBaseline(vpBaseKey, vpCur); }
 		}, React.createElement(SvgFillIcon, { d: I_SAVE_FLOPPY })),
 					React.createElement("button", {
 						className: "omni-btn omni-preset-new-btn", type: "button",
@@ -4543,6 +4588,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			call("config").then(function (s) {
 				if (s && s.config) {
 					snap[1](s);
+					resetAllBaselines();
 					draft[1](s.config);
 					call("voice-library", { list: true }).then(function (rl) { if (rl && rl.ok) voiceRefLibrary[1](rl.library || []); }).catch(function () {});
 				} else {
@@ -4946,10 +4992,10 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			function deleteVideoCardClick(cardId) { if (vcConfirmDel[0] !== cardId) { vcConfirmDel[1](cardId); return; } vcConfirmDel[1](null); vcMenuOpen[1](null); commitStructure({ videoCardDelete: cardId }, function (d) { d.videoCards = (d.videoCards || []).filter(function (c) { return c.id !== cardId; }); return d; }, function () { showToast('success', t('cardDeleted'), ''); }); }
 			function resetVideoCard(cardId) { if (vcConfirmReset[0] !== cardId) { vcConfirmReset[1](cardId); return; } vcConfirmReset[1](null); commitStructure({ videoReset: { cardId: cardId } }, null, function () { showToast('success', t('resetDone'), ''); }); }
 			function toggleVideoCardMenu(cardId) { vcMenuOpen[1](vcMenuOpen[0] === cardId ? null : cardId); vcConfirmDel[1](null); }
-			function saveVideoCardPreset(cardId) { commitStructure({ saveVideoCardPreset: { cardId: cardId } }, null, function () { showToast('success', t('presetSaved'), ''); }); }
-			function switchVideoCardPreset(cardId, presetId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetSwitch: { cardId: cardId, presetId: presetId } }, null, function () { showToast('success', t('presetSwitched'), ''); }); }
-			function addVideoCardPreset(cardId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetAdd: { cardId: cardId } }, null, function () { showToast('success', t('presetAdded'), ''); }); }
-			function deleteVideoCardPreset(cardId, presetId) { vcPresetDeleteConfirm[1](null); commitStructure({ videoCardPresetDelete: { cardId: cardId, presetId: presetId } }, null, function () { showToast('success', t('presetDeleted'), ''); }); }
+			function saveVideoCardPreset(cardId) { commitStructure({ saveVideoCardPreset: { cardId: cardId } }, null, function () { forgetBaselineScope("video|" + cardId); showToast('success', t('presetSaved'), ''); }); }
+			function switchVideoCardPreset(cardId, presetId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetSwitch: { cardId: cardId, presetId: presetId } }, null, function () { forgetBaselineScope("video|" + cardId); showToast('success', t('presetSwitched'), ''); }); }
+			function addVideoCardPreset(cardId) { vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: false })); commitStructure({ videoCardPresetAdd: { cardId: cardId } }, null, function () { forgetBaselineScope("video|" + cardId); showToast('success', t('presetAdded'), ''); }); }
+			function deleteVideoCardPreset(cardId, presetId) { vcPresetDeleteConfirm[1](null); commitStructure({ videoCardPresetDelete: { cardId: cardId, presetId: presetId } }, null, function () { forgetBaselineScope("video|" + cardId); showToast('success', t('presetDeleted'), ''); }); }
 			function renameVideoCardPreset(cardId, name) { queueSave({ videoCardPresetRename: { cardId: cardId, name: name } }); updateDraft(function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cardId; }); if (card) { d.videoPresets = (d.videoPresets || []).map(function (p) { if (p.id === card.activePreset) return Object.assign({}, p, { name: String(name).slice(0, 60) }); return p; }); } return d; }); }
 			function toggleVideoCardPresetDd(cardId) { var cur = !!vcPresetDdOpen[0][cardId]; vcPresetDdOpen[1](Object.assign({}, vcPresetDdOpen[0], { [cardId]: !cur })); }
 			function batchVideoCollapse(all) { vcBatchOpen[1](false); commitStructure({ videoCards: (draft[0].videoCards || []).map(function (c) { return Object.assign({}, c, { collapsed: all }); }) }, function (d) { d.videoCards = (d.videoCards || []).map(function (c) { return Object.assign({}, c, { collapsed: all }); }); return d; }, function () { showToast('success', all ? t('cardsCollapsedAll') : t('cardsExpandedAll'), ''); }); }
@@ -5257,7 +5303,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				voiceRevealed[1](false);
 				voiceModelList[1]([]);
 				voiceModelCount[1](null);
-				commitStructure({ voicePresetSwitch: id, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { showToast('success', t('presetSwitched'), ''); });
+				commitStructure({ voicePresetSwitch: id, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { forgetBaseline(dirtyKey("voice", (sub === "stt" ? "stt" : "tts") + "|" + id)); showToast('success', t('presetSwitched'), ''); });
 			}
 			function addVoicePreset(sub) {
 				voicePresetDdOpen[1](false);
@@ -5265,7 +5311,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				voiceRevealed[1](false);
 				voiceModelList[1]([]);
 				voiceModelCount[1](null);
-				commitStructure({ voicePresetAdd: true, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { showToast('success', t('presetAdded'), ''); });
+				commitStructure({ voicePresetAdd: true, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { forgetBaselineScope("voice|" + (sub === "stt" ? "stt" : "tts")); showToast('success', t('presetAdded'), ''); });
 			}
 			function deleteVoicePreset(id, sub) {
 				voicePresetDeleteConfirm[1](false);
@@ -5273,7 +5319,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				voiceRevealed[1](false);
 				voiceModelList[1]([]);
 				voiceModelCount[1](null);
-				commitStructure({ voicePresetDelete: id, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { showToast('success', t('presetDeleted'), ''); });
+				commitStructure({ voicePresetDelete: id, voiceSubtab: sub === "stt" ? "stt" : "tts" }, null, function () { forgetBaselineScope("voice|" + (sub === "stt" ? "stt" : "tts")); showToast('success', t('presetDeleted'), ''); });
 			}
 		function renameVoicePreset(name, sub) {
 			var vpKey = sub === "stt" ? "voicePresetsStt" : "voicePresets";
@@ -5285,9 +5331,9 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			return d;
 		});
 	}
-		function saveVoicePreset(sub) {
-			commitStructure({ saveVoicePreset: sub === "stt" ? "stt" : "tts" }, null, function () { showToast('success', t('presetSaved'), ''); });
-		}
+	function saveVoicePreset(sub) {
+		commitStructure({ saveVoicePreset: sub === "stt" ? "stt" : "tts" }, null, function () { forgetBaselineScope("voice|" + (sub === "stt" ? "stt" : "tts")); showToast('success', t('presetSaved'), ''); });
+	}
 			function toggleVoicePresetDd() {
 				voicePresetDdOpen[1](!voicePresetDdOpen[0]);
 			}
@@ -5445,7 +5491,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetSwitch: id }, null, function () { showToast('success', t('presetSwitched'), ''); });
+			commitStructure({ imggenPresetSwitch: id }, null, function () { forgetBaselineScope("imggen"); showToast('success', t('presetSwitched'), ''); });
 		}
 		function addPreset() {
 			igPresetDdOpen[1](false);
@@ -5453,7 +5499,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetAdd: true }, null, function () { showToast('success', t('presetAdded'), ''); });
+			commitStructure({ imggenPresetAdd: true }, null, function () { forgetBaselineScope("imggen"); showToast('success', t('presetAdded'), ''); });
 		}
 		function deletePreset(id) {
 			igPresetDeleteConfirm[1](false);
@@ -5461,7 +5507,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			igRevealed[1](false);
 			igModelList[1]([]);
 			igModelCount[1](null);
-			commitStructure({ imggenPresetDelete: id }, null, function () { showToast('success', t('presetDeleted'), ''); });
+			commitStructure({ imggenPresetDelete: id }, null, function () { forgetBaselineScope("imggen"); showToast('success', t('presetDeleted'), ''); });
 		}
 	function renamePreset(name) {
 		queueSave({ imggenPresetRename: name });
@@ -5472,7 +5518,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		});
 	}
 	function saveImggenPreset() {
-		commitStructure({ saveImggenPreset: true }, null, function () { showToast('success', t('presetSaved'), ''); });
+		commitStructure({ saveImggenPreset: true }, null, function () { forgetBaselineScope("imggen"); showToast('success', t('presetSaved'), ''); });
 	}
 	function togglePresetDd() {
 			igPresetDdOpen[1](!igPresetDdOpen[0]);
