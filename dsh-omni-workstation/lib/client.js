@@ -3188,6 +3188,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			];
 
 			var head = React.createElement("div", { className: "omni-card-head omni-head-clickable" + (!isCardEnabled ? " omni-card-disabled" : ""), onClick: function () { props.onPatch("collapsed", !cardCollapsed); } }, [
+				// v2.11.1: AI badge at the far left of the header, left of type label
+				card.source === "ai" ? React.createElement("span", { className: "omni-ai-badge", title: "由 AI 通过 /build-video-tool 创建" }, t("videoAiBadge")) : null,
 				React.createElement("span", { className: "omni-video-type-label" }, VIDEO_TYPE_LABELS[card.type] || card.type || t("videoCardTypeGeneral")),
 			React.createElement("div", { className: "omni-card-name" }, [
 				React.createElement("span", { className: "omni-card-name-text" }, card.name || "Video Card")
@@ -3210,7 +3212,6 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						}, React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, props.confirmReset ? t("videoResetConfirm") : t("videoReset")))
 					]) : null
 				]),
-				card.source === "ai" ? React.createElement("span", { className: "omni-ai-badge", title: "由 AI 通过 /build-video-tool 创建" }, t("videoAiBadge")) : null,
 				React.createElement("label", { className: "omni-switch omni-switch-sm omni-card-enable", title: isCardEnabled ? "已启用" : "已禁用", onClick: function (e) { e.stopPropagation(); } }, [
 					React.createElement("input", { type: "checkbox", checked: isCardEnabled, onChange: function () { props.onPatch("enabled", !isCardEnabled); } }),
 					React.createElement("span", { className: "omni-switch-slider" })

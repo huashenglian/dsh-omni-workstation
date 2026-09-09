@@ -27,7 +27,7 @@
 
 - **脚手架**：`video-builder.js` 导出 `ADAPTER_SCAFFOLD` 与 `buildVideoBuilderGuide()`；指南含完整字段表、错误接口、常见错误清单。
 
-- **验证**：11/11 新单元测试 + 全量 272/273 通过（1 个协议列表断言已更新）；Playwright E2E：斜杠菜单出现 `/build-video-tool` → 发送 happyhorse 构建 prompt → 指南注入 → AI 70s 内创建 `generate_video_happyhorse[AI]` 卡片（endpoint/model 正确）→ 设置页视频 Tab 显示 AI 徽章 → 开关扩展区显示指令开关与上限 10。
+- **验证**：11/11 新单元测试 + 全量 272/273 通过（1 个协议列表断言已更新）；Playwright E2E：斜杠菜单出现 `/build-video-tool` → 发送 happyhorse 构建 prompt → 指南注入 → AI 70s 内创建 `generate_video_happyhorse[AI]` 卡片（endpoint/model 正确）→ 设置页视频 Tab 显示 AI 徽章（类型标签左侧）→ 开关扩展区显示指令开关与上限 10；新会话真实生成：happyhorse-1.0-t2v 出片 4.2MB mp4（约 1m15s / ¥0.06）。
 
 ## v2.11 — 视频多卡片面板 + 手动保存预设 + 删除全部模态框
 
