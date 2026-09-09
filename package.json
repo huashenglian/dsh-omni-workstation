@@ -1,6 +1,6 @@
 {
     "name":  "dsh-omni-workstation",
-    "version":  "2.8.1",
+    "version":  "2.11.1",
     "description":  "Omni-modal workstation plugin for DeepSeek Harness: analyze_image + 6 vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show), generate_image, and generate_video (t2v/i2v async-task). Backed by an ordered multi-card list (OpenAI/Anthropic/Gemini protocols; Custom/Ollama plus 28 built-in fixed providers), Tabbed settings (VLM / Image Gen / Video / Mirror / Fallback), single-request failover, mirror model routing, JPEG->PNG re-encode fallback, and an auto-saving web settings page.",
     "type":  "module",
     "main":  "./lib/index.js",
@@ -14,6 +14,7 @@
                   "lib/index.js",
                   "lib/client.js",
                   "lib/vision-tools.js",
+                  "lib/video-builder.js",
                   "lib/vendor/",
                   "cordis.patch.yml",
                   "README.md",

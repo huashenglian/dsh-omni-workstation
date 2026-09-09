@@ -2,6 +2,33 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.11.1 — 视频卡片上限配置 + `/build-video-tool` 自定义视频工具构建
+
+- **视频卡片上限改为配置项** `videoCardLimit`（默认 10，硬顶 10）。设置页「开关扩展 → 视频」折叠区可改；`videoCardAdd` / `videoCardAddAi` 均做物理门禁（达上限直接 throw）。
+
+- **开关扩展新增「视频」折叠区**（位于 VLM 下方）：
+  - 「斜杠指令构建自定义视频工具」开关（默认开）→ 控制 dsh 斜杠菜单是否出现 `/build-video-tool`
+  - 「视频卡片上限」数字输入（1–10）
+
+- **斜杠指令 `/build-video-tool`**：
+  - 程序先检测卡片数 vs 上限；达上限返回 error，**不注入**指南
+  - 未达上限则 `agent.steer` 注入 skill 式构建指南（含脚手架、`videoCardAddAi` 契约、自检清单、详细度策略）
+  - 用户只发指令无额外内容时，指南要求 AI 先向用户询问平台文档/URL/Key/模型
+  - 构建知识全部在指令触发时注入，**不**做常驻 system prompt
+  - 开关关闭 → 指令从菜单消失
+
+- **AI 自定义视频卡片**：
+  - 新 applyPatch：`videoCardAddAi`（limit + toolName 唯一 + adapter 校验）
+  - 卡片 `source:'ai'` → 前端卡片最右侧显示紫色 **AI** 徽章；**不渲染预设栏**（防预设覆盖自定义配置）
+  - 折叠/展开/删除/编辑弹窗等常规操作不变
+  - AI 卡的 toolName 不被 type 推导覆盖（用户卡仍保持旧逻辑）
+
+- **custom-adapter 协议**：AI 可写 `adapterCode`（JS 对象表达式：`buildSubmit`/`parseTaskId`/`pollUrl`/`parseStatus`）对接内置协议未覆盖的平台。`isVideoConfigValid` 对 custom-adapter 仅要求 endpoint + 合法 adapterCode（model/key 可选）。运行时 `runCustomAdapterVideo` 执行提交/轮询/下载。
+
+- **脚手架**：`video-builder.js` 导出 `ADAPTER_SCAFFOLD` 与 `buildVideoBuilderGuide()`；指南含完整字段表、错误接口、常见错误清单。
+
+- **验证**：11/11 新单元测试 + 全量 272/273 通过（1 个协议列表断言已更新）；Playwright E2E：斜杠菜单出现 `/build-video-tool` → 发送 happyhorse 构建 prompt → 指南注入 → AI 70s 内创建 `generate_video_happyhorse[AI]` 卡片（endpoint/model 正确）→ 设置页视频 Tab 显示 AI 徽章 → 开关扩展区显示指令开关与上限 10。
+
 ## v2.11 — 视频多卡片面板 + 手动保存预设 + 删除全部模态框
 
 - **视频面板重构为多卡片列表**（对标 VLM 面板）：`videoCards[]` 数组替代旧 `videoConfig`/`videoPresets`/`activeVideoPreset`。每张卡片 = `{id, name, type, toolName, description, enabled, collapsed, config, presets[], activePreset}`。卡片头 = [类型标签] + [卡片名] + [...菜单] + [启用开关] + [折叠按钮]（无拖动块）。卡片"..."菜单 = [删除(二次确认)] + [重置配置(二次确认)]。批量菜单 = [收纳全部] + [展开全部] + [删除全部(模态框)]。
