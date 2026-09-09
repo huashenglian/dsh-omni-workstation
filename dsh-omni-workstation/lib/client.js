@@ -389,6 +389,7 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoResultFieldLabel: "结果字段",
 			videoDoneStatusLabel: "完成状态值",
 			videoAsyncHint: "async-task 协议：自行填写提交/轮询路径与字段，适配任意异步任务网关",
+			videoAdapterHint: "custom-adapter：使用 AI 编写的 adapterCode（buildSubmit/parseTaskId/pollUrl/parseStatus）对接任意平台",
 			videoProviderCustom: "自定义",
 			videoProviderAgnes: "Agnes AI",
 			videoProviderAgnesCn: "Agnes AI CN",
@@ -404,6 +405,8 @@ voiceSovitsModel: "SoVITS 模型名",
 			videoProtocolVolc: "volc-video（火山方舟）",
 			videoProtocolMinimax: "minimax-video（海螺）",
 			videoProtocolAsync: "async-task（通用异步）",
+			videoProtocolCustomAdapter: "custom-adapter（自定义脚本）",
+			videoAdapterCodeLabel: "Adapter 代码",
 			videoGroupGeneral: "通用",
 			videoGroupIntl: "内置供应商 · 海外",
 			videoGroupCn: "内置供应商 · 国内",
@@ -454,6 +457,12 @@ voiceSovitsModel: "SoVITS 模型名",
 			toolsOff: "已关闭",
 			extCardTitle: "开关扩展",
 			extVlmSection: "VLM",
+			extVideoSection: "视频",
+			videoBuilderSwitchLabel: "斜杠指令构建自定义视频工具",
+			videoBuilderSwitchHint: "开启后在斜杠菜单出现 /build-video-tool；关闭则指令消失",
+			videoCardLimitLabel: "视频卡片上限",
+			videoCardLimitHint: "最多 10 张视频模型卡片及对应工具（含 AI 自定义）",
+			videoAiBadge: "AI",
 				extToolSettings: "工具设置",
 				toolZoomImage: "局部放大",
 				toolSampleColors: "采样取色",
@@ -857,6 +866,7 @@ voiceSovitsModel: "SoVITS model name",
 			videoResultFieldLabel: "Result field",
 			videoDoneStatusLabel: "Done status value",
 			videoAsyncHint: "async-task protocol: fill in submit/poll paths and fields for any async gateway",
+			videoAdapterHint: "custom-adapter: AI-authored adapterCode (buildSubmit/parseTaskId/pollUrl/parseStatus)",
 			videoProviderCustom: "Custom",
 			videoProviderAgnes: "Agnes AI",
 			videoProviderAgnesCn: "Agnes AI CN",
@@ -872,6 +882,8 @@ voiceSovitsModel: "SoVITS model name",
 			videoProtocolVolc: "volc-video (Volcengine Ark)",
 			videoProtocolMinimax: "minimax-video (Hailuo)",
 			videoProtocolAsync: "async-task (generic async)",
+			videoProtocolCustomAdapter: "custom-adapter (scripted)",
+			videoAdapterCodeLabel: "Adapter code",
 			videoGroupGeneral: "General",
 			videoGroupIntl: "Built-in · Overseas",
 			videoGroupCn: "Built-in · China",
@@ -922,6 +934,12 @@ voiceSovitsModel: "SoVITS model name",
 			toolsOff: "Disabled",
 			extCardTitle: "Switch Extensions",
 			extVlmSection: "VLM",
+			extVideoSection: "Video",
+			videoBuilderSwitchLabel: "Slash command: build custom video tool",
+			videoBuilderSwitchHint: "When on, /build-video-tool appears in the slash menu",
+			videoCardLimitLabel: "Video card limit",
+			videoCardLimitHint: "Max 10 video model cards/tools (including AI custom)",
+			videoAiBadge: "AI",
 				extToolSettings: "Tool Settings",
 				toolZoomImage: "Zoom Image",
 				toolSampleColors: "Sample Colors",
@@ -1070,6 +1088,10 @@ voiceSovitsModel: "SoVITS model name",
 ".omni-card-enable { flex: 0 0 auto; margin-left: 4px; }",
 ".omni-card-disabled { opacity: 0.5; }",
 ".omni-video-type-label { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(88,166,255,0.15); color: #58a6ff; flex: 0 0 auto; white-space: nowrap; }",
+".omni-ai-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(188,140,255,0.18); color: #bc8cff; flex: 0 0 auto; white-space: nowrap; letter-spacing: 0.5px; }",
+".omni-ext-video-row { display: flex; flex-direction: column; gap: 8px; }",
+".omni-limit-row { display: flex; align-items: center; gap: 8px; }",
+".omni-limit-input { width: 72px; }",
 ".omni-card-modal { position: relative; width: 90vw; max-width: 500px; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }",
 ".omni-card-modal-field { display: flex; flex-direction: column; gap: 4px; }",
 ".omni-card-modal-field label { font-size: 12px; font-weight: 500; opacity: 0.7; }",
@@ -1574,7 +1596,8 @@ voiceSovitsModel: "SoVITS model name",
 				{ value: "kling-video", label: "kling-video" },
 				{ value: "volc-video", label: "volc-video" },
 				{ value: "minimax-video", label: "minimax-video" },
-				{ value: "async-task", label: "async-task" }
+				{ value: "async-task", label: "async-task" },
+				{ value: "custom-adapter", label: "custom-adapter" }
 			];
 			var VOICE_PROVIDERS_UI = {
 				mimo: { group: "cloud", fixed: true, fixedUrl: true, endpoint: "https://api.xiaomimimo.com/v1", keyRequired: true },
@@ -2357,7 +2380,10 @@ voiceSovitsModel: "SoVITS model name",
 		// 基线名用「加载后的权威名」(props.activePresetName)，避免 editable 草稿名
 		// 异步追平首帧造成的瞬时脏；cur 用 editable 草稿名。
 		var igBaseKey = dirtyKey("imggen", props.activePresetId);
-		var igBaseline = baselineFor(igBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: igDirtyCfg(props.cfg) }));
+		// v2.12.5: 基线取自预设快照而非 props.cfg——props.cfg 已被 queueSave 自动落盘，
+		// 重启后基线=已保存配置→脏标志丢失；预设快照仅「保存预设」时更新。
+		var igPreset = (Array.isArray(props.presets) ? props.presets : []).find(function (p) { return p.id === props.activePresetId; });
+		var igBaseline = baselineFor(igBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: igDirtyCfg((igPreset || {}).config || {}) }));
 		var igCur = dirtyJson({ name: presetNameDraft[0], cfg: igDirtyCfg(props.cfg) });
 		var igDirty = igCur !== igBaseline;
 
@@ -3088,6 +3114,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var isFixed = !!meta.fixed;
 			var isFixedProtocol = !!meta.fixedProtocol;
 			var isAsync = cfg.protocol === "async-task";
+			var isCustomAdapter = cfg.protocol === "custom-adapter";
 			var keyDraftValue = props.keyDraft || "";
 			var isRevealed = !!props.revealed;
 			var isDdOpen = !!props.openDd;
@@ -3098,12 +3125,16 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var presetNameDraft = React.useState(props.activePresetName || "");
 		React.useEffect(function () { presetNameDraft[1](props.activePresetName || ""); }, [props.activePresetName]);
 	// v2.12.3: 只有白名单内的配置字段算「未保存的修改」（收纳/展开、仅显示视频模型开关等均不算）
-	var VIDEO_DIRTY_KEYS = ["provider", "timeoutMs", "endpoint", "apiKey", "model", "pollIntervalMs", "retryCount", "seconds", "aspectRatio"];
+	var VIDEO_DIRTY_KEYS = ["provider", "timeoutMs", "endpoint", "apiKeySet", "model", "pollIntervalMs", "retryCount", "seconds", "aspectRatio"];
 	function dirtyCfg(cf) { var o = {}; for (var i = 0; i < VIDEO_DIRTY_KEYS.length; i++) o[VIDEO_DIRTY_KEYS[i]] = (cf || {})[VIDEO_DIRTY_KEYS[i]]; return o; }
 	// v2.12.4: 基线存在组件外 —— 切 Tab 回来仍然是脏的；改回原值则不脏。
 	// 基线名用「加载后的权威名」(props.activePresetName)，避免 editable 草稿名异步追平首帧的瞬时脏。
 	var vcbBaseKey = dirtyKey("video", card.id + "|" + (props.activePresetId || ""));
-	var vcbBaseline = baselineFor(vcbBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: dirtyCfg(card.config) }));
+	// v2.12.5: 基线取自预设快照（videoPresets[activePreset].config）而非 card.config，
+	// 因为 card.config 已被 queueSave 自动落盘——重启后基线=已保存配置→脏标志丢失。
+	// 预设快照仅在「保存预设」时更新，所以重启后仍能正确反映未保存的修改。
+	var vcbPreset = (Array.isArray(props.presets) ? props.presets : []).find(function (p) { return p.id === props.activePresetId; });
+	var vcbBaseline = baselineFor(vcbBaseKey, dirtyJson({ name: props.activePresetName || "", cfg: dirtyCfg((vcbPreset || {}).config || {}) }));
 	var vcbCur = dirtyJson({ name: presetNameDraft[0], cfg: dirtyCfg(cfg) });
 	var vcDirty = vcbCur !== vcbBaseline;
 		var isCardEnabled = card.enabled !== false;
@@ -3147,6 +3178,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					: o.value === "kling-video" ? t("videoProtocolKling")
 					: o.value === "volc-video" ? t("videoProtocolVolc")
 					: o.value === "minimax-video" ? t("videoProtocolMinimax")
+					: o.value === "custom-adapter" ? t("videoProtocolCustomAdapter")
 					: t("videoProtocolAsync");
 				return { value: o.value, label: label };
 			});
@@ -3178,6 +3210,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 						}, React.createElement(SvgIcon, { d: I_TRASH }), React.createElement("span", null, props.confirmReset ? t("videoResetConfirm") : t("videoReset")))
 					]) : null
 				]),
+				card.source === "ai" ? React.createElement("span", { className: "omni-ai-badge", title: "由 AI 通过 /build-video-tool 创建" }, t("videoAiBadge")) : null,
 				React.createElement("label", { className: "omni-switch omni-switch-sm omni-card-enable", title: isCardEnabled ? "已启用" : "已禁用", onClick: function (e) { e.stopPropagation(); } }, [
 					React.createElement("input", { type: "checkbox", checked: isCardEnabled, onChange: function () { props.onPatch("enabled", !isCardEnabled); } }),
 					React.createElement("span", { className: "omni-switch-slider" })
@@ -3366,12 +3399,27 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement(Field, { label: t("videoDoneStatusLabel"), value: cfg.doneStatus || "completed", placeholder: "completed", onChange: function (e) { props.onPatch("doneStatus", e.target.value); } })
 				]) : null,
 				isAsync ? React.createElement("p", { className: "omni-status" }, t("videoAsyncHint")) : null,
+				// custom-adapter: adapterCode editor (AI-authored submit/poll contract)
+				isCustomAdapter ? React.createElement("div", { className: "omni-field", style: { display: "flex", flexDirection: "column", gap: "4px" } }, [
+					React.createElement("span", { className: "omni-label" }, t("videoAdapterCodeLabel")),
+					React.createElement("textarea", {
+						className: "omni-input",
+						style: { width: "100%", minHeight: "120px", fontFamily: "ui-monospace, Consolas, monospace", fontSize: "12px", resize: "vertical" },
+						value: cfg.adapterCode || "",
+						placeholder: "{ buildSubmit(ctx){...}, parseTaskId(res){...}, pollUrl(ctx){...}, parseStatus(res){...} }",
+						onChange: function (e) { props.onPatch("adapterCode", e.target.value); }
+					}),
+					React.createElement("p", { className: "omni-status" }, t("videoAdapterHint"))
+				]) : null,
 				// 底部状态行（多段 · 分隔）
 				React.createElement("p", { className: "omni-status" },
 				t("videoStatusPrefix") + " · " + (props.visible ? t("videoToolOn") : t("videoToolHidden")) +
 						(props.modelCount != null ? " · " + t("fetchOkPrefix") + props.modelCount + t("fetchOkSuffix") : ""))
 				]);
-				return React.createElement("div", { className: "omni-card" + (!isCardEnabled ? " omni-card-disabled" : "") }, [head, !cardCollapsed ? presetBar : null, !cardCollapsed ? React.createElement("div", { className: "omni-preset-divider" }) : null, !cardCollapsed ? body : null, confirmModal]);
+			// v2.11.1: AI cards hide the shared-preset bar (custom adapter config
+			// must not be overwritten by preset snapshots).
+			var showPreset = card.source !== "ai";
+				return React.createElement("div", { className: "omni-card" + (!isCardEnabled ? " omni-card-disabled" : "") }, [head, (!cardCollapsed && showPreset) ? presetBar : null, (!cardCollapsed && showPreset) ? React.createElement("div", { className: "omni-preset-divider" }) : null, !cardCollapsed ? body : null, confirmModal]);
 			}
 
 		// v2.9.2: 参考音频 row — input(modifiable name) + indicator(dropdown) + 上传 + 删除
@@ -3784,7 +3832,10 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		// 基线名用「加载后的权威名」(activePresetName)，避免 editable 草稿名异步追平首帧的瞬时脏。
 		function voiceDirtyCfg(cf) { var o = Object.assign({}, cf || {}); delete o.filterVoiceModels; return o; }
 		var vpBaseKey = dirtyKey("voice", activeSubtab[0] + "|" + (activePresetId || ""));
-		var vpBaseline = baselineFor(vpBaseKey, dirtyJson({ name: activePresetName, cfg: voiceDirtyCfg(cfg) }));
+		// v2.12.5: 基线取自预设快照而非 cfg——cfg 已被 queueSave 自动落盘，
+		// 重启后基线=已保存配置→脏标志丢失；预设快照仅「保存预设」时更新。
+		var vpPreset = presets.find(function (p) { return p.id === activePresetId; });
+		var vpBaseline = baselineFor(vpBaseKey, dirtyJson({ name: activePresetName, cfg: voiceDirtyCfg((vpPreset || {}).config || {}) }));
 		var vpCur = dirtyJson({ name: presetNameDraft[0], cfg: voiceDirtyCfg(cfg) });
 		var vcDirty = vpCur !== vpBaseline;
 
@@ -4264,17 +4315,24 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		]);
 	}
 
-	// ---------- extension card (v2.1) ----------
+	// ---------- extension card (v2.1 / v2.11.1 video builder) ----------
 	function ExtensionCard(props) {
 		var t = props.t;
 		var gc = props.globalConfig || {};
 		var vlmCollapsed = React.useState(function () { try { return JSON.parse(localStorage.getItem('omni-workstation-collapse') || '{}').extVlm !== false; } catch (e) { return false; } });
+		var videoCollapsed = React.useState(function () { try { return JSON.parse(localStorage.getItem('omni-workstation-collapse') || '{}').extVideo === true; } catch (e) { return true; } });
 		function toggleVlmCollapse() {
 			var v = !vlmCollapsed[0];
 			vlmCollapsed[1](v);
 			try { var s = JSON.parse(localStorage.getItem('omni-workstation-collapse') || '{}'); s.extVlm = v; localStorage.setItem('omni-workstation-collapse', JSON.stringify(s)); } catch (e) {}
 		}
+		function toggleVideoCollapse() {
+			var v = !videoCollapsed[0];
+			videoCollapsed[1](v);
+			try { var s = JSON.parse(localStorage.getItem('omni-workstation-collapse') || '{}'); s.extVideo = v; localStorage.setItem('omni-workstation-collapse', JSON.stringify(s)); } catch (e) {}
+		}
 		var expanded = !vlmCollapsed[0];
+		var videoExpanded = !videoCollapsed[0];
 		var toolSettingsOpen = React.useState(false);
 		var toolToggles = props.visionToolToggles || {};
 		var toolNames = ["zoom_image", "sample_colors", "image_diff", "ocr_image", "detect_elements", "show_image"];
@@ -4298,6 +4356,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				])
 			])
 		]) : null;
+		var builderOn = props.videoBuilderEnabled !== false;
+		var cardLimit = props.videoCardLimit != null ? props.videoCardLimit : 10;
 		return React.createElement("div", { className: "omni-card omni-ext-card" }, [
 			React.createElement("span", { className: "omni-settings-section-title" }, t("extCardTitle")),
 			React.createElement("div", { className: "omni-ext-section" }, [
@@ -4321,6 +4381,35 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							React.createElement("span", { className: "omni-switch-slider" })
 						]),
 						React.createElement("span", { className: "omni-label" }, t("verifyReminderLabel"))
+					])
+				]) : null
+			]),
+			React.createElement("div", { className: "omni-ext-section" }, [
+				React.createElement("div", { className: "omni-ext-section-head omni-head-clickable", onClick: toggleVideoCollapse }, [
+					React.createElement("span", { className: "omni-ext-section-title" }, t("extVideoSection")),
+					React.createElement("button", { className: "omni-icon-btn", title: videoExpanded ? "Collapse" : "Expand", onClick: function (e) { e.stopPropagation(); toggleVideoCollapse(); } }, React.createElement(SvgIcon, { d: videoExpanded ? I_COLLAPSE : I_EXPAND }))
+				]),
+				videoExpanded ? React.createElement("div", { className: "omni-ext-toggle-row omni-ext-video-row" }, [
+					React.createElement("div", { className: "omni-module-row" }, [
+						React.createElement("label", { className: "omni-switch" }, [
+							React.createElement("input", { type: "checkbox", checked: builderOn, onChange: function () { if (props.onToggleVideoBuilder) props.onToggleVideoBuilder(!builderOn); } }),
+							React.createElement("span", { className: "omni-switch-slider" })
+						]),
+						React.createElement("span", { className: "omni-label" }, t("videoBuilderSwitchLabel")),
+						React.createElement("span", { className: "omni-status" }, t("videoBuilderSwitchHint"))
+					]),
+					React.createElement("div", { className: "omni-module-row omni-limit-row" }, [
+						React.createElement("span", { className: "omni-label" }, t("videoCardLimitLabel")),
+						React.createElement("input", {
+							className: "omni-input omni-limit-input",
+							type: "number", min: 1, max: 10,
+							value: String(cardLimit),
+							onChange: function (e) {
+								var v = Math.max(1, Math.min(10, Math.floor(Number(e.target.value) || 10)));
+								if (props.onPatchVideoCardLimit) props.onPatchVideoCardLimit(v);
+							}
+						}),
+						React.createElement("span", { className: "omni-status" }, t("videoCardLimitHint"))
 					])
 				]) : null
 			]),
@@ -4981,7 +5070,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				if (field === "apiKey" && String(value || "").length === 0) return;
 				saveState[1]("saving"); queueSave({ videoCardPatch: { id: cardId, field: field, value: value } }); Promise.resolve().then(function () { saveState[1]("recent"); });
 			}
-			function saveVideoCardKey(cardId, value) { vcKeyDraft[1](Object.assign({}, vcKeyDraft[0], { [cardId]: value })); if (String(value || "").length === 0) return; saveState[1]("saving"); queueSave({ videoCardPatch: { id: cardId, field: "apiKey", value: value } }); Promise.resolve().then(function () { saveState[1]("recent"); }); }
+			function saveVideoCardKey(cardId, value) { vcKeyDraft[1](Object.assign({}, vcKeyDraft[0], { [cardId]: value })); if (String(value || "").length === 0) return; updateDraft(function (d) { var card = (d.videoCards || []).find(function (c) { return c.id === cardId; }); if (card) { card.config = card.config || {}; card.config.apiKeySet = true; } return d; }); saveState[1]("saving"); queueSave({ videoCardPatch: { id: cardId, field: "apiKey", value: value } }); Promise.resolve().then(function () { saveState[1]("recent"); }); }
 			function toggleVideoCardReveal(cardId) { var cur = !!vcRevealed[0][cardId]; var willShow = !cur; var card = (draft[0].videoCards || []).find(function (c) { return c.id === cardId; }); var cfg = (card && card.config) || {}; if (willShow && !vcKeyDraft[0][cardId] && cfg.apiKeySet) { call("key", { video: true, cardId: cardId }).then(function (r) { if (r && r.ok) vcKeyDraft[1](Object.assign({}, vcKeyDraft[0], { [cardId]: r.apiKey || "" })); }).catch(function () {}); } if (!willShow) vcKeyDraft[1](Object.assign({}, vcKeyDraft[0], { [cardId]: "" })); vcRevealed[1](Object.assign({}, vcRevealed[0], { [cardId]: willShow })); }
 			function fetchVideoCardModels(cardId) { var card = (draft[0].videoCards || []).find(function (c) { return c.id === cardId; }); var cfg = (card && card.config) || {}; vcBusy[1](Object.assign({}, vcBusy[0], { [cardId]: "video-mdl" })); vcModelList[1](Object.assign({}, vcModelList[0], { [cardId]: [] })); setMsg("", false); call("models", { video: true, cardId: cardId, endpoint: cfg.endpoint || undefined, protocol: cfg.protocol, apiKey: vcKeyDraft[0][cardId] || undefined }).then(function (r) { if (r && r.ok && Array.isArray(r.models) && r.models.length > 0) { vcModelList[1](Object.assign({}, vcModelList[0], { [cardId]: r.models })); vcModelCount[1](Object.assign({}, vcModelCount[0], { [cardId]: r.models.length })); vcOpenDd[1](Object.assign({}, vcOpenDd[0], { [cardId]: true })); showToast('success', t('fetchOkPrefix') + r.models.length + t('fetchOkSuffix'), ''); } else { vcModelCount[1](Object.assign({}, vcModelCount[0], { [cardId]: null })); setMsg(t("fetchFail") + (r && r.error ? r.error : t("unknown")), true); showToast('error', t("fetchFail"), (r && r.error) || t("unknown")); } }).catch(function (e) { setMsg(t("fetchFail") + et(e), true); showToast('error', t("fetchFail"), et(e)); }).finally(function () { vcBusy[1](Object.assign({}, vcBusy[0], { [cardId]: "" })); }); }
 			function pickVideoCardModel(cardId, m) { patchVideoCard(cardId, "model", m); vcOpenDd[1](Object.assign({}, vcOpenDd[0], { [cardId]: false })); }
@@ -5544,6 +5633,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var videoCards = draft[0].videoCards || [];
 			var videoOn = draft[0].videoEnabled === true;
 			var videoVisible = snap[0] ? snap[0].videoVisible : false;
+			var videoCardLimit = draft[0].videoCardLimit != null ? Math.max(1, Math.min(10, Math.floor(Number(draft[0].videoCardLimit) || 10))) : 10;
+			var videoBuilderEnabled = draft[0].videoBuilderEnabled !== false;
 			// v2.8.1: voice panel derived state
 			var voiceOn = draft[0].voiceEnabled === true;
 			var voiceVisible = snap[0] ? snap[0].voiceVisible : false;
@@ -5705,7 +5796,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					React.createElement("div", { className: "omni-list-head" }, [
 						React.createElement("span", { className: "omni-list-title" }, t("videoCardListTitle") + " (" + videoCards.length + ")"),
 						React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
-							React.createElement("button", { className: "omni-btn omni-add-btn", disabled: busy[0] !== "" || videoCards.length >= 10, onClick: function () { vcAddModalOpen[1](true); } }, t("addCard")),
+							React.createElement("button", { className: "omni-btn omni-add-btn", disabled: busy[0] !== "" || videoCards.length >= videoCardLimit, onClick: function () { vcAddModalOpen[1](true); } }, t("addCard")),
 							React.createElement("div", { className: "omni-batch-wrap" }, [
 								React.createElement("button", { className: "omni-btn omni-batch-btn", title: t("batchDeleteAll"), disabled: busy[0] !== "", onClick: function () { vcBatchOpen[1](!vcBatchOpen[0]); } }, React.createElement(SvgIcon, { d: I_COLLAPSE })),
 								vcBatchOpen[0] ? React.createElement("div", { className: "omni-batch-menu", ref: menuDdRef }, [
@@ -5868,7 +5959,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					onToggleTools: toggleTools,
 					onPatchGlobal: patchGlobal
 				}),
-			React.createElement(ExtensionCard, { t: t, globalConfig: draft[0].globalConfig || {}, toolsOn: toolsOn, onToggleTools: toggleTools, onPatchGlobal: patchGlobal, visionToolToggles: (draft[0].visionToolToggles || {}), onToggleVisionTool: function (tool) { queueSave({ visionToolToggle: { tool: tool, value: !((draft[0].visionToolToggles || {})[tool] !== false) } }); } }),
+			React.createElement(ExtensionCard, { t: t, globalConfig: draft[0].globalConfig || {}, toolsOn: toolsOn, onToggleTools: toggleTools, onPatchGlobal: patchGlobal, visionToolToggles: (draft[0].visionToolToggles || {}), onToggleVisionTool: function (tool) { queueSave({ visionToolToggle: { tool: tool, value: !((draft[0].visionToolToggles || {})[tool] !== false) } }); }, videoBuilderEnabled: videoBuilderEnabled, videoCardLimit: videoCardLimit, onToggleVideoBuilder: function (v) { commitStructure({ videoBuilderEnabled: v }, function (d) { d.videoBuilderEnabled = v; return d; }); }, onPatchVideoCardLimit: function (v) { commitStructure({ videoCardLimit: v }, function (d) { d.videoCardLimit = v; return d; }); } }),
 			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "", onHelp: function () { helpOpen[1](true); } })
 		]);
 

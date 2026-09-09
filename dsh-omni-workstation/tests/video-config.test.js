@@ -486,7 +486,7 @@ test('pathGet walks dotted paths and tolerates missing', () => {
 })
 
 test('VIDEO_PROTOCOLS / VIDEO_PROVIDERS integrity', () => {
-  assert.deepEqual(VIDEO_PROTOCOLS, ['openai-videos', 'dashscope-video', 'kling-video', 'volc-video', 'minimax-video', 'async-task'])
+  assert.deepEqual(VIDEO_PROTOCOLS, ['openai-videos', 'dashscope-video', 'kling-video', 'volc-video', 'minimax-video', 'async-task', 'custom-adapter'])
   for (const id of Object.keys(VIDEO_PROVIDERS)) {
     const p = VIDEO_PROVIDERS[id].protocol
     assert.ok(VIDEO_PROTOCOLS.includes(p), id + ' protocol ' + p + ' in list')
