@@ -105,7 +105,10 @@ const defaultGlobalConfig = () => ({
   backoff429Base: 2000,
   backoff429Max: 10000,
   retryStatusCodes: '402,408,429,500,502,503,504,NET',
-  verifyReminder: true
+  verifyReminder: true,
+  // v2.11.3: when on, tools + imggen verify reminder adapt to the current
+  // conversation model's image modality; when off, always analyze_image path.
+  dynamicMultimodalAdapt: true
 })
 
 const clampTimeout = (v, def = 120000) => {
@@ -1179,7 +1182,8 @@ function normalizeConfig(raw) {
     backoff429Base: Number.isFinite(Number(src.globalConfig.backoff429Base)) && Number(src.globalConfig.backoff429Base) > 0 ? Math.floor(Number(src.globalConfig.backoff429Base)) : 2000,
     backoff429Max: Number.isFinite(Number(src.globalConfig.backoff429Max)) && Number(src.globalConfig.backoff429Max) > 0 ? Math.floor(Number(src.globalConfig.backoff429Max)) : 10000,
     retryStatusCodes: typeof src.globalConfig.retryStatusCodes === 'string' && src.globalConfig.retryStatusCodes.length > 0 ? src.globalConfig.retryStatusCodes : '402,408,429,500,502,503,504,NET',
-    verifyReminder: src.globalConfig.verifyReminder !== false
+    verifyReminder: src.globalConfig.verifyReminder !== false,
+    dynamicMultimodalAdapt: src.globalConfig.dynamicMultimodalAdapt !== false
   } : defaultGlobalConfig()
  const mirrorConfig = normalizeMirrorConfig(src.mirrorConfig)
   // ---- imggen presets (v2.1): preset is source of truth; imggenConfig = active preset's config ----
@@ -2236,11 +2240,20 @@ let cloneDisposer = null, cloneVisible = false
 // image markers must point at the vision toolkit (whose local tools and
 // card-backed ocr/detect both work with the VLM module off) instead of a dead
 // tool reference.
-const viewImageToolHint = () => toolVisible
-  ? (lastSourceAcceptsImages
-    ? '优先直接看图（当前模型支持视觉）；若直接看图失败，再调用 analyze_image 工具'
-    : '调用 analyze_image 工具')
-  : '调用视觉工具箱工具（zoom_image 局部放大 / sample_colors 取色 / image_diff 对比 / ocr_image 文字识别 / detect_elements 元素检测，均不依赖 VLM 开关）'
+// v2.11.3: cached dynamicMultimodalAdapt (default on). When on + current model
+// accepts images, prefer native vision / read_image and fall back to
+// analyze_image only on failure. When off, always point at analyze_image
+// (pre-adaptation behavior).
+let lastDynamicAdapt = true
+const viewImageToolHint = () => {
+  if (!toolVisible) {
+    return '调用视觉工具箱工具（zoom_image 局部放大 / sample_colors 取色 / image_diff 对比 / ocr_image 文字识别 / detect_elements 元素检测，均不依赖 VLM 开关）'
+  }
+  if (lastDynamicAdapt && lastSourceAcceptsImages) {
+    return '优先用当前模型自身视觉能力（直接看图或 read_image）识别；仅当直接看图/read_image 失败时才调用 analyze_image 工具'
+  }
+  return '调用 analyze_image 工具'
+}
 // vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show).
 // Registered via buildVisionToolDefs when visionToolsEnabled is on; gated
 // independently of vlmEnabled because the local-only tools need no cards.
@@ -2290,7 +2303,7 @@ async function sourceModelAcceptsImages(ctx) {
 
 const toolDef = defineTool({
   name: 'analyze_image',
-  description: '【图片分析主工具】分析本地图片或用户上传的图片，回答关于图片内容的任何问题。这是理解、分析、描述图片内容的首选工具——包括但不限于：看图回答问题、描述图片内容、识别图中文字含义、分析图表数据、判断UI布局、理解截图内容等。传入图片路径（或附件 id）和你的分析需求即可。其他视觉工具（show_image 展示图片、ocr_image 提取文字、zoom_image 放大区域、detect_elements 检测元素）是辅助工具，仅在需要特定功能时使用，不要替代本工具进行图片理解。若当前会话模型本身支持视觉输入（可直接看图），应优先用模型自身视觉能力理解图片；仅在模型看图报错/无法识别时回退到本工具。',
+  description: '【图片分析主工具】分析本地图片或用户上传的图片，回答关于图片内容的任何问题。传入图片路径（或附件 id）和你的分析需求即可。其他视觉工具（show_image 展示图片、ocr_image 提取文字、zoom_image 放大区域、detect_elements 检测元素）是辅助工具，仅在需要特定功能时使用。【多模态模型重要】若当前会话模型本身支持视觉输入（可直接看图或使用 read_image），必须优先用模型自身视觉能力/read_image 识别图片；仅当直接看图或 read_image 失败时才调用本工具。禁止在已成功用原生视觉/read_image 识别之后再调用本工具重复识别。纯文本模型则固定使用本工具。',
   parameters: {
     image_path: { type: 'string', description: '要分析的图片文件的本地路径（绝对路径，或相对当前工作目录的路径）。与 attachment_id 二选一。' },
     attachment_id: { type: 'string', description: '上传图片的附件 id（形如 "sha256:..."，用户在对话中上传图片后获得）。与 image_path 二选一；同时给出时以 attachment_id 为准。' },
@@ -2716,15 +2729,19 @@ function comfySubmitError(res) {
 // backend-specific guidance only when it is the active provider.
 const COMFY_TOOL_HINT = '\n\n【ComfyUI 专用指引】当前生图后端为 ComfyUI：① prompt 必须用英文关键词短语、逗号分隔（SD 风格），如 "a orange cat, sitting on windowsill, sunny, detailed"，不要写长句；② size 用 8 的倍数，SDXL 推荐 1024x1024（竖图 832x1216，横图 1216x832）；③ 参数 n 映射为 batch_size；④ 模型已在配置面板选定（服务器 checkpoint），无需也不能在 prompt 中指定模型。'
 /**
- * v2.11.2: post-image-gen verify reminder mode.
- * '' = off; 'analyze_image' = VLM on + tool registered (legacy path);
- * 'native_vision' = VLM off (or no cards) — vision-capable models verify
- * by looking at the path themselves.
+ * v2.11.2/2.11.3: post-image-gen verify reminder mode.
+ * '' = off.
+ * 'analyze_image' = force the tool path (adapt off, or text-only + VLM on).
+ * 'native_vision' = look at the path with the model's own vision
+ *   (adapt on + model accepts images — even when VLM is on; or VLM off).
+ * acceptsImages: current conversation model declares image input.
  */
-function resolveVerifyReminderMode(cfg, analyzeVisible) {
+function resolveVerifyReminderMode(cfg, analyzeVisible, acceptsImages) {
   const gc = (cfg && cfg.globalConfig) || {}
   if (gc.verifyReminder === false) return ''
+  const adapt = gc.dynamicMultimodalAdapt !== false
   const vlmOn = !cfg || cfg.vlmEnabled !== false
+  if (adapt && acceptsImages) return 'native_vision'
   return (vlmOn && analyzeVisible) ? 'analyze_image' : 'native_vision'
 }
 
@@ -2759,8 +2776,8 @@ const buildImggenToolDef = (comfy) => defineTool({
       var paths = value.paths || []
       var imgs = paths.map(function (p) { return '![Generated Image](file:///' + String(p).replace(/\\/g, '/') + ')' })
       var text = '## 图像生成结果\n\n' + imgs.join('\n\n') + '\n\n— 模型: ' + (value.model || '未知') + ' · 尝试: ' + value.attempts + ' 次\n保存位置: ' + paths.join(', ')
-      // v2.11.2: VLM on → analyze_image reminder (tool registered);
-      // VLM off → native-vision reminder (models with image input can look at the path).
+      // v2.11.2/2.11.3: adapt on + multimodal model → native_vision even if VLM on;
+      // otherwise VLM on → analyze_image; VLM off → native_vision.
       if (value.verifyReminderMode === 'analyze_image') {
         text += '\n\n⚠️ 必须立即使用 analyze_image 工具验证此图片：传入图片路径 "' + (paths[0] || '') + '" 和验证问题，检查是否符合用户需求。不符合则调整 prompt 重新生成。'
       } else if (value.verifyReminderMode === 'native_vision') {
@@ -3105,7 +3122,7 @@ const buildImggenToolDef = (comfy) => defineTool({
       paths.push(join(imgDir, fileName))
     }
     if (paths.length === 0) throw new Error('generate_image: 未能从响应中解析出图像数据')
-    var reminderMode = resolveVerifyReminderMode(cfg, toolVisible)
+    var reminderMode = resolveVerifyReminderMode(cfg, toolVisible, lastDynamicAdapt && lastSourceAcceptsImages)
     return { ok: true, paths, model: (last.bodyModel || igc.model || ''), attempts: attempts0, verifyReminder: reminderMode !== '', verifyReminderMode: reminderMode }
   }
 })
@@ -5211,6 +5228,7 @@ function applyPatch(cfg, patch) {
       else if (field === 'backoff429Max') c.globalConfig.backoff429Max = Math.max(500, Math.floor(Number(value) || 10000))
       else if (field === 'retryStatusCodes') c.globalConfig.retryStatusCodes = String(value || '402,408,429,500,502,503,504,NET')
       else if (field === 'verifyReminder') c.globalConfig.verifyReminder = value === true
+      else if (field === 'dynamicMultimodalAdapt') c.globalConfig.dynamicMultimodalAdapt = value === true
     }
   }
   if (p.mirrorConfig) {
@@ -5451,6 +5469,7 @@ function apply(ctx) {
       } catch { lastSourceAcceptsImages = false }
       try {
         const cfg = await loadConfig(ctx)
+        lastDynamicAdapt = !cfg.globalConfig || cfg.globalConfig.dynamicMultimodalAdapt !== false
         const should = cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg))
         await syncTwins(ctx, cfg, should)
       } catch (e) {
@@ -5468,17 +5487,23 @@ function apply(ctx) {
   // (2) sanitize tool-result images in this step's claimed messages. User
   //     message images are preserved. `agent/pre-step` is a cordis waterfall:
   //     the listener MUST await next() and return the decision.
-  // v2.11.2: when the current source model declares image input, SKIP
-  // sanitization so the model can see tool-result images natively (prefer
-  // native vision). Text-only models keep the analyze_image path.
+  // v2.11.2/2.11.3: when dynamicMultimodalAdapt is on AND the current source
+  // model declares image input, SKIP sanitization so the model can see
+  // tool-result images natively (prefer native vision / read_image). Adapt
+  // off, or text-only models → keep the analyze_image sanitize path.
   ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
     if (!decision || decision.kind === 'reject') return decision
-    // Refresh vision capability each step (model may have switched).
     try {
-      const accepts = await sourceModelAcceptsImages(ctx)
-      lastSourceAcceptsImages = accepts
-      if (accepts) return decision
+      const cfg = await loadConfig(ctx)
+      lastDynamicAdapt = !cfg.globalConfig || cfg.globalConfig.dynamicMultimodalAdapt !== false
+      if (lastDynamicAdapt) {
+        const accepts = await sourceModelAcceptsImages(ctx)
+        lastSourceAcceptsImages = accepts
+        if (accepts) return decision
+      } else {
+        lastSourceAcceptsImages = false
+      }
     } catch { /* fall through to sanitize */ }
     const session = payload && payload.agent && payload.agent.session
     if (session) {
