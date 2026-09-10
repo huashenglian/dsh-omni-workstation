@@ -69,6 +69,8 @@ window.__ModuleLoader__.load({
 				providerOllama: "Ollama",
 				protocolLabel: "API 协议",
 				timeoutLabel: "超时 (ms)",
+				contextWindowLabel: "上下文窗口",
+				maxOutputLabel: "最大输出",
 				protoOpenaiCompletions: "openai-completions",
 				protoOpenaiResponses: "openai-responses",
 				protoAnthropicMessages: "anthropic-messages",
@@ -549,6 +551,8 @@ voiceSovitsModel: "SoVITS 模型名",
 				providerOllama: "Ollama",
 				protocolLabel: "API Protocol",
 				timeoutLabel: "Timeout (ms)",
+				contextWindowLabel: "Context Window",
+				maxOutputLabel: "Max Output",
 				protoOpenaiCompletions: "openai-completions",
 				protoOpenaiResponses: "openai-responses",
 				protoAnthropicMessages: "anthropic-messages",
@@ -1915,14 +1919,14 @@ voiceSovitsModel: "SoVITS model name",
 							onChange: function (e) { props.onPatch(id, "timeoutMs", e.target.value); }
 						}),
 						React.createElement(Field, {
-							label: "上下文窗口",
+							label: t("contextWindowLabel"),
 							number: true, min: 1,
 							value: String(card.contextWindow != null ? card.contextWindow : ""),
 							placeholder: "262144",
 							onChange: function (e) { props.onPatch(id, "contextWindow", e.target.value); }
 						}),
 						React.createElement(Field, {
-							label: "最大输出",
+							label: t("maxOutputLabel"),
 							number: true, min: 1,
 							value: String(card.maxOutput != null ? card.maxOutput : ""),
 							placeholder: "32768",
@@ -4406,8 +4410,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 							React.createElement("input", { type: "checkbox", checked: builderOn, onChange: function () { if (props.onToggleVideoBuilder) props.onToggleVideoBuilder(!builderOn); } }),
 							React.createElement("span", { className: "omni-switch-slider" })
 						]),
-						React.createElement("span", { className: "omni-label" }, t("videoBuilderSwitchLabel")),
-						React.createElement("span", { className: "omni-status" }, t("videoBuilderSwitchHint"))
+						React.createElement("span", { className: "omni-label" }, t("videoBuilderSwitchLabel"))
 					]),
 					React.createElement("div", { className: "omni-module-row omni-limit-row" }, [
 						React.createElement("span", { className: "omni-label" }, t("videoCardLimitLabel")),

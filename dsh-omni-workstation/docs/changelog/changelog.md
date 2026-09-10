@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## 0.1.0 — 正式版
+
+- package.json 版本由开发期 `2.11.3` 正式定为 **`0.1.0`**（设置页「关于」显示 0.1.0）。开发里程碑仍用 v2.x.y 记在 changelog/plan，见根 AGENTS.md「版本号约定」。
+- VLM 卡片「上下文窗口 / 最大输出」改为 i18n（zh/en：Context Window / Max Output）。
+- 开关扩展 → 视频：去掉「开启后在斜杠菜单出现 /build-video-tool…」长提示（溢出可视区）。
+
 ## v2.11.3 — 动态多模态适应开关 + 多模态生图验证提示
 
 - **新配置** `globalConfig.dynamicMultimodalAdapt`（默认开）。设置 → 开关扩展 → VLM 折叠区新增「动态多模态适应」。
