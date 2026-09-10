@@ -2237,7 +2237,9 @@ let cloneDisposer = null, cloneVisible = false
 // card-backed ocr/detect both work with the VLM module off) instead of a dead
 // tool reference.
 const viewImageToolHint = () => toolVisible
-  ? '调用 analyze_image 工具'
+  ? (lastSourceAcceptsImages
+    ? '优先直接看图（当前模型支持视觉）；若直接看图失败，再调用 analyze_image 工具'
+    : '调用 analyze_image 工具')
   : '调用视觉工具箱工具（zoom_image 局部放大 / sample_colors 取色 / image_diff 对比 / ocr_image 文字识别 / detect_elements 元素检测，均不依赖 VLM 开关）'
 // vision toolkit tools (zoom/sample_colors/image_diff/ocr/detect/show).
 // Registered via buildVisionToolDefs when visionToolsEnabled is on; gated
@@ -2262,14 +2264,33 @@ const twinHandles = new Map()
 // per provider) so the picker grows by +1 entry instead of doubling.
 let lastSourceProvider = null
 let lastSourceModel = null
+// v2.11.2: whether the last source model declares image input (settings.yaml
+// `input: [text, image]` → adapter resolveModel.inputModalities includes 'image').
+// Vision models keep tool-result images (native vision preferred); text-only
+// models keep the analyze_image sanitize path.
+let lastSourceAcceptsImages = false
 // test-only: reset v1.8 module state so tests start from a clean default
-function _resetLastSource() { lastSourceProvider = null; lastSourceModel = null }
+function _resetLastSource() { lastSourceProvider = null; lastSourceModel = null; lastSourceAcceptsImages = false }
 // test-only: set v1.8 module state so wrapper tests can drive stream delegation
 function _setLastSource(provider, model) { lastSourceProvider = provider; lastSourceModel = model }
 
+/** Whether the current source model accepts image input (native vision). */
+async function sourceModelAcceptsImages(ctx) {
+  if (!ctx || !lastSourceProvider || !lastSourceModel) return false
+  try {
+    const reg = ctx.llm && typeof ctx.llm.registration === 'function' ? ctx.llm.registration(lastSourceProvider) : null
+    const original = reg && reg.adapter
+    if (!original || typeof original.resolveModel !== 'function') return false
+    const info = await original.resolveModel(lastSourceProvider, lastSourceModel)
+    return Array.isArray(info && info.inputModalities) && info.inputModalities.includes('image')
+  } catch {
+    return false
+  }
+}
+
 const toolDef = defineTool({
   name: 'analyze_image',
-  description: '【图片分析主工具】分析本地图片或用户上传的图片，回答关于图片内容的任何问题。这是理解、分析、描述图片内容的首选工具——包括但不限于：看图回答问题、描述图片内容、识别图中文字含义、分析图表数据、判断UI布局、理解截图内容等。传入图片路径（或附件 id）和你的分析需求即可。其他视觉工具（show_image 展示图片、ocr_image 提取文字、zoom_image 放大区域、detect_elements 检测元素）是辅助工具，仅在需要特定功能时使用，不要替代本工具进行图片理解。',
+  description: '【图片分析主工具】分析本地图片或用户上传的图片，回答关于图片内容的任何问题。这是理解、分析、描述图片内容的首选工具——包括但不限于：看图回答问题、描述图片内容、识别图中文字含义、分析图表数据、判断UI布局、理解截图内容等。传入图片路径（或附件 id）和你的分析需求即可。其他视觉工具（show_image 展示图片、ocr_image 提取文字、zoom_image 放大区域、detect_elements 检测元素）是辅助工具，仅在需要特定功能时使用，不要替代本工具进行图片理解。若当前会话模型本身支持视觉输入（可直接看图），应优先用模型自身视觉能力理解图片；仅在模型看图报错/无法识别时回退到本工具。',
   parameters: {
     image_path: { type: 'string', description: '要分析的图片文件的本地路径（绝对路径，或相对当前工作目录的路径）。与 attachment_id 二选一。' },
     attachment_id: { type: 'string', description: '上传图片的附件 id（形如 "sha256:..."，用户在对话中上传图片后获得）。与 image_path 二选一；同时给出时以 attachment_id 为准。' },
@@ -2694,6 +2715,19 @@ function comfySubmitError(res) {
 // v2.6: the generate_image tool description is built dynamically — ComfyUI gets
 // backend-specific guidance only when it is the active provider.
 const COMFY_TOOL_HINT = '\n\n【ComfyUI 专用指引】当前生图后端为 ComfyUI：① prompt 必须用英文关键词短语、逗号分隔（SD 风格），如 "a orange cat, sitting on windowsill, sunny, detailed"，不要写长句；② size 用 8 的倍数，SDXL 推荐 1024x1024（竖图 832x1216，横图 1216x832）；③ 参数 n 映射为 batch_size；④ 模型已在配置面板选定（服务器 checkpoint），无需也不能在 prompt 中指定模型。'
+/**
+ * v2.11.2: post-image-gen verify reminder mode.
+ * '' = off; 'analyze_image' = VLM on + tool registered (legacy path);
+ * 'native_vision' = VLM off (or no cards) — vision-capable models verify
+ * by looking at the path themselves.
+ */
+function resolveVerifyReminderMode(cfg, analyzeVisible) {
+  const gc = (cfg && cfg.globalConfig) || {}
+  if (gc.verifyReminder === false) return ''
+  const vlmOn = !cfg || cfg.vlmEnabled !== false
+  return (vlmOn && analyzeVisible) ? 'analyze_image' : 'native_vision'
+}
+
 const buildImggenToolDef = (comfy) => defineTool({
   name: 'generate_image',
   description: '生成图片并保存到指定目录，返回文件路径。prompt 描述图片内容，output_dir 指定保存目录（不指定则保存到工作区 .omni-workstation/images/ 目录）。' + (comfy ? COMFY_TOOL_HINT : ''),
@@ -2714,7 +2748,8 @@ const buildImggenToolDef = (comfy) => defineTool({
         model: { type: 'string' },
         attempts: { type: 'number' },
         detail: { type: 'string' },
-        verifyReminder: { type: 'boolean' }
+        verifyReminder: { type: 'boolean' },
+        verifyReminderMode: { type: 'string' }
       }
     },
     render: (args, value) => {
@@ -2724,8 +2759,12 @@ const buildImggenToolDef = (comfy) => defineTool({
       var paths = value.paths || []
       var imgs = paths.map(function (p) { return '![Generated Image](file:///' + String(p).replace(/\\/g, '/') + ')' })
       var text = '## 图像生成结果\n\n' + imgs.join('\n\n') + '\n\n— 模型: ' + (value.model || '未知') + ' · 尝试: ' + value.attempts + ' 次\n保存位置: ' + paths.join(', ')
-      if (value.verifyReminder) {
+      // v2.11.2: VLM on → analyze_image reminder (tool registered);
+      // VLM off → native-vision reminder (models with image input can look at the path).
+      if (value.verifyReminderMode === 'analyze_image') {
         text += '\n\n⚠️ 必须立即使用 analyze_image 工具验证此图片：传入图片路径 "' + (paths[0] || '') + '" 和验证问题，检查是否符合用户需求。不符合则调整 prompt 重新生成。'
+      } else if (value.verifyReminderMode === 'native_vision') {
+        text += '\n\n⚠️ 必须立即视觉验证此图片：传入图片路径 "' + (paths[0] || '') + '" 和验证问题，检查是否符合用户需求。不符合则调整 prompt 重新生成。'
       }
       return [{ type: 'text', text: text }]
     }
@@ -3066,8 +3105,8 @@ const buildImggenToolDef = (comfy) => defineTool({
       paths.push(join(imgDir, fileName))
     }
     if (paths.length === 0) throw new Error('generate_image: 未能从响应中解析出图像数据')
-    var gc = cfg.globalConfig || defaultGlobalConfig()
-    return { ok: true, paths, model: (last.bodyModel || igc.model || ''), attempts: attempts0, verifyReminder: gc.verifyReminder !== false && toolVisible }
+    var reminderMode = resolveVerifyReminderMode(cfg, toolVisible)
+    return { ok: true, paths, model: (last.bodyModel || igc.model || ''), attempts: attempts0, verifyReminder: reminderMode !== '', verifyReminderMode: reminderMode }
   }
 })
 
@@ -5408,6 +5447,9 @@ function apply(ctx) {
     lastSourceModel = model
     void (async () => {
       try {
+        lastSourceAcceptsImages = await sourceModelAcceptsImages(ctx)
+      } catch { lastSourceAcceptsImages = false }
+      try {
         const cfg = await loadConfig(ctx)
         const should = cfg.vlmEnabled !== false && (validCards(cfg).length > 0 || fallbackHasModels(cfg))
         await syncTwins(ctx, cfg, should)
@@ -5426,9 +5468,18 @@ function apply(ctx) {
   // (2) sanitize tool-result images in this step's claimed messages. User
   //     message images are preserved. `agent/pre-step` is a cordis waterfall:
   //     the listener MUST await next() and return the decision.
+  // v2.11.2: when the current source model declares image input, SKIP
+  // sanitization so the model can see tool-result images natively (prefer
+  // native vision). Text-only models keep the analyze_image path.
   ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
     if (!decision || decision.kind === 'reject') return decision
+    // Refresh vision capability each step (model may have switched).
+    try {
+      const accepts = await sourceModelAcceptsImages(ctx)
+      lastSourceAcceptsImages = accepts
+      if (accepts) return decision
+    } catch { /* fall through to sanitize */ }
     const session = payload && payload.agent && payload.agent.session
     if (session) {
       // Layer 1: shadow historical tool/result events on the session surface so
@@ -6111,4 +6162,4 @@ function apply(ctx) {
   })
 }
 
-export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, comfyMapTarget, comfyHistoryPromptApi, comfyHistoryHint, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig, VIDEO_PROVIDERS, VIDEO_PROVIDER_IDS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS, defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid, isVoiceConfigValid, pathGet, agnesNumFrames, klingJwt, filterVideoModelIds, buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId, pollVideoOnce, minimaxResolveUrl, buildVideoToolDef, dashscopeVideoBase, dashscopeModelsUrl, parseDashscopeModelList, buildCloneVoiceToolDef, buildSpeakToolDef, runDoubaoTts, doDoubaoClone, resolveDoubaoClonePreset, runIndexTts, doIndexTtsClone, runGptSovits, runVoxCpm, doVoxCpmClone, runTtsWebui, syncBuilderCommand, clampVideoCardLimit, loadCustomAdapter, validateCustomAdapter, runCustomAdapterVideo, buildVideoBuilderGuide, VIDEO_BUILDER_CMD, CUSTOM_ADAPTER_PROTOCOL, VIDEO_CARD_HARD_MAX }
+export { Config, apply, inject, name, toolDef, rewriteImagesDeep, toolImageMarker, blocksHaveImage, sanitizeToolResultMessage, sanitizeSessionToolResults, resolveImage, askVlm, sniffMediaType, collectAttachmentRefs, makeTwinAdapter, makePerProviderTwinAdapter, makeMappingTwinAdapter, syncTwins, mirrorRouteId, mirrorDisplayName, defaultMirrorConfig, normalizeMirrorConfig, detectComfyMapping, comfyMapTarget, comfyHistoryPromptApi, comfyHistoryHint, applyPatch, _resetLastSource, _setLastSource, _resetVisionTools, backupFile, storeConfig, loadConfig, VIDEO_PROVIDERS, VIDEO_PROVIDER_IDS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS, defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid, isVoiceConfigValid, pathGet, agnesNumFrames, klingJwt, filterVideoModelIds, buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId, pollVideoOnce, minimaxResolveUrl, buildVideoToolDef, dashscopeVideoBase, dashscopeModelsUrl, parseDashscopeModelList, buildCloneVoiceToolDef, buildSpeakToolDef, runDoubaoTts, doDoubaoClone, resolveDoubaoClonePreset, runIndexTts, doIndexTtsClone, runGptSovits, runVoxCpm, doVoxCpmClone, runTtsWebui, syncBuilderCommand, clampVideoCardLimit, loadCustomAdapter, validateCustomAdapter, runCustomAdapterVideo, buildVideoBuilderGuide, VIDEO_BUILDER_CMD, CUSTOM_ADAPTER_PROTOCOL, VIDEO_CARD_HARD_MAX, sourceModelAcceptsImages, resolveVerifyReminderMode }

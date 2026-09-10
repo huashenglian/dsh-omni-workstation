@@ -2,6 +2,19 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.11.2 — 视觉路由 + 生图验证提醒按 VLM 切换
+
+- **当前模型视觉能力检测**：`sourceModelAcceptsImages(ctx)` 经 `llm.registration(provider).adapter.resolveModel` 读 `inputModalities`（对应 settings.yaml 的 `input: [text, image]`）。`agent/request` 与 `agent/pre-step` 缓存 `lastSourceAcceptsImages`。
+- **图片识别路由**：
+  - 视觉模型（`input` 含 image）：`agent/pre-step` **跳过** tool-result 图片 sanitize，模型可直接看图；看图失败再回退 `analyze_image`。
+  - 纯文本模型：保持 sanitize + 强制走 `analyze_image`。
+  - `analyze_image` 描述与 `viewImageToolHint` 按能力动态提示优先路径。
+- **生图后自动验证提醒**：标签去掉「需 VLM 开启」。`resolveVerifyReminderMode`：
+  - VLM 开 + `analyze_image` 已注册 → `⚠️ 必须立即使用 analyze_image 工具验证…`（原路径）
+  - VLM 关（或无卡片）→ `⚠️ 必须立即视觉验证此图片：传入图片路径 "…" …`（适配原生视觉模型）
+  - 开关关 → 不注入
+- **验证**：单元 8/8（vision-routing）；E2E：sensenova 不强制 analyze_image；deepseek-v4-flash 调用 analyze_image；VLM 关生成后工具结果含「必须立即视觉验证」且无 analyze_image 提醒。
+
 ## v2.11.1 — 视频卡片上限配置 + `/build-video-tool` 自定义视频工具构建
 
 - **视频卡片上限改为配置项** `videoCardLimit`（默认 10，硬顶 10）。设置页「开关扩展 → 视频」折叠区可改；`videoCardAdd` / `videoCardAddAi` 均做物理门禁（达上限直接 throw）。
@@ -19,7 +32,7 @@
 
 - **AI 自定义视频卡片**：
   - 新 applyPatch：`videoCardAddAi`（limit + toolName 唯一 + adapter 校验）
-  - 卡片 `source:'ai'` → 前端卡片最右侧显示紫色 **AI** 徽章；**不渲染预设栏**（防预设覆盖自定义配置）
+  - 卡片 `source:'ai'` → 前端卡片头部**最左侧**（模型类型标签左侧）显示紫色 **AI** 徽章；**不渲染预设栏**（防预设覆盖自定义配置）
   - 折叠/展开/删除/编辑弹窗等常规操作不变
   - AI 卡的 toolName 不被 type 推导覆盖（用户卡仍保持旧逻辑）
 
