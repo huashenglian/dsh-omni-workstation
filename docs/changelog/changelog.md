@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.11.3 — 动态多模态适应开关 + 多模态生图验证提示
+
+- **新配置** `globalConfig.dynamicMultimodalAdapt`（默认开）。设置 → 开关扩展 → VLM 折叠区新增「动态多模态适应」。
+- **开启时**：按当前对话模型 `inputModalities` 是否含 image 自适应——多模态则跳过 tool-result 图片 sanitize、生图验证提示用「必须立即视觉验证此图片…」（**即使 VLM 开**）；纯文本则固定 `analyze_image`。
+- **关闭时**：回到旧行为——始终 sanitize + VLM 开时始终 `analyze_image` 提醒。
+- **防重复识图**：`analyze_image` 描述与 `viewImageToolHint` 明确「多模态优先 read_image/原生看图，仅失败才回退 analyze_image，禁止成功后再调用」。
+- **验证**：单元 11/11；E2E：UI 有开关；adapt 开+sensenova+VLM 开 → native 提醒且无 analyze 提醒；adapt 关 → analyze 提醒。
+
 ## v2.11.2 — 视觉路由 + 生图验证提醒按 VLM 切换
 
 - **当前模型视觉能力检测**：`sourceModelAcceptsImages(ctx)` 经 `llm.registration(provider).adapter.resolveModel` 读 `inputModalities`（对应 settings.yaml 的 `input: [text, image]`）。`agent/request` 与 `agent/pre-step` 缓存 `lastSourceAcceptsImages`。

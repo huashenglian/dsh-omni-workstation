@@ -61,21 +61,40 @@ test('sourceModelAcceptsImages: missing modalities / throws → false', async ()
   _resetLastSource()
 })
 
-test('resolveVerifyReminderMode: VLM on + tool → analyze_image', () => {
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: { verifyReminder: true } }, true), 'analyze_image')
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: {} }, true), 'analyze_image')
+// --- resolveVerifyReminderMode (v2.11.3) ---
+
+test('adapt on + multimodal + VLM on → native_vision', () => {
+  const cfg = { vlmEnabled: true, globalConfig: { verifyReminder: true, dynamicMultimodalAdapt: true } }
+  assert.equal(resolveVerifyReminderMode(cfg, true, true), 'native_vision')
 })
 
-test('resolveVerifyReminderMode: VLM off → native_vision even without tool', () => {
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: false, globalConfig: { verifyReminder: true } }, false), 'native_vision')
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: false, globalConfig: {} }, true), 'native_vision')
+test('adapt on + text-only + VLM on → analyze_image', () => {
+  const cfg = { vlmEnabled: true, globalConfig: { verifyReminder: true, dynamicMultimodalAdapt: true } }
+  assert.equal(resolveVerifyReminderMode(cfg, true, false), 'analyze_image')
 })
 
-test('resolveVerifyReminderMode: VLM on but no tool → native_vision', () => {
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: {} }, false), 'native_vision')
+test('adapt off + multimodal + VLM on → analyze_image (legacy)', () => {
+  const cfg = { vlmEnabled: true, globalConfig: { verifyReminder: true, dynamicMultimodalAdapt: false } }
+  assert.equal(resolveVerifyReminderMode(cfg, true, true), 'analyze_image')
 })
 
-test('resolveVerifyReminderMode: switch off → empty', () => {
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: { verifyReminder: false } }, true), '')
-  assert.equal(resolveVerifyReminderMode({ vlmEnabled: false, globalConfig: { verifyReminder: false } }, false), '')
+test('adapt on + VLM off → native_vision even without acceptsImages', () => {
+  const cfg = { vlmEnabled: false, globalConfig: { verifyReminder: true, dynamicMultimodalAdapt: true } }
+  assert.equal(resolveVerifyReminderMode(cfg, false, false), 'native_vision')
+  assert.equal(resolveVerifyReminderMode(cfg, true, true), 'native_vision')
+})
+
+test('adapt off + VLM off → native_vision', () => {
+  const cfg = { vlmEnabled: false, globalConfig: { verifyReminder: true, dynamicMultimodalAdapt: false } }
+  assert.equal(resolveVerifyReminderMode(cfg, false, false), 'native_vision')
+})
+
+test('VLM on but no tool → native_vision', () => {
+  const cfg = { vlmEnabled: true, globalConfig: { verifyReminder: true } }
+  assert.equal(resolveVerifyReminderMode(cfg, false, false), 'native_vision')
+})
+
+test('verifyReminder switch off → empty', () => {
+  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: { verifyReminder: false } }, true, true), '')
+  assert.equal(resolveVerifyReminderMode({ vlmEnabled: false, globalConfig: { verifyReminder: false } }, false, false), '')
 })
