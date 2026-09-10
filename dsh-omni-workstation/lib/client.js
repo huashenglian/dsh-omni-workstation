@@ -25,22 +25,24 @@ window.__ModuleLoader__.load({
 				aboutDesc: "该插件能够给予纯文本模型全模态的能力。",
 				checkUpdateBtn: "检测更新",
 				versionLabel: "版本 ",
-				helpBtn: "说明",
+				helpBtn: "帮助",
+				githubRepoBtn: "GitHub",
+				githubRepoHint: "打开插件 GitHub 仓库",
 				helpSearchPlaceholder: "搜索文档…",
 				helpPlaceholder: "内容待补充。",
 				helpNoResult: "无匹配结果",
-				helpGroupVlm: "VLM",
-				helpGroupImggen: "图像生成",
-				helpVlmTitle: "VLM 视觉模型",
-				helpVlmContent: "配置全模态工作台的视觉模型（VLM）。所有修改自动保存、立即生效，无需手动点保存。AI 通过 analyze_image 工具按卡片列表顺序从上到下调用；单次请求内重试超限后自动回退到下一张卡片，下一次请求重新从顶部开始。若没有任何有效的卡片配置，analyze_image 工具会自动隐藏。",
-				helpImggenTitle: "图像生成",
-				helpImggenContent: "配置图像生成模型。AI 通过 generate_image 工具生成图片并保存到工作区 generated-images/ 目录。所有修改自动保存。",
-				helpAnalyzeTitle: "analyze_image 工具",
-				helpAnalyzeContent: "让 AI 分析本地图片或对话中上传的图片。支持 image_path（本地文件路径）和 attachment_id（上传附件 id）两种图片来源，同时给出时以 attachment_id 为准。结果包含 AI 的文字描述、使用的模型和卡片、尝试次数。",
-				helpFailoverTitle: "卡片与回退",
-				helpFailoverContent: "多卡片列表按顺序从上到下调用。单次请求内，一张卡片连续失败超过重试次数后回退到下一张；超时立即回退不重试。每次新请求重新从顶部卡片开始。支持自定义供应商和 28 个内置固定供应商（OpenAI / Anthropic / Gemini / Groq / MiniMax 等）。",
-			helpMirrorTitle: "镜像模型",
-			helpMirrorContent: "镜像模型卡片提供三种独立模式控制 /model 中的镜像条目：\n\n1. auto-vision 自动路由（开关1）：注册一条 Auto Vision 条目，自动委派到最近使用的模型。\n2. 镜像全部模型（开关2）：为每个供应商注册镜像 twin，掩盖下方自定义映射列表。\n3. 模型映射列表：自定义原模型 → 镜像名映射，留空则用 <原模型>-vision 命名。\n\n所有配置热更新，对话中途修改下一轮生效。",
+				helpGroupVlm: "",
+				helpGroupImggen: "",
+				helpVlmTitle: "",
+				helpVlmContent: "",
+				helpImggenTitle: "",
+				helpImggenContent: "",
+				helpAnalyzeTitle: "",
+				helpAnalyzeContent: "",
+				helpFailoverTitle: "",
+				helpFailoverContent: "",
+			helpMirrorTitle: "",
+			helpMirrorContent: "",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
 				cardAdded: "已添加模型卡片",
@@ -508,21 +510,23 @@ voiceSovitsModel: "SoVITS 模型名",
 				checkUpdateBtn: "Check for Updates",
 				versionLabel: "Version ",
 				helpBtn: "Help",
+				githubRepoBtn: "GitHub",
+				githubRepoHint: "Open plugin repository on GitHub",
 				helpSearchPlaceholder: "Search docs…",
 				helpPlaceholder: "Content TBD.",
 				helpNoResult: "No results found",
-				helpGroupVlm: "VLM",
-				helpGroupImggen: "Image Generation",
-				helpVlmTitle: "VLM Vision Models",
-				helpVlmContent: "Configure the omni workstation's vision models. All changes auto-save and take effect immediately. The AI calls analyze_image top-down by card order; retries and falls back to the next card past the limit; new requests restart from the top. If no card is configured, analyze_image is hidden.",
-				helpImggenTitle: "Image Generation",
-				helpImggenContent: "Configure image generation models. The AI generates images via generate_image and saves them to generated-images/. All changes auto-save.",
-				helpAnalyzeTitle: "analyze_image Tool",
-				helpAnalyzeContent: "Lets the AI analyze local or uploaded images. Supports image_path (local file path) and attachment_id (uploaded attachment id); attachment_id wins when both are given. Results include the AI's text description, model used, and attempt count.",
-				helpFailoverTitle: "Cards & Failover",
-				helpFailoverContent: "Multi-card list called top-down. Falls back to next card past retry limit; timeout falls back immediately without retry; new requests restart from the top card. Supports custom providers and 28 built-in fixed providers (OpenAI / Anthropic / Gemini / Groq / MiniMax, etc.).",
-			helpMirrorTitle: "Mirror Model",
-			helpMirrorContent: "The Mirror Models card provides three independent modes to control mirror entries in /model:\n\n1. auto-vision auto-routing (Toggle 1): registers a single Auto Vision entry that delegates to the last-used model.\n2. Mirror all models (Toggle 2): registers a mirror twin per provider; masks the custom mapping list below.\n3. Model mappings: custom original→mirror name mappings; empty defaults to <original>-vision.\n\nAll changes hot-update and take effect on the next conversation turn.",
+				helpGroupVlm: "",
+				helpGroupImggen: "",
+				helpVlmTitle: "",
+				helpVlmContent: "",
+				helpImggenTitle: "",
+				helpImggenContent: "",
+				helpAnalyzeTitle: "",
+				helpAnalyzeContent: "",
+				helpFailoverTitle: "",
+				helpFailoverContent: "",
+			helpMirrorTitle: "",
+			helpMirrorContent: "",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
 				cardAdded: "Card added",
@@ -1311,7 +1315,8 @@ voiceSovitsModel: "SoVITS model name",
   ".omni-about-card { margin-top: 16px; align-items: flex-start; }",
   ".omni-about-update-btn { align-self: flex-start; }",
   ".omni-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }",
-  ".omni-about-btns { display: flex; gap: 8px; }",
+  ".omni-about-btns { display: flex; gap: 8px; flex-wrap: wrap; }",
+".omni-github-btn { display: inline-flex; align-items: center; gap: 4px; }",
   ".omni-help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
   ".omni-help-modal { position: relative; width: 90vw; max-width: 1100px; height: 85vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
   ".omni-help-close { position: absolute; top: 8px; right: 12px; z-index: 2; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
@@ -4433,6 +4438,17 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 
 	function AboutCard(props) {
 		var t = props.t;
+		// GitHub mark (simple octocat path) — repo URL reserved; no navigation yet
+		// until the plugin is pushed (user request 2026-09).
+		var githubSvg = React.createElement("svg", {
+			width: "14", height: "14", viewBox: "0 0 16 16", fill: "currentColor",
+			"aria-hidden": "true", style: { verticalAlign: "middle" }
+		}, [
+			React.createElement("path", {
+				key: "p",
+				d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+			})
+		]);
 		return React.createElement("div", { className: "omni-card omni-about-card" }, [
 			React.createElement("span", { className: "omni-settings-section-title" }, t("aboutTitle")),
 			React.createElement("p", { className: "omni-desc" }, t("aboutDesc")),
@@ -4446,32 +4462,72 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					title: t("comingSoon"),
 					className: "omni-btn",
 					onClick: function () {}
-				}, t("checkUpdateBtn"))
+				}, t("checkUpdateBtn")),
+				// v0.1.0: GitHub repo button — reserved; enable navigation after push
+				React.createElement("button", {
+					className: "omni-btn omni-github-btn",
+					title: t("githubRepoHint"),
+					disabled: true,
+					onClick: function () {
+						// After push: window.open('https://github.com/huashenglian/dsh-omni-workstation', '_blank')
+						if (props.onGithub) props.onGithub();
+					}
+				}, [githubSvg, " ", t("githubRepoBtn")])
 			]),
 			React.createElement("p", { className: "omni-status omni-about-version" }, t("versionLabel") + (props.version || ""))
 		]);
 	}
 
+	// ---------- help docs: GitHub raw fetch interface ----------
+	// raw.githubusercontent.com sends Access-Control-Allow-Origin: * so the
+	// browser client can fetch markdown docs directly (no host proxy needed).
+	// Fill HELP_DOC_SOURCES after docs are pushed; empty = empty help window.
+	var GITHUB_REPO = "https://github.com/huashenglian/dsh-omni-workstation";
+	var GITHUB_RAW_BASE = "https://raw.githubusercontent.com/huashenglian/dsh-omni-workstation/main/";
+	/** [{ id, group, title, path }] — path relative to repo root, e.g. 'README.zh.md' */
+	var HELP_DOC_SOURCES = [];
+
+	function fetchGithubDoc(relPath) {
+		var url = GITHUB_RAW_BASE + String(relPath || "").replace(/^\/+/, "");
+		return fetch(url, { method: "GET", cache: "no-cache" }).then(function (r) {
+			if (!r.ok) throw new Error("HTTP " + r.status);
+			return r.text();
+		});
+	}
+
 	function HelpModal(props) {
 		var t = props.t;
-		var groups = [
-			{
-				id: "vlm", title: t("helpGroupVlm"), sections: [
-					{ id: "omni-overview", title: t("helpVlmTitle"), content: t("helpVlmContent") },
-					{ id: "omni-analyze", title: t("helpAnalyzeTitle"), content: t("helpAnalyzeContent") },
-					{ id: "omni-failover", title: t("helpFailoverTitle"), content: t("helpFailoverContent") },
-					{ id: "omni-mirror", title: t("helpMirrorTitle"), content: t("helpMirrorContent") }
-				]
-			},
-			{
-				id: "imggen", title: t("helpGroupImggen"), sections: [
-					{ id: "imggen-overview", title: t("helpImggenTitle"), content: t("helpImggenContent") }
-				]
-			}
-		];
+		// Built-in static help content intentionally cleared (v0.1.0). Load from
+		// GitHub via HELP_DOC_SOURCES when docs are published.
+		var remoteDocs = React.useState([]);
+		var remoteStatus = React.useState(""); // '' | loading | error:<msg>
+		React.useEffect(function () {
+			if (!HELP_DOC_SOURCES.length) return;
+			remoteStatus[1]("loading");
+			Promise.all(HELP_DOC_SOURCES.map(function (src) {
+				return fetchGithubDoc(src.path).then(function (text) {
+					return { id: src.id, group: src.group || "docs", title: src.title || src.id, content: text };
+				}).catch(function (e) {
+					return { id: src.id, group: src.group || "docs", title: src.title || src.id, content: "", error: String(e && e.message || e) };
+				});
+			})).then(function (list) {
+				remoteDocs[1](list);
+				var failed = list.filter(function (x) { return x.error; });
+				remoteStatus[1](failed.length === list.length ? ("error:" + (failed[0] && failed[0].error || "load failed")) : "");
+			});
+		}, []);
+
+		// Static groups empty; remote docs become the nav when loaded.
+		var staticGroups = [];
+		var byGroup = {};
+		(remoteDocs[0] || []).forEach(function (d) {
+			if (!byGroup[d.group]) byGroup[d.group] = { id: d.group, title: d.group, sections: [] };
+			byGroup[d.group].sections.push({ id: d.id, title: d.title, content: d.content });
+		});
+		var groups = staticGroups.concat(Object.keys(byGroup).map(function (k) { return byGroup[k]; }));
 		var allSections = [];
 		groups.forEach(function (g) { g.sections.forEach(function (s) { allSections.push(s); }); });
-		var active = React.useState("omni-overview");
+		var active = React.useState("");
 		var query = React.useState("");
 		var collapsed = React.useState({});
 		var searchOpen = React.useState(false);
@@ -4479,7 +4535,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 		var filtered = q ? allSections.filter(function (s) {
 			return s.title.toLowerCase().indexOf(q) >= 0 || (s.content && s.content.toLowerCase().indexOf(q) >= 0);
 		}) : [];
-		var cur = allSections.find(function (s) { return s.id === active[0]; }) || allSections[0];
+		var cur = allSections.find(function (s) { return s.id === active[0]; }) || allSections[0] || null;
 		function toggleGroup(id) {
 			var c = {};
 			for (var k in collapsed[0]) c[k] = collapsed[0][k];
@@ -4550,8 +4606,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					)
 				]),
 				React.createElement("div", { className: "omni-help-content" }, [
-					React.createElement("h3", { className: "omni-help-content-title" }, cur.title),
-					cur.content ?
+					cur ? React.createElement("h3", { className: "omni-help-content-title" }, cur.title) : null,
+					cur && cur.content ?
 						React.createElement("p", { className: "omni-help-content-text" }, cur.content)
 						: React.createElement("p", { className: "omni-help-content-text omni-help-placeholder" }, t("helpPlaceholder"))
 				])
