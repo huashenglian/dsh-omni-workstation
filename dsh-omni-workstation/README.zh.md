@@ -1,7 +1,6 @@
 # dsh-omni-workstation
 
-<!-- 封面图：替换为你自己设计的 banner（建议 1280x360） -->
-<!-- <p align="center"><img src="docs/images/cover.png" alt="dsh-omni-workstation 封面"></p> -->
+<p align="center"><img src="docs/images/cover.jpg" alt="dsh-omni-workstation 封面" width="720"></p>
 
 [![version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/huashenglian/dsh-omni-workstation)
 [![license](https://img.shields.io/badge/license-MIT-green)](#license)

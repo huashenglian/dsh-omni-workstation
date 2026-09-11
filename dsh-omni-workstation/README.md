@@ -1,7 +1,6 @@
 # dsh-omni-workstation
 
-<!-- Cover image: replace with your own banner (recommended 1280x360) -->
-<!-- <p align="center"><img src="docs/images/cover.png" alt="dsh-omni-workstation cover"></p> -->
+<p align="center"><img src="docs/images/cover.jpg" alt="dsh-omni-workstation cover" width="720"></p>
 
 [![version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/huashenglian/dsh-omni-workstation)
 [![license](https://img.shields.io/badge/license-MIT-green)](#license)
