@@ -23,6 +23,27 @@ An **omni-modal workstation plugin** for [DeepSeek Harness](https://github.com/d
 
 Every module has its own switch — turning one off unregisters its tools completely (0 token cost) while keeping your configuration.
 
+## Why a plugin instead of a Skill or a fixed script
+
+| Approach | Typical pain | What this plugin does |
+|---|---|---|
+| Long Skill text (official-API recipes) | A big instruction dump every turn — expensive tokens | Config lives only in the settings page / `omni-vision.json`; tool schemas inject only when a module is on |
+| Fixed scripts (hand-written API calls) | Locked in a project folder; you must restate path and usage each time | Tools register into the harness — the AI finds and reuses them automatically |
+| Changing config / switching models | Edit scripts or re-paste the Skill body | Change a field in Settings; it takes effect immediately |
+
+In short: **less context, ready to use, config without code**.
+
+## Custom tools (video)
+
+Today you can AI-build a **custom video tool**: type `/build-video-tool` in chat. The plugin injects a build guide (card limit, existing tools, hard constraints); the AI collects the platform details and writes a new card plus a callable tool — no hand-written script, no re-pasting API docs.
+
+<p align="center">
+  <img src="docs/images/video-builder-chat.jpg" width="360" alt="build-video-tool chat example">
+</p>
+
+> [!TIP]
+> Card limit defaults to 10; the command errors out when the cap is hit. Custom tools run on the `custom-adapter` runtime — see the [video docs](docs/features/video.md).
+
 ## Settings Panel
 
 <p align="center">
