@@ -1,4 +1,5 @@
-// config-backup.test.js — C1: config backup to DSH_HOME + loadConfig fallback
+// config-backup.test.js — config backup beside plugin config + corrupt-file fallback
+// Missing config = clean default (no .bak restore). Corrupt config still recovers from .bak.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, unlinkSync, readFileSync } from 'node:fs'
@@ -37,8 +38,8 @@ test('storeConfig writes both main and backup files', async () => {
   assert.equal(mainContent.apis[0].model, 'test-model')
 })
 
-test('loadConfig falls back to .bak when main file is missing', async () => {
-  // store a known config first
+test('loadConfig returns defaults when main file is missing (clean install)', async () => {
+  // store a known config first so a .bak exists beside the config dir
   const cfg = testConfig({ apis: [{ id: 'c_missing', name: 'MissingTest', provider: 'custom', protocol: 'openai-completions', endpoint: 'http://missing', apiKey: 'sk-missing', model: 'recovery-model', collapsed: false, timeoutMs: 60000 }] })
   await storeConfig(fakeCtx, cfg)
 
@@ -46,11 +47,12 @@ test('loadConfig falls back to .bak when main file is missing', async () => {
   const mainFile = join(cfgDir, 'omni-vision.json')
   unlinkSync(mainFile)
   assert.ok(!existsSync(mainFile), 'main file should be deleted')
+  assert.ok(existsSync(backupFile()), 'backup file should still exist')
 
-  // loadConfig should recover from .bak
+  // Clean install must NOT resurrect old API keys from .bak
   const loaded = await loadConfig(fakeCtx)
-  assert.equal(loaded.apis[0].model, 'recovery-model', 'should recover from backup')
-  assert.ok(existsSync(mainFile), 'main file should be restored from backup')
+  assert.notEqual(loaded.apis?.[0]?.model, 'recovery-model', 'must not restore model from backup on missing config')
+  assert.ok(Array.isArray(loaded.apis), 'should return default apis')
 })
 
 test('loadConfig falls back to .bak when main file is corrupt', async () => {
