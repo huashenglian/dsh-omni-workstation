@@ -98,3 +98,9 @@ test('verifyReminder switch off → empty', () => {
   assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: { verifyReminder: false } }, true, true), '')
   assert.equal(resolveVerifyReminderMode({ vlmEnabled: false, globalConfig: { verifyReminder: false } }, false, false), '')
 })
+
+test('verifyReminder default off (missing field → empty)', () => {
+  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true, globalConfig: {} }, true, true), '')
+  assert.equal(resolveVerifyReminderMode({ vlmEnabled: true }, true, false), '')
+})
+

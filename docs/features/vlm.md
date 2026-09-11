@@ -77,7 +77,7 @@ agnes · agnes-cn · anthropic · ant-ling · cerebras · fireworks · google ·
 | `backoffBase` / `backoffMax` | 800 / 5000 | 常规重试退避（ms） |
 | `backoff429Base` / `backoff429Max` | 2000 / 10000 | 429 限流退避 |
 | `retryStatusCodes` | `402,408,429,500,502,503,504,NET` | 触发重试的状态码 |
-| `verifyReminder` | `true` | 生图后注入视觉验证提醒 |
+| `verifyReminder` | `false` | 生图后注入视觉验证提醒（默认关，需手动开启） |
 | `dynamicMultimodalAdapt` | `true` | 见上节 |
 
 JPEG→PNG 重编码兜底：服务端对 JPEG 载荷报 400/415 解码错误（如 llama.cpp `stb_image`）时，自动解码（内置 jpeg-js）重编码为 PNG 并同卡重试一次。
