@@ -38,6 +38,8 @@ const Config = z.object({})
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 const pkgVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
+const GITHUB_REPO_URL = 'https://github.com/huashenglian/dsh-omni-workstation'
+const GITHUB_API_REPO = 'https://api.github.com/repos/huashenglian/dsh-omni-workstation'
 
 // ---------- config model: list of API cards ----------
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages', 'google-gemini']
@@ -5347,6 +5349,63 @@ function applyPatch(cfg, patch) {
   return normalizeConfig(c)
 }
 
+// ---------- update check (About panel) ----------
+function parseVersionParts(v) {
+  return String(v || '').trim().replace(/^v/i, '').split(/[.+\-]/).map((p) => parseInt(p, 10) || 0)
+}
+
+function compareVersions(a, b) {
+  const pa = parseVersionParts(a)
+  const pb = parseVersionParts(b)
+  const n = Math.max(pa.length, pb.length)
+  for (let i = 0; i < n; i++) {
+    const da = pa[i] || 0
+    const db = pb[i] || 0
+    if (da > db) return 1
+    if (da < db) return -1
+  }
+  return 0
+}
+
+async function fetchRemoteVersion() {
+  const ghHeaders = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  }
+  try {
+    const r = await httpJson(GITHUB_API_REPO + '/releases/latest', 'GET', ghHeaders, undefined, 12000)
+    if (r.ok && r.body && typeof r.body.tag_name === 'string') {
+      return {
+        version: r.body.tag_name,
+        source: 'release',
+        name: r.body.name || r.body.tag_name,
+        url: r.body.html_url || GITHUB_REPO_URL,
+        publishedAt: r.body.published_at || null
+      }
+    }
+  } catch { /* fall through */ }
+  try {
+    const r = await httpJson(GITHUB_API_REPO + '/tags?per_page=1', 'GET', ghHeaders, undefined, 12000)
+    if (r.ok && Array.isArray(r.body) && r.body[0] && typeof r.body[0].name === 'string') {
+      const tag = r.body[0].name
+      return {
+        version: tag,
+        source: 'tag',
+        name: tag,
+        url: GITHUB_REPO_URL + '/releases/tag/' + encodeURIComponent(tag),
+        publishedAt: null
+      }
+    }
+  } catch { /* fall through */ }
+  try {
+    const r = await httpJson('https://raw.githubusercontent.com/huashenglian/dsh-omni-workstation/main/package.json', 'GET', { Accept: 'application/json' }, undefined, 12000)
+    if (r.ok && r.body && typeof r.body.version === 'string') {
+      return { version: r.body.version, source: 'package', name: r.body.version, url: GITHUB_REPO_URL, publishedAt: null }
+    }
+  } catch { /* fall through */ }
+  return null
+}
+
 // ---------- web settings routes (browser <-> host over HTTP) ----------
 const readBody = (req) => new Promise((resolve) => {
   let data = ''
@@ -6141,6 +6200,50 @@ function apply(ctx) {
         jsonOut(res, 200, { ok: true, voice_id: r.voice_id })
       } catch (e) {
         jsonOut(res, 400, { ok: false, error: String(e && e.message || e) })
+      }
+    }
+  })
+
+  // About panel — "Check for Updates": compare local package.json version
+  // against GitHub release / tag / raw package.json on main.
+  webServer.register({
+    kind: 'exact',
+    path: '/omni/update-check',
+    handler: async (req, res) => {
+      if (req.method !== 'GET') return jsonOut(res, 405, { ok: false, error: 'method not allowed' })
+      try {
+        const remote = await fetchRemoteVersion()
+        if (!remote) {
+          return jsonOut(res, 200, {
+            ok: true,
+            local: pkgVersion,
+            remote: null,
+            hasUpdate: false,
+            error: 'unable to fetch remote version',
+            repo: GITHUB_REPO_URL
+          })
+        }
+        const hasUpdate = compareVersions(remote.version, pkgVersion) > 0
+        jsonOut(res, 200, {
+          ok: true,
+          local: pkgVersion,
+          remote: remote.version,
+          remoteName: remote.name,
+          source: remote.source,
+          url: remote.url,
+          publishedAt: remote.publishedAt,
+          hasUpdate,
+          repo: GITHUB_REPO_URL
+        })
+      } catch (e) {
+        jsonOut(res, 200, {
+          ok: true,
+          local: pkgVersion,
+          remote: null,
+          hasUpdate: false,
+          error: String(e && e.message || e),
+          repo: GITHUB_REPO_URL
+        })
       }
     }
   })

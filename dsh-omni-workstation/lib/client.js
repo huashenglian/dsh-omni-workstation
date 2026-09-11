@@ -24,25 +24,13 @@ window.__ModuleLoader__.load({
 				aboutTitle: "关于",
 				aboutDesc: "该插件能够给予纯文本模型全模态的能力。",
 				checkUpdateBtn: "检测更新",
+				checkingUpdate: "检测中…",
+				updateUpToDate: "已是最新版本",
+				updateAvailable: "发现新版本 ",
+				updateCheckFail: "检测更新失败",
 				versionLabel: "版本 ",
-				helpBtn: "帮助",
 				githubRepoBtn: "GitHub",
 				githubRepoHint: "打开插件 GitHub 仓库",
-				helpSearchPlaceholder: "搜索文档…",
-				helpPlaceholder: "内容待补充。",
-				helpNoResult: "无匹配结果",
-				helpGroupVlm: "",
-				helpGroupImggen: "",
-				helpVlmTitle: "",
-				helpVlmContent: "",
-				helpImggenTitle: "",
-				helpImggenContent: "",
-				helpAnalyzeTitle: "",
-				helpAnalyzeContent: "",
-				helpFailoverTitle: "",
-				helpFailoverContent: "",
-			helpMirrorTitle: "",
-			helpMirrorContent: "",
 				cardListTitle: "API 卡片",
 				addCard: "添加模型",
 				cardAdded: "已添加模型卡片",
@@ -508,25 +496,13 @@ voiceSovitsModel: "SoVITS 模型名",
 				aboutTitle: "About",
 				aboutDesc: "This plugin gives pure text models full multimodal capabilities.",
 				checkUpdateBtn: "Check for Updates",
+				checkingUpdate: "Checking…",
+				updateUpToDate: "Already up to date",
+				updateAvailable: "New version available: ",
+				updateCheckFail: "Update check failed",
 				versionLabel: "Version ",
-				helpBtn: "Help",
 				githubRepoBtn: "GitHub",
 				githubRepoHint: "Open plugin repository on GitHub",
-				helpSearchPlaceholder: "Search docs…",
-				helpPlaceholder: "Content TBD.",
-				helpNoResult: "No results found",
-				helpGroupVlm: "",
-				helpGroupImggen: "",
-				helpVlmTitle: "",
-				helpVlmContent: "",
-				helpImggenTitle: "",
-				helpImggenContent: "",
-				helpAnalyzeTitle: "",
-				helpAnalyzeContent: "",
-				helpFailoverTitle: "",
-				helpFailoverContent: "",
-			helpMirrorTitle: "",
-			helpMirrorContent: "",
 				cardListTitle: "API Cards",
 				addCard: "Add Model",
 				cardAdded: "Card added",
@@ -983,7 +959,8 @@ voiceSovitsModel: "SoVITS model name",
 		function call(method, payload) {
 			var url = "/omni/" + method;
 			var init = { headers: { Accept: "application/json" } };
-			if (!(method === "config" && payload === undefined)) {
+			var isGet = (method === "config" || method === "update-check") && payload === undefined;
+			if (!isGet) {
 				init.method = "POST";
 				init.headers["Content-Type"			] = "application/json";
 				init.body = JSON.stringify(payload || {});
@@ -1315,56 +1292,10 @@ voiceSovitsModel: "SoVITS model name",
   ".omni-about-card { margin-top: 16px; align-items: flex-start; }",
   ".omni-about-update-btn { align-self: flex-start; }",
   ".omni-about-version { font-size: 12px; opacity: 0.6; margin-top: 4px; }",
+  ".omni-about-update { font-size: 12px; opacity: 0.85; margin: 0; }",
+  ".omni-about-update-available { color: var(--dsw-alias-text-link, #58a6ff); }",
   ".omni-about-btns { display: flex; gap: 8px; flex-wrap: wrap; }",
 ".omni-github-btn { display: inline-flex; align-items: center; gap: 4px; }",
-  ".omni-help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }",
-  ".omni-help-modal { position: relative; width: 90vw; max-width: 1100px; height: 85vh; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 12px; display: flex; overflow: hidden; }",
-  ".omni-help-close { position: absolute; top: 8px; right: 12px; z-index: 2; background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 24px; cursor: pointer; line-height: 1; }",
-  ".omni-help-close:hover { color: var(--dsh-fg, #eee); }",
-  ".omni-help-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--dsh-border, #444); display: flex; flex-direction: column; overflow: visible; }",
-  ".omni-help-search-wrap { padding: 12px 12px 8px 12px; flex-shrink: 0; position: relative; }",
-  ".omni-help-search { width: 100%; box-sizing: border-box; padding: 7px 28px 7px 10px; border-radius: 6px; border: 1px solid var(--dsh-border, #555); background: var(--dsh-bg-2, rgba(128,128,128,0.1)); color: var(--dsh-fg, #eee); font-size: 13px; outline: none; }",
-  ".omni-help-search:focus { border-color: var(--dsh-accent, #58a6ff); }",
-  ".omni-help-search-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--dsh-fg-muted, #888); font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 4px; }",
-  ".omni-help-search-clear:hover { color: var(--dsh-fg, #eee); }",
-  ".omni-help-search-popup { position: absolute; top: calc(100% + 4px); left: 12px; width: 380px; max-height: 320px; overflow-y: auto; background: var(--dsh-bg, #1e1e1e); border: 1px solid var(--dsh-border, #555); border-radius: 0 8px 8px 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; }",
-  ".omni-help-search-result { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: none; border: none; border-radius: 6px; cursor: pointer; text-align: left; }",
-  ".omni-help-search-result:hover { background: rgba(88,166,255,0.1); }",
-  ".omni-help-search-result-title { font-size: 13px; font-weight: 600; color: var(--dsh-fg, #eee); }",
-  ".omni-help-search-result-snippet { font-size: 12px; color: var(--dsh-fg-muted, #999); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }",
-  ".omni-help-search-empty { padding: 12px 10px; font-size: 13px; color: var(--dsh-fg-muted, #888); text-align: center; }",
-  ".omni-help-nav { flex: 1; overflow-y: auto; padding: 4px 0 16px 0; display: flex; flex-direction: column; gap: 1px; }",
-  ".omni-help-group { display: flex; flex-direction: column; }",
-  ".omni-help-group-title { padding: 8px 16px; background: none; border: none; color: var(--dsh-fg, #eee); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; cursor: pointer; opacity: 0.7; }",
-  ".omni-help-group-title:hover { opacity: 1; }",
-  ".omni-help-group-title:active { opacity: 0.4; }",
-  ".omni-help-nav-item { padding: 7px 16px 7px 24px; background: none; border: none; color: var(--dsh-fg-muted, #aaa); font-size: 13px; text-align: left; cursor: pointer; border-left: 3px solid transparent; }",
-  ".omni-help-nav-item:hover { color: var(--dsh-fg, #eee); background: rgba(255,255,255,0.05); }",
-  ".omni-help-nav-item:active { background: rgba(255,255,255,0.1); }",
-  ".omni-help-nav-item.active { color: var(--dsh-accent, #58a6ff); border-left-color: var(--dsh-accent, #58a6ff); }",
-  ".omni-help-content { flex: 1; padding: 28px 32px; overflow-y: auto; }",
-  ".omni-help-content-title { font-size: 18px; font-weight: 600; color: var(--dsh-fg, #eee); margin: 0 0 16px 0; }",
-  ".omni-help-content-text { font-size: 14px; line-height: 1.75; color: var(--dsh-fg-muted, #bbb); margin: 0; }",
-  ".omni-help-placeholder { opacity: 0.4; font-style: italic; }",
-  // ---- Help modal light theme override (must come AFTER base rules) ----
-  "@supports (color: light-dark(#000, #fff)) {",
-  "  .omni-help-modal { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); }",
-  "  .omni-help-close { color: light-dark(#666, #888); }",
-  "  .omni-help-close:hover { color: light-dark(#222, #eee); }",
-  "  .omni-help-sidebar { border-right-color: light-dark(#ddd, #444); }",
-  "  .omni-help-search { background-color: light-dark(rgba(0,0,0,0.04), rgba(128,128,128,0.1)); color: light-dark(#333, #eee); border-color: light-dark(#ccc, #555); }",
-  "  .omni-help-search-clear { color: light-dark(#999, #888); }",
-  "  .omni-help-search-clear:hover { color: light-dark(#333, #eee); }",
-  "  .omni-help-search-popup { background-color: light-dark(#fff, #1e1e1e); border-color: light-dark(#ccc, #555); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }",
-  "  .omni-help-search-result-title { color: light-dark(#111, #eee); }",
-  "  .omni-help-search-result-snippet { color: light-dark(#666, #999); }",
-  "  .omni-help-search-empty { color: light-dark(#999, #888); }",
-  "  .omni-help-group-title { color: light-dark(#555, #eee); }",
-  "  .omni-help-nav-item { color: light-dark(#333, #aaa); }",
-  "  .omni-help-nav-item:hover { color: light-dark(#000, #eee); background-color: light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05)); }",
-  "  .omni-help-content-title { color: light-dark(#111, #eee); }",
-	  "  .omni-help-content-text { color: light-dark(#333, #bbb); }",
-	  "}",
 	  ".omni-subtab-row { display: flex; gap: 0; width: 100%; margin-bottom: 12px; }",
   ".omni-subtab-btn { display: flex; flex: 1; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid light-dark(#ddd, #333); background: light-dark(#f5f5f5, transparent); color: light-dark(#333, #ccc); cursor: pointer; transition: all 0.15s; font-size: 13px; }",
   ".omni-subtab-btn.active { background: #2a2a2e; border-color: #4a9eff; color: #fff; }",
@@ -4438,8 +4369,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 
 	function AboutCard(props) {
 		var t = props.t;
-		// GitHub mark (simple octocat path) — repo URL reserved; no navigation yet
-		// until the plugin is pushed (user request 2026-09).
+		var updateState = React.useState({ status: "idle", remote: "", url: "" });
+		var githubUrl = "https://github.com/huashenglian/dsh-omni-workstation";
 		var githubSvg = React.createElement("svg", {
 			width: "14", height: "14", viewBox: "0 0 16 16", fill: "currentColor",
 			"aria-hidden": "true", style: { verticalAlign: "middle" }
@@ -4449,169 +4380,67 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 				d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
 			})
 		]);
+		function openUrl(url) {
+			try {
+				window.open(url, "_blank", "noopener,noreferrer");
+			} catch (e) { /* ignore */ }
+		}
+		function checkUpdate() {
+			updateState[1]({ status: "checking", remote: "", url: "" });
+			fetch("/omni/update-check", { headers: { Accept: "application/json" } })
+				.then(function (r) { return r.json().catch(function () { return null; }); })
+				.then(function (data) {
+					if (!data || data.ok === false) {
+						updateState[1]({ status: "fail", remote: "", url: (data && data.repo) || githubUrl });
+						return;
+					}
+					if (!data.remote) {
+						updateState[1]({ status: "fail", remote: "", url: data.repo || githubUrl });
+						return;
+					}
+					if (data.hasUpdate) {
+						updateState[1]({ status: "update", remote: data.remote || "", url: data.url || data.repo || githubUrl });
+					} else {
+						updateState[1]({ status: "latest", remote: data.remote || data.local || "", url: data.repo || githubUrl });
+					}
+				})
+				.catch(function () {
+					updateState[1]({ status: "fail", remote: "", url: githubUrl });
+				});
+		}
+		var u = updateState[0];
+		var updateText = "";
+		if (u.status === "checking") updateText = t("checkingUpdate");
+		else if (u.status === "latest") updateText = t("updateUpToDate") + (u.remote ? " (" + u.remote + ")" : "");
+		else if (u.status === "update") updateText = t("updateAvailable") + (u.remote || "");
+		else if (u.status === "fail") updateText = t("updateCheckFail");
 		return React.createElement("div", { className: "omni-card omni-about-card" }, [
 			React.createElement("span", { className: "omni-settings-section-title" }, t("aboutTitle")),
 			React.createElement("p", { className: "omni-desc" }, t("aboutDesc")),
 			React.createElement("div", { className: "omni-about-btns" }, [
 				React.createElement("button", {
+					disabled: u.status === "checking",
+					title: t("checkUpdateBtn"),
 					className: "omni-btn",
-					onClick: function () { if (props.onHelp) props.onHelp(); }
-				}, t("helpBtn")),
-				React.createElement("button", {
-					disabled: true,
-					title: t("comingSoon"),
-					className: "omni-btn",
-					onClick: function () {}
+					onClick: checkUpdate
 				}, t("checkUpdateBtn")),
-				// v0.1.0: GitHub repo button — reserved; enable navigation after push
 				React.createElement("button", {
 					className: "omni-btn omni-github-btn",
 					title: t("githubRepoHint"),
-					disabled: true,
-					onClick: function () {
-						// After push: window.open('https://github.com/huashenglian/dsh-omni-workstation', '_blank')
-						if (props.onGithub) props.onGithub();
-					}
+					onClick: function () { openUrl(githubUrl); }
 				}, [githubSvg, " ", t("githubRepoBtn")])
 			]),
+			updateText ? React.createElement(
+				"p",
+				{
+					className: "omni-status omni-about-update" + (u.status === "update" ? " omni-about-update-available" : ""),
+					style: u.status === "update" && u.url ? { cursor: "pointer", textDecoration: "underline" } : undefined,
+					onClick: u.status === "update" && u.url ? function () { openUrl(u.url); } : undefined,
+					title: u.status === "update" && u.url ? u.url : undefined
+				},
+				updateText
+			) : null,
 			React.createElement("p", { className: "omni-status omni-about-version" }, t("versionLabel") + (props.version || ""))
-		]);
-	}
-
-	// ---------- help docs: GitHub raw fetch interface ----------
-	// raw.githubusercontent.com sends Access-Control-Allow-Origin: * so the
-	// browser client can fetch markdown docs directly (no host proxy needed).
-	// Fill HELP_DOC_SOURCES after docs are pushed; empty = empty help window.
-	var GITHUB_REPO = "https://github.com/huashenglian/dsh-omni-workstation";
-	var GITHUB_RAW_BASE = "https://raw.githubusercontent.com/huashenglian/dsh-omni-workstation/main/";
-	/** [{ id, group, title, path }] — path relative to repo root, e.g. 'README.zh.md' */
-	var HELP_DOC_SOURCES = [];
-
-	function fetchGithubDoc(relPath) {
-		var url = GITHUB_RAW_BASE + String(relPath || "").replace(/^\/+/, "");
-		return fetch(url, { method: "GET", cache: "no-cache" }).then(function (r) {
-			if (!r.ok) throw new Error("HTTP " + r.status);
-			return r.text();
-		});
-	}
-
-	function HelpModal(props) {
-		var t = props.t;
-		// Built-in static help content intentionally cleared (v0.1.0). Load from
-		// GitHub via HELP_DOC_SOURCES when docs are published.
-		var remoteDocs = React.useState([]);
-		var remoteStatus = React.useState(""); // '' | loading | error:<msg>
-		React.useEffect(function () {
-			if (!HELP_DOC_SOURCES.length) return;
-			remoteStatus[1]("loading");
-			Promise.all(HELP_DOC_SOURCES.map(function (src) {
-				return fetchGithubDoc(src.path).then(function (text) {
-					return { id: src.id, group: src.group || "docs", title: src.title || src.id, content: text };
-				}).catch(function (e) {
-					return { id: src.id, group: src.group || "docs", title: src.title || src.id, content: "", error: String(e && e.message || e) };
-				});
-			})).then(function (list) {
-				remoteDocs[1](list);
-				var failed = list.filter(function (x) { return x.error; });
-				remoteStatus[1](failed.length === list.length ? ("error:" + (failed[0] && failed[0].error || "load failed")) : "");
-			});
-		}, []);
-
-		// Static groups empty; remote docs become the nav when loaded.
-		var staticGroups = [];
-		var byGroup = {};
-		(remoteDocs[0] || []).forEach(function (d) {
-			if (!byGroup[d.group]) byGroup[d.group] = { id: d.group, title: d.group, sections: [] };
-			byGroup[d.group].sections.push({ id: d.id, title: d.title, content: d.content });
-		});
-		var groups = staticGroups.concat(Object.keys(byGroup).map(function (k) { return byGroup[k]; }));
-		var allSections = [];
-		groups.forEach(function (g) { g.sections.forEach(function (s) { allSections.push(s); }); });
-		var active = React.useState("");
-		var query = React.useState("");
-		var collapsed = React.useState({});
-		var searchOpen = React.useState(false);
-		var q = query[0].toLowerCase().trim();
-		var filtered = q ? allSections.filter(function (s) {
-			return s.title.toLowerCase().indexOf(q) >= 0 || (s.content && s.content.toLowerCase().indexOf(q) >= 0);
-		}) : [];
-		var cur = allSections.find(function (s) { return s.id === active[0]; }) || allSections[0] || null;
-		function toggleGroup(id) {
-			var c = {};
-			for (var k in collapsed[0]) c[k] = collapsed[0][k];
-			c[id] = !c[id];
-			collapsed[1](c);
-		}
-		React.useEffect(function () {
-			if (!searchOpen[0]) return;
-			function onDocClick(e) {
-				var tgt = e.target;
-				if (!tgt || !tgt.closest || !tgt.closest(".omni-help-search-wrap")) {
-					searchOpen[1](false);
-				}
-			}
-			document.addEventListener("click", onDocClick);
-			return function () { document.removeEventListener("click", onDocClick); };
-		}, [searchOpen[0]]);
-		return React.createElement("div", { className: "omni-help-overlay", onClick: props.onClose }, [
-			React.createElement("div", { className: "omni-help-modal", onClick: function (e) { e.stopPropagation(); } }, [
-				React.createElement("button", { className: "omni-help-close", onClick: props.onClose }, "×"),
-				React.createElement("div", { className: "omni-help-sidebar" }, [
-					React.createElement("div", { className: "omni-help-search-wrap" }, [
-						React.createElement("input", {
-							className: "omni-help-search",
-							type: "text",
-							placeholder: t("helpSearchPlaceholder"),
-							value: query[0],
-							onChange: function (e) {
-								query[1](e.target.value);
-								searchOpen[1](e.target.value.trim().length > 0);
-							},
-							onFocus: function () { if (query[0].trim()) searchOpen[1](true); }
-						}),
-						query[0] ? React.createElement("button", {
-							className: "omni-help-search-clear",
-							onClick: function () { query[1](""); searchOpen[1](false); }
-						}, "×") : null,
-						searchOpen[0] && q ? React.createElement("div", { className: "omni-help-search-popup" },
-							filtered.length > 0 ? filtered.map(function (s) {
-								var snippet = s.content || t("helpPlaceholder");
-								return React.createElement("button", {
-									key: s.id,
-									className: "omni-help-search-result",
-									onClick: function () { active[1](s.id); query[1](""); searchOpen[1](false); }
-								}, [
-									React.createElement("div", { className: "omni-help-search-result-title" }, s.title),
-									React.createElement("div", { className: "omni-help-search-result-snippet" }, snippet)
-								]);
-							}) : React.createElement("div", { className: "omni-help-search-empty" }, t("helpNoResult"))
-						) : null
-					]),
-					React.createElement("div", { className: "omni-help-nav" },
-						groups.map(function (g) {
-							return React.createElement("div", { key: g.id, className: "omni-help-group" }, [
-								React.createElement("button", {
-									className: "omni-help-group-title",
-									onClick: function () { toggleGroup(g.id); }
-								}, (collapsed[0][g.id] ? "▶ " : "▼ ") + g.title),
-								!collapsed[0][g.id] ? g.sections.map(function (s) {
-									return React.createElement("button", {
-										key: s.id,
-										className: "omni-help-nav-item" + (active[0] === s.id ? " active" : ""),
-										onClick: function () { active[1](s.id); }
-									}, s.title);
-								}) : null
-							]);
-						})
-					)
-				]),
-				React.createElement("div", { className: "omni-help-content" }, [
-					cur ? React.createElement("h3", { className: "omni-help-content-title" }, cur.title) : null,
-					cur && cur.content ?
-						React.createElement("p", { className: "omni-help-content-text" }, cur.content)
-						: React.createElement("p", { className: "omni-help-content-text omni-help-placeholder" }, t("helpPlaceholder"))
-				])
-			])
 		]);
 	}
 
@@ -4620,7 +4449,6 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 			var t = (props && props.t) || tBound || (function (k) { return k; });
 			var snap = React.useState(null);
 			var draft = React.useState(null);
-			var helpOpen = React.useState(false);
 			var keyDraft = React.useState({});
 			var busy = React.useState("");
 			var msg = React.useState("");
@@ -6030,7 +5858,7 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					onPatchGlobal: patchGlobal
 				}),
 			React.createElement(ExtensionCard, { t: t, globalConfig: draft[0].globalConfig || {}, toolsOn: toolsOn, onToggleTools: toggleTools, onPatchGlobal: patchGlobal, visionToolToggles: (draft[0].visionToolToggles || {}), onToggleVisionTool: function (tool) { queueSave({ visionToolToggle: { tool: tool, value: !((draft[0].visionToolToggles || {})[tool] !== false) } }); }, videoBuilderEnabled: videoBuilderEnabled, videoCardLimit: videoCardLimit, onToggleVideoBuilder: function (v) { commitStructure({ videoBuilderEnabled: v }, function (d) { d.videoBuilderEnabled = v; return d; }); }, onPatchVideoCardLimit: function (v) { commitStructure({ videoCardLimit: v }, function (d) { d.videoCardLimit = v; return d; }); } }),
-			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "", onHelp: function () { helpOpen[1](true); } })
+			React.createElement(AboutCard, { t: t, version: snap[0] ? snap[0].version : "" })
 		]);
 
 			return React.createElement("div", { className: "omni-page" }, [
@@ -6057,9 +5885,8 @@ return React.createElement("div", { className: "omni-imggen-panel" }, [head, pre
 					tab[0] === "vlm" ? vlmBody : (tab[0] === "imggen" ? imggenBody : (tab[0] === "video" ? videoBody : (tab[0] === "audio"
 						? voiceBody
 							: settingsBody))),
-						confirmDialog[0] ? React.createElement(ConfirmDialog, Object.assign({ t: t, onCancel: function () { confirmDialog[1](null); } }, confirmDialog[0])) : null,
-					helpOpen[0] ? React.createElement(HelpModal, { t: t, onClose: function () { helpOpen[1](false); } }) : null
-				]);
+					confirmDialog[0] ? React.createElement(ConfirmDialog, Object.assign({ t: t, onCancel: function () { confirmDialog[1](null); } }, confirmDialog[0])) : null
+			]);
 		}
 
 		// ---------- tool.call.toolview cards ----------
