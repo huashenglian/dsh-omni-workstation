@@ -15,6 +15,7 @@
                   "lib/client.js",
                   "lib/vision-tools.js",
                   "lib/video-builder.js",
+                  "lib/path-util.js",
                   "lib/vendor/",
                   "cordis.patch.yml",
                   "README.md",
