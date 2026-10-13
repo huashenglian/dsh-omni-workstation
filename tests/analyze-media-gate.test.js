@@ -221,6 +221,49 @@ test('audio request with only video switches on → clear error, zero requests',
   }
 })
 
+test('audio request: hits only the audio-enabled card, zero requests to a video-only card', async () => {
+  _resetMedia()
+  installFetchStub()
+  replyFor = () => ({ status: 200, body: { choices: [{ message: { content: '媒体回答' } }] } })
+  try {
+    writeCfg(BASE_CFG([
+      card({ video: true, endpoint: 'http://127.0.0.1:9/card1/v1' }),
+      card({ audio: true, endpoint: 'http://127.0.0.1:9/card2/v1' })
+    ]))
+    apply(makeFakeCtx())
+    const out = await mediaToolDef.execute({ media_path: wavPath, question: '这段音频说了什么？' }, {})
+    assert.equal(out.ok, true)
+    assert.equal(out.answer, '媒体回答')
+    assert.equal(out.attempts, 1)
+    assert.equal(callsTo('/card1/').length, 0, 'video-only card1 got zero requests for an audio ask')
+    assert.equal(callsTo('/card2/').length, 1, 'only the audio-enabled card received the request')
+    assert.ok(calls[0].body.includes('input_audio'), 'audio rides as an input_audio block')
+    assert.ok(!calls[0].body.includes('image_url'), 'audio ask must not use the image branch')
+  } finally {
+    restoreFetch()
+  }
+})
+
+test('video request: a switch-on card whose protocol cannot carry it is skipped per-URL, supported card used', async () => {
+  _resetMedia()
+  installFetchStub()
+  replyFor = () => ({ status: 200, body: { choices: [{ message: { content: '媒体回答' } }] } })
+  try {
+    writeCfg(BASE_CFG([
+      card({ video: true, protocol: 'anthropic-messages', endpoint: 'http://127.0.0.1:9/card1/v1' }),
+      card({ video: true, protocol: 'openai-completions', endpoint: 'http://127.0.0.1:9/card2/v1' })
+    ]))
+    apply(makeFakeCtx())
+    const out = await mediaToolDef.execute({ media_path: mp4Path, question: '这是什么？' }, {})
+    assert.equal(out.ok, true)
+    assert.equal(out.answer, '媒体回答')
+    assert.equal(callsTo('/card1/').length, 0, 'anthropic card cannot carry video → zero requests')
+    assert.equal(callsTo('/card2/').length, 1, 'the openai-completions card handled it')
+  } finally {
+    restoreFetch()
+  }
+})
+
 test('mediaToolDef shape: required question, media_path/attachment_id params', () => {
   assert.equal(mediaToolDef.name, 'analyze_media')
   const props = mediaToolDef.parameters.properties
