@@ -2,7 +2,7 @@
 
 > [English](../../README.md) | [返回功能索引](../../README.zh.md#功能总览)
 
-6 个 AI 可调用视觉工具，与 `analyze_image` 共享同一套图片来源解析（`resolveImage`：本地路径 / `sha256:` 附件 id）与卡片回退链。其中 4 个纯本地计算，零 token 成本。由 `visionToolsEnabled` 开关（默认开，第三模块开关）控制，另支持每个工具独立开关（`visionToolToggles`）。
+7 个 AI 可调用视觉工具，与 `analyze_image` 共享同一套图片来源解析（`resolveImage`：本地路径 / `sha256:` 附件 id）与卡片回退链。其中 5 个纯本地计算，零 token 成本。由 `visionToolsEnabled` 开关（默认开，第三模块开关）控制，另支持每个工具独立开关（`visionToolToggles`）。
 
 ## 工具一览
 
@@ -13,7 +13,8 @@
 | `image_diff` | `original`、`compare`（必填） | 两图 8×8 网格像素对比 + 热力图 | 本地，0 |
 | `ocr_image` | `engine`（`auto`/`local`/`vlm`） | 图片文字提取（OCR） | local=0；vlm=1 |
 | `detect_elements` | `target`、`annotate` | VLM 元素检测，编号边界框 | VLM 1–2 |
-| `show_image` | `label` | 向用户展示图片（仅展示不分析） | 0 |
+| `show_image` | `image_paths`、`label` | 向用户展示图片，可一次多张（仅展示不分析） | 0 |
+| `show_video` | `video_path`、`label` | 在对话中渲染视频播放器（仅展示不分析） | 0 |
 
 所有工具产出图片统一落盘 `<工作区>/.omni-workstation/images/`（`zoom_*.png` / `annot_*.png` / diff 热力图），返回紧凑 JSON + 工件路径，不回传图片字节。
 
@@ -70,9 +71,33 @@ VLM 返回严格 JSON 的编号数组 `[{ number, label, box }]`，坐标为原�
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
+| `image_path` / `attachment_id` | string | 单张图片来源（二选一） |
+| `image_paths` | string[] | 一次展示多张的路径数组，**最多 8 张**；非空时优先于 `image_path` / `attachment_id` |
 | `label` | string | 展示标题，默认「图片」 |
 
 在对话中内联显示图片（markdown + 附件块 + 工具卡片），不分析内容。
+
+多图时工具卡片内**横向并排**渲染（可换行）；单张解析失败只让该张显示错误标记，其余照常显示。返回 `{ ok, path, width, height, count, images[] }`——`path`/`width`/`height` 始终是首张（兼容单图），`images[]` 为全部图片。
+
+### show_video —— 视频展示
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `video_path` | string | 是 | 视频文件路径（绝对路径，或相对当前工作目录） |
+| `label` | string | | 展示标题，默认「视频」 |
+
+在对话中渲染内嵌播放器（仅展示，不分析视频内容——需要理解内容请用 `analyze_media`）。播放器默认暂停且不显示原生控件，**hover 才显示**底部进度条（可点击跳转）、全屏按钮、画面中央播放键与右下角暂停键；全屏为**页面内更大模态**（非浏览器原生全屏）。视频字节经 `POST /omni/media`（base64 JSON，**32 MB** 上限，限定当前工作区内路径）取回。工具结果只出文本块。
+
+## 展示尺寸设置
+
+设置 → **工具设置** 里为两个展示类工具各提供一个最大高度输入：
+
+| 配置键 | 适用工具 | 默认 | 范围 |
+|---|---|---|---|
+| `showImageMaxHeight` | `show_image` | 180 | 64–2000 px |
+| `showVideoMaxHeight` | `show_video` | 360 | 64–2000 px |
+
+两个值只影响工具卡片的展示尺寸，不进任何工具 schema，无 token 成本。
 
 ## Token 优化机制
 

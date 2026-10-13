@@ -1,8 +1,8 @@
-# VLM 图像分析（analyze_image）
+# VLM 图像与媒体分析（analyze_image / analyze_media）
 
 > [English](../../README.md) | [返回功能索引](../../README.zh.md#功能总览)
 
-VLM 模块为 AI 提供 `analyze_image` 工具：把本地图片或用户上传的图片交给视觉语言模型分析，回答关于图片内容的任何问题。底层是一张**有序 API 卡片列表**，支持单请求内自动回退、每卡独立超时与 JPEG→PNG 重编码兜底。
+VLM 模块为 AI 提供 `analyze_image` 与 `analyze_media` 两个工具：把本地图片、视频或音频（或用户上传的附件）交给视觉语言模型分析，回答关于其中内容的任何问题。底层是一张**有序 API 卡片列表**，支持单请求内自动回退、每卡独立超时与 JPEG→PNG 重编码兜底。
 
 ![VLM 设置面板](../images/omni-panel-vlm.png)
 
@@ -17,6 +17,36 @@ VLM 模块为 AI 提供 `analyze_image` 工具：把本地图片或用户上传�
 返回 `{ ok, answer, model, api, attempts, usage }`——回答文本、实际使用的模型与卡片、尝试次数。
 
 **与原生视觉的关系**：若当前会话模型本身支持视觉输入（多模态模型），AI 会优先直接看图，仅失败时才回退 `analyze_image`（见下文「动态多模态适应」）；纯文本模型则固定使用本工具。
+
+## 工具：analyze_media（视频 / 音频）
+
+把视频或音频**直连卡片 API** 分析，绕过 harness 自身的 text/image 模态体系。
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `media_path` | string | 二选一 | 视频/音频本地路径（绝对路径，或相对当前工作目录） |
+| `attachment_id` | string | 二选一 | 对话中上传文件的附件 id（形如 `sha256:...`）；两者同传时以此为准 |
+| `question` | string | 是 | 分析需求，例如「这个视频里发生了什么？」「这段音频说了什么？」 |
+
+返回 `{ ok, answer, model, api, attempts, usage }`。单个文件上限 64 MB。
+
+**注册门控**：只有当至少一张卡片开启了 `video` 或 `audio` 模态时本工具才注册；全部关闭则**完全不注册（0 token）**，配置改动即刻生效。
+
+**选路与回退**：
+
+- 只尝试开启了所需模态的卡片，未开启的卡片**零次请求**。
+- 单卡达 `retryCount` 上限后跳到下一张支持卡；支持卡全部失败则报错结束。
+- **兜底模型（`fallbackConfig`）全程不参与**，未新增开关。
+
+**协议形态**（实测）：
+
+| 协议 | 视频 | 音频 |
+|---|---|---|
+| `openai-completions` | `image_url` + `data:video/...` 数据 URL | `input_audio { data, format }` |
+| `google-gemini` | `inline_data` | `inline_data` |
+| `openai-responses` / `anthropic-messages` | 未验证，跳过该卡 | 未验证，跳过该卡 |
+
+> `openai-completions` 下**不要**使用 `video_url` 块：实测会被端点半途静默丢弃（响应仍是 200，但只有文本）。
 
 ## API 卡片（apis[]）
 
@@ -33,7 +63,11 @@ VLM 模块为 AI 提供 `analyze_image` 工具：把本地图片或用户上传�
 | `timeoutMs` | `120000` | 每卡超时，钳制 [1000, 3600000]；超时立即中止并尝试下一卡 |
 | `contextWindow` | 空（运行时 262144） | 上下文窗口 |
 | `maxOutput` | 空（运行时 32768） | 最大输出 |
+| `video` | `false` | 该卡片接受视频输入（`analyze_media` 用） |
+| `audio` | `false` | 该卡片接受音频输入（`analyze_media` 用） |
 | `enabled` | `true` | 卡片开关 |
+
+两个模态开关只在卡片展开体内切换，默认关闭；关闭的卡片不会被 `analyze_media` 选中。旧配置缺这两个字段时自动按 `false` 处理。
 
 全局 `retryCount`（默认 3，钳制 1–20）：单次请求内一张卡连续失败多少次后回退下一张。
 
@@ -84,7 +118,7 @@ JPEG→PNG 重编码兜底：服务端对 JPEG 载荷报 400/415 解码错误（
 
 ## 模块开关
 
-`vlmEnabled`（默认开）。关闭即注销 `analyze_image` 工具，配置完整保留。
+`vlmEnabled`（默认开）。关闭即注销 `analyze_image` 与 `analyze_media` 工具，配置完整保留。
 
 ## Related
 

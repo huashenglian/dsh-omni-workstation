@@ -2,6 +2,24 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.12 — 卡片视频/音频模态 + analyze_media + 媒体展示
+
+- **VLM 卡片新增两个模态开关** `video` / `audio`（默认关闭，只在卡片展开体内可切换）。经既有三处持久化白名单（`masked` / `patchCard` / 整表 `apis`）真实落盘，`normalizeConfig` 补上同语义透传；旧配置自动补齐为 `false`，新建卡片默认 `false`。
+
+- **新增单一工具 `analyze_media`**：把视频/音频**直连卡片 API**（绕过 harness 的 text/image 模态体系）。参数 `media_path` / `attachment_id`（二选一）+ `question`（必填），返回 `{ ok, answer, model, api, attempts, usage }`。
+  - **注册门控**：没有任何卡片开启 `video` 或 `audio` 时，工具**完全不注册（0 token）**；开关一改即重注册/注销，未新增模块开关。
+  - **回退选路**：只尝试开启了所需模态的卡片，未开启的卡片**零次请求**；单卡达 `retryCount` 上限后跳到下一张支持卡；支持卡全部失败则报错结束；**兜底模型（fallbackConfig）全程不参与**。
+  - **协议形态**（实测）：`openai-completions` 视频走 `image_url` + `data:video/...` 数据 URL（`video_url` 会被端点半途静默丢弃，**禁止使用**）、音频走 `input_audio {data, format}`；`google-gemini` 走 `inline_data`；`openai-responses` / `anthropic-messages` 未验证，返回 null 即跳过该卡。
+  - 媒体读取走 `resolveMedia`，单文件上限 64 MB；路径按会话工作目录解析，不回退 `process.cwd()`。
+
+- **`show_image` 支持一次展示多张**：新增 `image_paths` 数组参数（最多 8 张），工具卡片内**横向并排**渲染；单张解析失败只让该张显示错误标记，其余照常显示；单图（`image_path` / `attachment_id`）行为不变。
+
+- **新增 `show_video` 工具 + 内嵌播放器**：只做展示、不分析（理解内容请用 `analyze_media`），工具结果只出文本块。播放器小屏默认暂停、无原生控件，**hover 才显示**底部进度条（可点击跳转）、全屏按钮、画面中央播放键与右下角暂停键；全屏为**页面内更大模态**（非浏览器原生全屏）。视频字节经 `POST /omni/media`（base64 JSON，**32 MB** 上限，限定当前工作区内路径）取回。
+
+- **「工具设置」新增两个显示尺寸输入**：图片 `showImageMaxHeight`（默认 **180**）、视频 `showVideoMaxHeight`（默认 **360**），钳制 64–2000 px，仅影响展示，不进任何工具 schema。
+
+- **验证**：单元测试 385 全绿；E2E 用真实 Gemini 卡片 + `tier-lite` 对话模型跑通视频与音频（视频得到画面内容描述，音频得到逐字转录）。
+
 ## 0.1.0 — 正式版
 
 - package.json 版本由开发期 `2.11.3` 正式定为 **`0.1.0`**（设置页「关于」显示 0.1.0）。开发里程碑仍用 v2.x.y 记在 changelog/plan，见根 AGENTS.md「版本号约定」。
