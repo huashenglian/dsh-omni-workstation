@@ -151,3 +151,52 @@ test('全部路径失败 → 抛 show_image 中文错误', async () => {
     /show_image: 无法解析图片/
   )
 })
+
+// ---- v0.1.1 任务 4：部分失败可见（skipped） ----
+// 基线特征化：全成功时返回对象无 skipped 键、render 文本逐字锁定（防后续改动漂移）
+test('【基线】全成功 → 返回无 skipped 键 + render 文本逐字一致（快照断言）', async () => {
+  const p1 = writePng('snap1.png', 6, 5, [10, 20, 30, 255])
+  const p2 = writePng('snap2.png', 7, 8, [40, 50, 60, 255])
+  const tool = byName(makeDeps({ saveImage })).show_image
+  const r = await tool.execute({ image_paths: [p1, p2], label: '快照' }, exec)
+  assert.ok(!('skipped' in r), '全成功时不应出现 skipped 键')
+  assert.equal(r.count, 2)
+  // 期望文本独立手写（不复用生产代码的格式化逻辑）
+  const n1 = p1.replace(/\\/g, '/')
+  const n2 = p2.replace(/\\/g, '/')
+  const expected =
+    '## 图片展示 · 快照\n\n' +
+    '![快照](file:///' + n1 + ')\n\n' +
+    '![快照](file:///' + n2 + ')\n\n' +
+    '1. ' + n1 + ' (6x5)\n' +
+    '2. ' + n2 + ' (7x8)'
+  const text = tool.output.render({}, r).find((b) => b.type === 'text').text
+  assert.equal(text, expected, '全成功 render 文本必须与改造前逐字一致')
+  assert.ok(!text.includes('未能展示'), '全成功不得出现失败提示')
+})
+
+// 新行为：3 个路径中 1 个不存在 → 返回值带 skipped（长度 1，命名缺失路径），render 文本给出中文警告
+test('3 路径中 1 个不存在 → skipped 长度 1 且命名缺失路径，render 含「未能展示」', async () => {
+  const p1 = writePng('mix1.png', 5, 4, [11, 22, 33, 255])
+  const bad = join(dir, 'missing-partial.png')
+  const p3 = writePng('mix3.png', 6, 6, [44, 55, 66, 255])
+  const tool = byName(makeDeps({ saveImage })).show_image
+  const r = await tool.execute({ image_paths: [p1, bad, p3], label: '部分失败' }, exec)
+  assert.equal(r.ok, true)
+  assert.equal(r.count, 2, '存活 2 张')
+  assert.deepEqual(r.images.map((i) => i.path), [p1, p3], '失败项不得混入 images')
+  assert.ok(Array.isArray(r.skipped), '返回值必须带 skipped 数组')
+  assert.equal(r.skipped.length, 1)
+  assert.equal(r.skipped[0], bad, 'skipped 须命名未解析的路径')
+  const text = tool.output.render({}, r).find((b) => b.type === 'text').text
+  assert.ok(text.includes('未能展示'), 'render 文本须含失败提示')
+  assert.ok(text.includes(bad.replace(/\\/g, '/')), '提示须列出缺失路径')
+})
+
+test('output schema 声明 skipped（additionalProperties:false 下必需）', () => {
+  const t = byName(makeDeps(undefined)).show_image
+  const sk = t.output.schema.properties.skipped
+  assert.ok(sk, 'output schema 必须新增 skipped 属性')
+  assert.equal(sk.type, 'array')
+  assert.equal(sk.items.type, 'string')
+})
