@@ -123,3 +123,73 @@ test('masked() never leaks apiKey', () => {
   assert.equal(out.apis[0].apiKey, undefined)
   assert.equal(out.apis[0].apiKeySet, true)
 })
+
+// ---- (e) T4: defaults + legacy back-compat ----
+
+// The REAL legacy card shape from omni-vision.json: no video/audio keys at all,
+// and contextWindow/maxOutput may be null.
+const legacyCfg = () => ({
+  retryCount: 3,
+  vlmEnabled: true,
+  apis: [
+    {
+      id: 'c_legacy1',
+      name: 'VLM API',
+      provider: 'custom',
+      protocol: 'openai-completions',
+      endpoint: 'https://legacy/v1',
+      collapsed: false,
+      enabled: true,
+      timeoutMs: 120000,
+      contextWindow: null,
+      maxOutput: null,
+      apiKey: 'sk-legacy'
+    }
+  ]
+})
+
+test('addCard path (newCard defaults) yields video=false audio=false', () => {
+  const out = applyPatch(baseCfg(), { addCard: { at: 1 } })
+  const added = out.apis.find((x) => x.id !== 'c_a' && x.id !== 'c_b')
+  assert.ok(added, 'addCard must append a card')
+  assert.equal(added.video, false)
+  assert.equal(added.audio, false)
+})
+
+test('legacy config (no video/audio keys) normalizes both flags to false', () => {
+  const out = normalizeConfig(legacyCfg())
+  assert.equal(out.apis.length, 1)
+  const card = out.apis[0]
+  assert.equal(card.video, false, 'legacy video must be exactly false, not undefined')
+  assert.equal(card.audio, false, 'legacy audio must be exactly false, not undefined')
+  assert.equal(card.id, 'c_legacy1', 'identity fields must survive')
+  assert.equal(card.timeoutMs, 120000)
+  assert.equal(card.contextWindow, null, 'image-only semantics untouched')
+  assert.equal(card.maxOutput, null)
+})
+
+test('legacy config round-trips through applyPatch without throwing', () => {
+  const out = applyPatch(legacyCfg(), { patchCard: { id: 'c_legacy1', field: 'model', value: 'm-legacy' } })
+  const card = out.apis.find((x) => x.id === 'c_legacy1')
+  assert.equal(card.model, 'm-legacy')
+  assert.equal(card.video, false)
+  assert.equal(card.audio, false)
+})
+
+test('normalizeConfig keeps video:true / audio:true when present', () => {
+  const src = legacyCfg()
+  src.apis[0].video = true
+  src.apis[0].audio = true
+  const out = normalizeConfig(src)
+  assert.equal(out.apis[0].video, true)
+  assert.equal(out.apis[0].audio, true)
+})
+
+test('normalizeConfig coerces truthy-but-not-true junk to false', () => {
+  const src = legacyCfg()
+  src.apis[0].video = 'yes'
+  src.apis[0].audio = 1
+  const out = normalizeConfig(src)
+  assert.equal(out.apis[0].video, false)
+  assert.equal(out.apis[0].audio, false)
+})
