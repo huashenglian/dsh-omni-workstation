@@ -24,7 +24,9 @@ test('path parsed from the text-only show_video result', () => {
 })
 
 test('bytes come from /omni/media and the object URL is revoked', () => {
-  assert.match(src, /call\("media", \{ path: path \}\)/)
+  // v0.1.1: the card sends its sessionId so the media route reads the root of
+  // THIS session (the host keys roots per session).
+  assert.match(src, /call\("media", \{ path: path, sessionId: sessionId \}\)/)
   assert.match(src, /URL\.revokeObjectURL\(objectUrl\)/)
   assert.match(src, /new Blob\(\[bytes\]/)
 })
