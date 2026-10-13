@@ -2,6 +2,15 @@
 
 > [Back to root AGENTS.md](..)
 
+## 0.1.1 — 正式版（v2.12 里程碑）
+
+- package.json 版本由开发期 `2.12` 正式定为 **`0.1.1`**（设置页「关于」与 `GET /omni/config` 的 `version` 均由服务端运行时读取该文件，无需改前端）。开发里程碑仍用 v2.x.y 记在 changelog/plan，见根 AGENTS.md「版本号约定」。
+- **VLM 卡片新增两个模态开关** `video` / `audio`（默认关闭）：视频/音频直连卡片 API 做分析，卡片开关是唯一门控 —— 没有任何卡片开启对应模态时 `analyze_media` 完全不注册（0 token）。
+- **`show_image` 支持一次展示多张**（`image_paths`，最多 8 张，横向并排），单图用法与行为不变。
+- **新增 `show_video` 工具 + 内嵌播放器**：只展示不分析，视频字节经 `POST /omni/media`（base64 JSON，32 MB 上限，仅限工作区内路径）取回。
+- **「工具设置」新增两个显示尺寸输入**：图片 `showImageMaxHeight`（默认 180）、视频 `showVideoMaxHeight`（默认 360），仅影响展示，不进任何工具 schema。
+- 本版**仅本地版本号提升，未发布**：无 tag、无 push、无 subtree split。
+
 ## v2.12 — 卡片视频/音频模态 + analyze_media + 媒体展示
 
 - **VLM 卡片新增两个模态开关** `video` / `audio`（默认关闭，只在卡片展开体内可切换）。经既有三处持久化白名单（`masked` / `patchCard` / 整表 `apis`）真实落盘，`normalizeConfig` 补上同语义透传；旧配置自动补齐为 `false`，新建卡片默认 `false`。
