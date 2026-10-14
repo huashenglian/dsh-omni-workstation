@@ -18,7 +18,7 @@ An **omni-modal workstation plugin** for [DeepSeek Harness](https://github.com/d
 | [Vision Toolkit](docs/features/vision-toolkit.md) | `zoom_image` · `sample_colors` · `image_diff` · `ocr_image` · `detect_elements` · `show_image` | 4 tools are pure-local (zero tokens); shared image resolution + card chain; artifact paths only |
 | [Image Gen](docs/features/imggen.md) | `generate_image` | OpenAI / DashScope / ComfyUI protocols, multi-workflow management with role mapping, reference-image support, auto verify reminder |
 | [Video](docs/features/video.md) | `generate_video` (+ per-card names) | Multi-card (limit 10), 7 protocols, `/build-video-tool` AI builder with `custom-adapter` runtime |
-| [Voice](docs/features/voice.md) | `speak` · `clone_voice` | MiMo / MiniMax / Doubao + IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI; zero-registration inline & persisted cloning |
+| [Voice](docs/features/voice.md) | `speak` · `clone_voice` · `transcribe` | MiMo / MiniMax / Doubao + IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI; zero-registration inline & persisted cloning; speech-to-text via one OpenAI-compatible protocol (local FunASR by default, no key needed) |
 
 Every module has its own switch — turning one off unregisters its tools completely (0 token cost) while keeping your configuration.
 

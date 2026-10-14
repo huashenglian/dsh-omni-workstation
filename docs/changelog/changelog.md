@@ -2,6 +2,19 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.13 — STT 语音转文字模块
+
+- **新增 STT 配置层** `voiceConfigStt`（+ `voicePresetsStt` 预设栏、`sttEnabled` 子开关）：`{provider, protocol, endpoint, apiKey, model, timeoutMs, retryCount, language, hotwords, outputMode, extraParams}`。`normalizeSttConfig` 对旧 TTS 形状的 `voiceConfigStt`（provider=mimo 等）静默回退到默认配置，旧配置照常加载。默认供应商 **funasr**（本机跑 FunASR 即可零配置、无需 Key）。版本号**仍为 0.1.1**，待后续发版提升。
+- **5 家供应商共用一套协议** `openai-stt`：`POST {endpoint}/audio/transcriptions`（multipart，`file`+`model`，可选 `language`、`prompt`=热词、`extraParams` 展开）。openai（25MB）/ groq（25MB）/ siliconflow（50MB）/ funasr（无限制）/ custom（自填端点，无限制）；无厂商上限者走 64MB 安全上限。
+- **新增工具 `transcribe`**：参数 `audio_path` | `attachment_id`（二选一，attachment_id 优先）+ 可选 `language` / `hotwords` 覆盖面板配置。返回 `{ok, text, language, duration, filePath, segments, detail}`，**只出文本块**（音频块会被纯文本模型的 sanitize 静默剥离）。门控 `voiceEnabled === true && sttEnabled === true && isSttConfigValid(voiceConfigStt)`，默认关闭；关闭或配置无效时**完全不注册（0 token）**。
+- **输出样式** `outputMode`：`text`（纯文字）/ `timestamps`（带时间戳）/ `srt` / `vtt`（字幕文件，落 `<工作区>/.omni-workstation/transcripts/`）。
+- **与 `analyze_media` 的三层冲突接管**（STT 有效时音频一律走 transcribe）：① `analyze_media` 工具描述改写为「仅视频分析」；② `tools/pre-execute` 在请求发出**前**拦截音频调用（deny + 指路 transcribe，零浪费 VLM 请求）；③ `askMedia` 兜底拦截抛错。**视频通道不受影响**（视频分析行为完全不变）；STT 关闭时三层全部失效，恢复原行为。
+- **面板**：语音 tab → STT 子页表单（供应商 / 端点 / Key+眼睛 / 模型+获取 / 输出样式；「高级选项」默认折叠：语言 / 热词 / 超时 / 重试次数 / 附加参数 JSON）；「试一下」区支持选本地音频或麦克风录音，当场显示转写结果（音频仅内存 base64 传输，录音不落磁盘）。
+- **新路由**：`/omni/models {stt:true}`（拉模型，关键词过滤 + 空结果兜底）、`/omni/key {stt:true}`（查看 Key）、`/omni/stt/test`（`POST {base64, name}`，**仅 base64**——不接受路径，避免把任意本地文件直接上传到第三方端点；srt/vtt 落 `<配置目录>/transcripts/`）。
+- **重试语义**：`retryCount` = 总尝试次数（1–10），仅在**网络错误 / 429 / 5xx** 时重试，其余 4xx 立即抛错。
+- **未做（留待评估）**：超限音频或不支持格式只报错 + 给建议（如「先压缩或切片，或改用本地 FunASR」），**不做自动切片/转码**；无说话人分离（diarization）开关。
+- **验证**：单元测试五个套件（`stt-config` / `stt-conflict` / `stt-execution` / `stt-routes` / `stt-tool`）全绿。
+
 ## 0.1.1 — 正式版（v2.12 里程碑）
 
 - package.json 版本由开发期 `2.12` 正式定为 **`0.1.1`**（设置页「关于」与 `GET /omni/config` 的 `version` 均由服务端运行时读取该文件，无需改前端）。开发里程碑仍用 v2.x.y 记在 changelog/plan，见根 AGENTS.md「版本号约定」。
