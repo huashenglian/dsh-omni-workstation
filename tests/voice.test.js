@@ -375,8 +375,9 @@ test('voice subtab STT: patches target voiceConfigStt namespace, do not touch TT
   let cfg = applyPatch({}, { voiceSubtab: 'stt', voiceConfig: { field: 'model', value: 'stt-model' } })
   assert.equal(cfg.voiceConfigStt.model, 'stt-model')
   assert.equal(cfg.voiceConfig.model, '')           // TTS untouched
-  // STT preset is NOT auto-synced
-  assert.equal(cfg.voicePresetsStt[0].config.model, '') // default, unchanged
+  // STT preset is NOT auto-synced (default STT preset carries the funasr-shaped
+  // sensevoice model — v2.13 STT config layer superseded the TTS-shaped scaffold)
+  assert.equal(cfg.voicePresetsStt[0].config.model, 'sensevoice') // default, unchanged
   assert.notEqual(cfg.activeVoicePresetStt, cfg.activeVoicePreset)
 
   // default 'stt' namespace is a separate list from TTS
