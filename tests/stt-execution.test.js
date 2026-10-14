@@ -262,3 +262,56 @@ test('sttSaveSubtitle writes <baseName>-<ts>.<ext> under transcripts/', () => {
   assert.match(p, /clip-[a-z0-9]+\.vtt$/)
   assert.equal(readFileSync(p, 'utf8'), 'WEBVTT\n')
 })
+
+// ---- lossless-JSON regression (v2.13 fix) ----
+// The harness's snapshotToolValue gate runs BEFORE schema validation and
+// rejects any result with an undefined-valued own key (JSON.stringify would
+// drop it, but the gate sees the raw object). deepStrictEqual against the
+// JSON round-trip catches undefined-valued keys anywhere in the tree.
+
+test('runOpenAiStt: response without duration -> no duration key, lossless JSON round-trip', async () => {
+  const { server, url } = await startMock((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ text: '你好' })) // FunASR/sensevoice default shape
+  })
+  try {
+    const r = await runOpenAiStt(mockCfg(url), { audio_path: tmpFile('a.wav', WAV_HEADER) }, null)
+    assert.equal(r.ok, true)
+    assert.equal(r.text, '你好')
+    assert.equal('duration' in r, false)
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(r)), r)
+  } finally {
+    await close(server)
+  }
+})
+
+test('runOpenAiStt: verbose_json segments missing start/end -> null members, lossless round-trip', async () => {
+  const { server, url } = await startMock((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ text: 'a b', segments: [{ text: 'a' }, { text: 'b' }] }))
+  })
+  try {
+    const cfg = mockCfg(url, { outputMode: 'timestamps' })
+    const r = await runOpenAiStt(cfg, { audio_path: tmpFile('a.wav', WAV_HEADER) }, null)
+    assert.equal(r.segments[0].start, null)
+    assert.equal(r.segments[0].end, null)
+    assert.equal(r.segments[0].text, 'a')
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(r)), r)
+  } finally {
+    await close(server)
+  }
+})
+
+test('runOpenAiStt: duration present and finite is still kept (1.5)', async () => {
+  const { server, url } = await startMock((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ text: 'hi', duration: 1.5 }))
+  })
+  try {
+    const r = await runOpenAiStt(mockCfg(url), { audio_path: tmpFile('a.wav', WAV_HEADER) }, null)
+    assert.equal(r.duration, 1.5)
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(r)), r)
+  } finally {
+    await close(server)
+  }
+})
