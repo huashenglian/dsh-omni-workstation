@@ -9,7 +9,7 @@
 
 ## v2.13 — STT 语音转文字模块
 
-- **新增 STT 配置层** `voiceConfigStt`（+ `voicePresetsStt` 预设栏、`sttEnabled` 子开关）：`{provider, protocol, endpoint, apiKey, model, timeoutMs, retryCount, language, hotwords, outputMode, extraParams}`。`normalizeSttConfig` 对旧 TTS 形状的 `voiceConfigStt`（provider=mimo 等）静默回退到默认配置，旧配置照常加载。默认供应商 **funasr**（本机跑 FunASR 即可零配置、无需 Key）。版本号**仍为 0.1.1**，待后续发版提升。
+- **新增 STT 配置层** `voiceConfigStt`（+ `voicePresetsStt` 预设栏、`sttEnabled` 子开关）：`{provider, protocol, endpoint, apiKey, model, timeoutMs, retryCount, language, hotwords, outputMode, extraParams}`。`normalizeSttConfig` 对旧 TTS 形状的 `voiceConfigStt`（provider=mimo 等）静默回退到默认配置，旧配置照常加载。默认供应商 **funasr**（本机跑 FunASR 即可零配置、无需 Key）。版本号已提升为 **0.1.2**（见上方 0.1.2 条目；仅本地，未发布）。
 - **5 家供应商共用一套协议** `openai-stt`：`POST {endpoint}/audio/transcriptions`（multipart，`file`+`model`，可选 `language`、`prompt`=热词、`extraParams` 展开）。openai（25MB）/ groq（25MB）/ siliconflow（50MB）/ funasr（无限制）/ custom（自填端点，无限制）；无厂商上限者走 64MB 安全上限。
 - **新增工具 `transcribe`**：参数 `audio_path` | `attachment_id`（二选一，attachment_id 优先）+ 可选 `language` / `hotwords` 覆盖面板配置。返回 `{ok, text, language, duration, filePath, segments, detail}`，**只出文本块**（音频块会被纯文本模型的 sanitize 静默剥离）。门控 `voiceEnabled === true && sttEnabled === true && isSttConfigValid(voiceConfigStt)`，默认关闭；关闭或配置无效时**完全不注册（0 token）**。
 - **输出样式** `outputMode`：`text`（纯文字）/ `timestamps`（带时间戳）/ `srt` / `vtt`（字幕文件，落 `<工作区>/.omni-workstation/transcripts/`）。
