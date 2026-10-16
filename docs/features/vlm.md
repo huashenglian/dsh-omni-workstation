@@ -97,12 +97,14 @@ agnes · agnes-cn · anthropic · ant-ling · cerebras · fireworks · google ·
 | `mirrorAllEnabled` | `false` | 镜像全部供应商为多模态条目（掩盖下方映射列表） |
 | `mappings[]` | `[]` | 自定义映射：`{ originalProvider, originalModel, mirrorName }`，镜像名留空则用 `<原模型>-vision` |
 
-## 动态多模态适应（v2.11.3）
+## 动态多模态适应（v2.11.3 起；v2.13.2 硬拦截）
 
 `globalConfig.dynamicMultimodalAdapt`（默认开，设置 → 开关扩展 → VLM）：
 
 - **开**：按当前对话模型是否声明图片输入（`inputModalities` 含 image）自适应——多模态模型直接看图（跳过 tool-result 图片 sanitize，生图验证提示用「必须立即视觉验证此图片…」）；纯文本模型固定 `analyze_image`。
-- **关**：始终 `analyze_image` 路径。
+- **v2.13.2 硬拦截**：当开关开启 **且** 当前模型声明图片输入时，`tools/pre-execute` 会在派发前拦截 `analyze_image` 并拒绝（`kind: 'deny'` + 中文 reason），让 AI 必须用 `read_image` / 直接看图。**兜底**仅当 `analyze_image(..., native_vision_failed: true)` 时放行——这是给「模型实际看不到图片」的唯一逃生口：(a) 消息里根本没图片 / 附件 ID 找不到，(b) 视觉调用报错（如 `read_image` 失败 / 401 / 400 / 端点返回 vision-not-supported），(c) image 字段被错误填到实际不支持图片的模型。**只针对 `analyze_image`**——`zoom_image`/`sample_colors`/`image_diff`/`ocr_image`/`detect_elements` 五个工具箱工具没有原生视觉替代，是真有功能差异的辅助工具，保持可调。
+- **关**：闸门完全失效，回到 v2.11.3 之前的旧行为（始终 `analyze_image` 路径）。
+- **实现**：纯函数 `nativeVisionDenyReason(dynamicAdapt, acceptsImages, toolName, args)` + 同名 `tools/pre-execute` 监听器调用；不阻塞 dispatch（`next()` 兜底）。新增 `analyze_image.native_vision_failed: boolean` 工具参数（无 `required` 键，避免 schema authorError）。
 
 ## 回退与重试参数（globalConfig）
 
