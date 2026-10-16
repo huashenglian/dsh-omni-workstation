@@ -13,7 +13,7 @@ import { join } from 'node:path'
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-workstation-stt-tool-'))
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-workstation-stt-tool-cfg-'))
 
-const { buildTranscribeToolDef, _resetStt, defaultSttConfig } = await import('../lib/index.js')
+const { buildTranscribeToolDef, _resetStt, defaultSttConfig, mergeTranscribeArgs } = await import('../lib/index.js')
 
 // ---- tool definition ----
 
@@ -25,10 +25,10 @@ test('transcribe: name + description mark it the preferred STT tool (analyze_med
   assert.ok(def.description.includes('sensevoice'), 'description must embed the current model')
 })
 
-test('transcribe: exactly the 4 optional params, no required key anywhere', () => {
+test('transcribe: exactly the 5 optional params, no required key anywhere', () => {
   const def = buildTranscribeToolDef(defaultSttConfig())
   const props = def.parameters.properties
-  assert.deepEqual(Object.keys(props).sort(), ['attachment_id', 'audio_path', 'hotwords', 'language'])
+  assert.deepEqual(Object.keys(props).sort(), ['attachment_id', 'audio_path', 'hotwords', 'language', 'output_mode'])
   // this codebase's schema DSL: optional params must OMIT `required` entirely
   assert.equal('required' in def.parameters, false, 'no param is required')
   for (const key of Object.keys(props)) {
@@ -96,4 +96,37 @@ test('transcribe render: segments -> [mm:ss – mm:ss] lines, text blocks only',
 
 test('_resetStt is callable without throwing', () => {
   assert.doesNotThrow(() => _resetStt())
+})
+
+// ---- mergeTranscribeArgs (v2.13.1): panel config = default request params ----
+
+test('mergeTranscribeArgs: empty args keep panel values', () => {
+  const live = defaultSttConfig()
+  const merged = mergeTranscribeArgs(live, {})
+  assert.equal(merged.language, live.language)
+  assert.equal(merged.hotwords, live.hotwords)
+  assert.equal(merged.outputMode, live.outputMode)
+})
+
+test('mergeTranscribeArgs: whitelisted output_mode overrides', () => {
+  const merged = mergeTranscribeArgs(defaultSttConfig(), { output_mode: 'srt' })
+  assert.equal(merged.outputMode, 'srt')
+})
+
+test('mergeTranscribeArgs: non-whitelisted output_mode is ignored', () => {
+  const merged = mergeTranscribeArgs(defaultSttConfig(), { output_mode: 'bogus' })
+  assert.equal(merged.outputMode, defaultSttConfig().outputMode)
+})
+
+test('mergeTranscribeArgs: empty language does not override panel value', () => {
+  const live = Object.assign(defaultSttConfig(), { language: 'zh' })
+  const merged = mergeTranscribeArgs(live, { language: '' })
+  assert.equal(merged.language, 'zh')
+})
+
+test('mergeTranscribeArgs: non-empty language and hotwords override', () => {
+  const live = Object.assign(defaultSttConfig(), { language: 'zh', hotwords: 'a' })
+  const merged = mergeTranscribeArgs(live, { language: 'en', hotwords: 'b c' })
+  assert.equal(merged.language, 'en')
+  assert.equal(merged.hotwords, 'b c')
 })
