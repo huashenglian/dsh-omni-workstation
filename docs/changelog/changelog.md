@@ -7,6 +7,11 @@
 - package.json 版本由 `0.1.1` 提升为 **`0.1.2`**（设置页「关于」与 `GET /omni/config` 的 `version` 均由服务端运行时读取该文件，无需改前端，`lib/**` 不硬编码版本串）。本版对应开发里程碑 **v2.13 —— STT 语音转文字模块**（见下方 v2.13 条目）：新增 `voiceConfigStt` 配置层与 `sttEnabled` 子开关、5 家供应商共用 `openai-stt` 协议的 `transcribe` 工具（默认 funasr 本机零配置）、四种输出样式（text/timestamps/srt/vtt）、与 `analyze_media` 的三层冲突接管（STT 有效时音频一律走 transcribe，视频通道不受影响），以及 `/omni/models {stt}`、`/omni/key {stt}`、`/omni/stt/test` 新路由；已通过真实浏览器 E2E（SiliconFlow）验证，并修正了一处转写结果无损 JSON 序列化的真 bug（`f297558`）。
 - 本版**仅本地版本号提升，未发布**：无 tag、无 push、无 subtree split。
 
+## v2.13.2 — 全模态导航图标 + 文档整理
+
+- **设置左侧导航「全模态」图标改为「工作箱」字形**（`client.js`）：宿主 `settings.section` 合约只有 `id/order/label`、**无 icon 字段**，第三方设置壳（`@michengai/dsh-codex-ui` 的 `sectionIcon()`）对未知 id 一律回退到默认的 lucide `Box` 立方体。实现：`lib/client.js` 挂一个 `MutationObserver`，在宿主自身 rAF 之后重写该导航行 `<svg>`（viewBox `0 0 1024 1024`、`fill: currentColor` 跟随主题），带 `data-omni-nav-icon` 标记保证幂等；切换分区 / 重开设置面板均稳定生效（已浏览器实测）。
+- **文档整理**：README（中/英）把「安装」移到正文最上方（封面 + 徽章之下），改为居中标题头 + 锚点导航行（参考 dsh-livechat 版式）。本轮为纯图标 + 文档调整，**无工具行为变化**、无版本号变更（仍 `0.1.2`）。
+
 ## v2.13 — STT 语音转文字模块
 
 - **新增 STT 配置层** `voiceConfigStt`（+ `voicePresetsStt` 预设栏、`sttEnabled` 子开关）：`{provider, protocol, endpoint, apiKey, model, timeoutMs, retryCount, language, hotwords, outputMode, extraParams}`。`normalizeSttConfig` 对旧 TTS 形状的 `voiceConfigStt`（provider=mimo 等）静默回退到默认配置，旧配置照常加载。默认供应商 **funasr**（本机跑 FunASR 即可零配置、无需 Key）。版本号已提升为 **0.1.2**（见上方 0.1.2 条目；仅本地，未发布）。

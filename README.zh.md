@@ -1,14 +1,82 @@
-# dsh-omni-workstation
+<div align="center">
 
-<p align="center"><img src="docs/images/cover.jpg" alt="dsh-omni-workstation 封面" width="720"></p>
+<img src="docs/images/cover.jpg" alt="dsh-omni-workstation 封面" width="720" />
+
+# dsh-omni-workstation
 
 [![version](https://img.shields.io/badge/version-0.1.2-blue)](https://github.com/huashenglian/dsh-omni-workstation)
 [![license](https://img.shields.io/badge/license-MIT-green)](#license)
 [![platform](https://img.shields.io/badge/platform-DeepSeek%20Harness-orange)](https://github.com/deepseek-ai)
 
+用于 [DeepSeek Harness](https://github.com/deepseek-ai)（`dsh`）的**全模态工作台插件**。给 AI 装上眼睛、画笔、摄像机和嗓音：图像分析由有序多卡片 VLM 回退链驱动，配备 6 个本地视觉工具、图像生成（含 ComfyUI 工作流）、多卡片异步视频生成（带 AI 工具构建指令）以及覆盖 3 家云端 + 4 个本地供应商的语音合成与音色克隆——全部在一个自动保存的设置页（中/英文）完成配置。
+
 [English](README.md) | 中文
 
-用于 [DeepSeek Harness](https://github.com/deepseek-ai)（`dsh`）的**全模态工作台插件**。给 AI 装上眼睛、画笔、摄像机和嗓音：图像分析由有序多卡片 VLM 回退链驱动，配备 6 个本地视觉工具、图像生成（含 ComfyUI 工作流）、多卡片异步视频生成（带 AI 工具构建指令）以及覆盖 3 家云端 + 4 个本地供应商的语音合成与音色克隆——全部在一个自动保存的设置页（中/英文）完成配置。
+[安装](#安装) · [快速开始](#快速开始) · [功能](#功能总览) · [文档](#文档) · [工作原理](#工作原理)
+
+</div>
+
+---
+
+## 安装
+
+本插件是 **bundle**：自带 `cordis.patch.yml` 并自我激活——一条命令完成，无需手动修改 profile 的 patch 文件。
+
+```bash
+# 本地目录安装
+dsh plugin --profile web add ./dsh-omni-workstation
+
+# GitHub 安装
+dsh plugin --profile web add github:huashenglian/dsh-omni-workstation
+
+# tarball 安装（pnpm pack / npm pack 打包后）
+dsh plugin --profile web add ./dsh-omni-workstation-0.1.2.tgz
+```
+
+`dsh plugin add` 会自动安装依赖，并把该 bundle 追加到 `dsh.profile.bundles`。
+
+> [!NOTE]
+> **不要**在 profile 的 `cordis.patch.yml` 里再加 `- insert: - id: omni-workstation` 一行——bundle 已自带，重复 insert 会导致启动时报 `duplicate loader entry id: omni-workstation`。
+>
+> 手动放置（备选）：把插件包放到 `$DSH_HOME/profiles/web/plugins/dsh-omni-workstation/`，在 profile 的 `package.json` `dependencies` 加 `"dsh-omni-workstation": "file:./plugins/dsh-omni-workstation"`，并把 `"dsh-omni-workstation"` 加入 `dsh.profile.bundles` 数组，运行 `pnpm install` 后重启 `dsh web`。
+
+重启 `dsh web` 后打开 <http://127.0.0.1:3080>。若还没有 `dsh` CLI，可直接启动 web 服务：
+
+```bash
+npx @deepseek-ai/dsh web
+```
+
+## 环境要求
+
+- `dsh` CLI（DeepSeek Harness）且已安装 `web` profile
+- `PATH` 中有 `pnpm`（或用 `npx --yes pnpm@<version>` 代替）
+
+## 快速开始
+
+1. 重启 `dsh web`，打开 **设置 → 全模态**。
+2. 在 VLM Tab 点「添加模型」（或编辑默认卡片）：选供应商、粘贴 API Key、获取并选择模型。
+3. 给 AI 发一张图片（或一个本地路径）并提问——`analyze_image` 工具已就绪。
+
+所有配置都在一个 JSON 文件 `omni-vision.json` 中，存放于**插件安装目录内**（git 忽略；含真实 API Key，切勿提交）。设置页读写此文件；也可以在 `dsh web` 停止时直接编辑：
+
+```json
+{
+  "retryCount": 3,
+  "vlmEnabled": true,
+  "apis": [
+    {
+      "id": "c_yyy",
+      "name": "VLM API",
+      "provider": "custom",
+      "protocol": "openai-completions",
+      "endpoint": "https://api.example.com/v1",
+      "apiKey": "sk-...",
+      "model": "gpt-4o",
+      "timeoutMs": 120000
+    }
+  ]
+}
+```
 
 ## 功能总览
 
@@ -55,60 +123,6 @@
 </p>
 
 **设置 → 全模态**——四个 Tab（VLM / 生图 / 视频 / 语音）加全局设置 Tab。每次修改即时保存、立即生效，无需「保存」按钮。
-
-## 环境要求
-
-- `dsh` CLI（DeepSeek Harness）且已安装 `web` profile
-- `PATH` 中有 `pnpm`（或用 `npx --yes pnpm@<version>` 代替）
-
-## 安装
-
-本插件是 **bundle**：自带 `cordis.patch.yml` 并自我激活——一条命令完成，无需手动修改 profile 的 patch 文件。
-
-```bash
-# 本地目录安装
-dsh plugin --profile web add ./dsh-omni-workstation
-
-# GitHub 安装
-dsh plugin --profile web add github:huashenglian/dsh-omni-workstation
-
-# tarball 安装（pnpm pack / npm pack 打包后）
-dsh plugin --profile web add ./dsh-omni-workstation-0.1.2.tgz
-```
-
-`dsh plugin add` 会自动安装依赖，并把该 bundle 追加到 `dsh.profile.bundles`。
-
-> [!NOTE]
-> **不要**在 profile 的 `cordis.patch.yml` 里再加 `- insert: - id: omni-workstation` 一行——bundle 已自带，重复 insert 会导致启动时报 `duplicate loader entry id: omni-workstation`。
->
-> 手动放置（备选）：把插件包放到 `$DSH_HOME/profiles/web/plugins/dsh-omni-workstation/`，在 profile 的 `package.json` `dependencies` 加 `"dsh-omni-workstation": "file:./plugins/dsh-omni-workstation"`，并把 `"dsh-omni-workstation"` 加入 `dsh.profile.bundles` 数组，运行 `pnpm install` 后重启 `dsh web`。
-
-## 快速开始
-
-1. 重启 `dsh web`，打开 **设置 → 全模态**。
-2. 在 VLM Tab 点「添加模型」（或编辑默认卡片）：选供应商、粘贴 API Key、获取并选择模型。
-3. 给 AI 发一张图片（或一个本地路径）并提问——`analyze_image` 工具已就绪。
-
-所有配置都在一个 JSON 文件 `omni-vision.json` 中，存放于**插件安装目录内**（git 忽略；含真实 API Key，切勿提交）。设置页读写此文件；也可以在 `dsh web` 停止时直接编辑：
-
-```json
-{
-  "retryCount": 3,
-  "vlmEnabled": true,
-  "apis": [
-    {
-      "id": "c_yyy",
-      "name": "VLM API",
-      "provider": "custom",
-      "protocol": "openai-completions",
-      "endpoint": "https://api.example.com/v1",
-      "apiKey": "sk-...",
-      "model": "gpt-4o",
-      "timeoutMs": 120000
-    }
-  ]
-}
-```
 
 ## 工作原理
 

@@ -1,14 +1,82 @@
-# dsh-omni-workstation
+<div align="center">
 
-<p align="center"><img src="docs/images/cover.jpg" alt="dsh-omni-workstation cover" width="720"></p>
+<img src="docs/images/cover.jpg" alt="dsh-omni-workstation cover" width="720" />
+
+# dsh-omni-workstation
 
 [![version](https://img.shields.io/badge/version-0.1.2-blue)](https://github.com/huashenglian/dsh-omni-workstation)
 [![license](https://img.shields.io/badge/license-MIT-green)](#license)
 [![platform](https://img.shields.io/badge/platform-DeepSeek%20Harness-orange)](https://github.com/deepseek-ai)
 
+An **omni-modal workstation plugin** for [DeepSeek Harness](https://github.com/deepseek-ai) (`dsh`). It gives the AI eyes, a brush, a camera and a voice: image analysis backed by an ordered multi-card VLM failover chain, a 6-tool local vision toolkit, image generation (incl. ComfyUI workflows), multi-card async video generation with an AI tool builder, and TTS / voice cloning across 3 cloud + 4 local providers — all configured from one auto-saving settings page (English / 中文).
+
 English | [中文](README.zh.md)
 
-An **omni-modal workstation plugin** for [DeepSeek Harness](https://github.com/deepseek-ai) (`dsh`). It gives the AI eyes, a brush, a camera and a voice: image analysis backed by an ordered multi-card VLM failover chain, a 6-tool local vision toolkit, image generation (incl. ComfyUI workflows), multi-card async video generation with an AI tool builder, and TTS / voice cloning across 3 cloud + 4 local providers — all configured from one auto-saving settings page (English / 中文).
+[Install](#install) · [Quick Start](#quick-start) · [Features](#feature-overview) · [Docs](#documentation) · [How it works](#how-it-works)
+
+</div>
+
+---
+
+## Install
+
+The plugin is a **bundle**: it carries its own `cordis.patch.yml` and self-activates — one command, no manual patch editing.
+
+```bash
+# From a local directory
+dsh plugin --profile web add ./dsh-omni-workstation
+
+# From GitHub
+dsh plugin --profile web add github:huashenglian/dsh-omni-workstation
+
+# From a packed tarball (pnpm pack / npm pack)
+dsh plugin --profile web add ./dsh-omni-workstation-0.1.2.tgz
+```
+
+`dsh plugin add` installs the dependency and appends the bundle to `dsh.profile.bundles` automatically.
+
+> [!NOTE]
+> Do **not** add a manual `- insert: - id: omni-workstation` row to the profile `cordis.patch.yml` — the bundle already inserts it. A second insert throws `duplicate loader entry id: omni-workstation` at boot.
+>
+> Manual alternative: put the package under `$DSH_HOME/profiles/web/plugins/dsh-omni-workstation/`, add `"dsh-omni-workstation": "file:./plugins/dsh-omni-workstation"` to the profile `package.json` dependencies and `"dsh-omni-workstation"` to the `dsh.profile.bundles` array, run `pnpm install`, then restart `dsh web`.
+
+Restart `dsh web` and open <http://127.0.0.1:3080>. If you don't have the `dsh` CLI yet, start the web server directly:
+
+```bash
+npx @deepseek-ai/dsh web
+```
+
+## Requirements
+
+- `dsh` CLI (DeepSeek Harness) with a `web` profile installed
+- `pnpm` on `PATH` (or use `npx --yes pnpm@<version>`)
+
+## Quick Start
+
+1. Restart `dsh web` and open **Settings → Omni Workstation**.
+2. On the VLM tab, click **Add Model** (or edit the default card): pick a provider, paste your API key, fetch and pick a model.
+3. Send the AI an image (or a local path) and ask about it — the `analyze_image` tool is now live.
+
+All configuration lives in a single JSON file, `omni-vision.json`, stored **inside the plugin installation directory** (git-ignored; contains real API keys — never commit it). The settings page reads and writes this file; you can also edit it directly while `dsh web` is stopped:
+
+```json
+{
+  "retryCount": 3,
+  "vlmEnabled": true,
+  "apis": [
+    {
+      "id": "c_yyy",
+      "name": "VLM API",
+      "provider": "custom",
+      "protocol": "openai-completions",
+      "endpoint": "https://api.example.com/v1",
+      "apiKey": "sk-...",
+      "model": "gpt-4o",
+      "timeoutMs": 120000
+    }
+  ]
+}
+```
 
 ## Feature Overview
 
@@ -55,60 +123,6 @@ Today you can AI-build a **custom video tool**: type `/build-video-tool` in chat
 </p>
 
 **Settings → Omni Workstation** — four tabs (VLM / Image Gen / Video / Voice) plus a global settings tab. Every edit auto-saves and takes effect immediately; no Save button.
-
-## Requirements
-
-- `dsh` CLI (DeepSeek Harness) with a `web` profile installed
-- `pnpm` on `PATH` (or use `npx --yes pnpm@<version>`)
-
-## Install
-
-The plugin is a **bundle**: it carries its own `cordis.patch.yml` and self-activates — one command, no manual patch editing.
-
-```bash
-# From a local directory
-dsh plugin --profile web add ./dsh-omni-workstation
-
-# From GitHub
-dsh plugin --profile web add github:huashenglian/dsh-omni-workstation
-
-# From a packed tarball (pnpm pack / npm pack)
-dsh plugin --profile web add ./dsh-omni-workstation-0.1.2.tgz
-```
-
-`dsh plugin add` installs the dependency and appends the bundle to `dsh.profile.bundles` automatically.
-
-> [!NOTE]
-> Do **not** add a manual `- insert: - id: omni-workstation` row to the profile `cordis.patch.yml` — the bundle already inserts it. A second insert throws `duplicate loader entry id: omni-workstation` at boot.
->
-> Manual alternative: put the package under `$DSH_HOME/profiles/web/plugins/dsh-omni-workstation/`, add `"dsh-omni-workstation": "file:./plugins/dsh-omni-workstation"` to the profile `package.json` dependencies and `"dsh-omni-workstation"` to the `dsh.profile.bundles` array, run `pnpm install`, then restart `dsh web`.
-
-## Quick Start
-
-1. Restart `dsh web` and open **Settings → Omni Workstation**.
-2. On the VLM tab, click **Add Model** (or edit the default card): pick a provider, paste your API key, fetch and pick a model.
-3. Send the AI an image (or a local path) and ask about it — the `analyze_image` tool is now live.
-
-All configuration lives in a single JSON file, `omni-vision.json`, stored **inside the plugin installation directory** (git-ignored; contains real API keys — never commit it). The settings page reads and writes this file; you can also edit it directly while `dsh web` is stopped:
-
-```json
-{
-  "retryCount": 3,
-  "vlmEnabled": true,
-  "apis": [
-    {
-      "id": "c_yyy",
-      "name": "VLM API",
-      "provider": "custom",
-      "protocol": "openai-completions",
-      "endpoint": "https://api.example.com/v1",
-      "apiKey": "sk-...",
-      "model": "gpt-4o",
-      "timeoutMs": 120000
-    }
-  ]
-}
-```
 
 ## How It Works
 
