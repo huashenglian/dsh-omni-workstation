@@ -5,7 +5,7 @@
 ## 0.1.2 — 正式版（v2.13 里程碑）
 
 - package.json 版本由 `0.1.1` 提升为 **`0.1.2`**（设置页「关于」与 `GET /omni/config` 的 `version` 均由服务端运行时读取该文件，无需改前端，`lib/**` 不硬编码版本串）。本版对应开发里程碑 **v2.13 —— STT 语音转文字模块**（见下方 v2.13 条目）：新增 `voiceConfigStt` 配置层与 `sttEnabled` 子开关、5 家供应商共用 `openai-stt` 协议的 `transcribe` 工具（默认 funasr 本机零配置）、四种输出样式（text/timestamps/srt/vtt）、与 `analyze_media` 的三层冲突接管（STT 有效时音频一律走 transcribe，视频通道不受影响），以及 `/omni/models {stt}`、`/omni/key {stt}`、`/omni/stt/test` 新路由；已通过真实浏览器 E2E（SiliconFlow）验证，并修正了一处转写结果无损 JSON 序列化的真 bug（`f297558`）。
-- 本版**仅本地版本号提升，未发布**：无 tag、无 push、无 subtree split。
+- **已发布**（2026-10-16）：GitHub（`main` / `master` + tag `v0.1.2`）+ npm（`dsh-omni-workstation@0.1.2`）。发布内容 = v2.13（STT 语音转文字）+ 下方 v2.13.2 两条目（动态多模态硬拦截、导航图标与文档整理）。
 
 ## v2.13.2 — 动态多模态适应硬拦截
 
