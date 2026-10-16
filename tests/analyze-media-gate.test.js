@@ -9,7 +9,7 @@ const dshHome = mkdtempSync(join(tmpdir(), 'omni-workstation-media-gate-'))
 process.env.DSH_HOME = dshHome
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = dshHome
 
-const { apply, _resetMedia, mediaToolDef } = await import('../lib/index.js')
+const { apply, _resetMedia, _resetStt, mediaToolDef, defaultSttConfig } = await import('../lib/index.js')
 
 const writeCfg = (obj) => writeFileSync(join(dshHome, 'omni-vision.json'), JSON.stringify(obj))
 
@@ -138,6 +138,32 @@ test('gate toggle off: switching both off unregisters analyze_media', async () =
   await waitFor(() => !names(ctx).includes('analyze_media'))
   assert.ok(!names(ctx).includes('analyze_media'), 'switch off removes the registration')
   assert.ok(!names(ctx2).includes('analyze_media'))
+})
+
+// ---- v2.13.1: audio-only cards excluded while STT is on (transcribe takes over) ----
+
+const STT_VALID = Object.assign(defaultSttConfig(), { provider: 'openai', apiKey: 'sk-stt', model: 'whisper-1' })
+
+test('gate v2.13.1: audio-only card + valid STT → analyze_media NOT registered', async () => {
+  _resetMedia()
+  _resetStt()
+  writeCfg(BASE_CFG([card({ audio: true })], { voiceEnabled: true, sttEnabled: true, voiceConfigStt: STT_VALID }))
+  const ctx = makeFakeCtx()
+  apply(ctx)
+  await waitFor(() => names(ctx).includes('transcribe')) // syncToolRegistration finished
+  assert.ok(!names(ctx).includes('analyze_media'), 'audio-only card with STT valid must NOT register analyze_media (dead tool)')
+})
+
+test('gate v2.13.1: video card + valid STT → analyze_media registered, description carries transcribe notice', async () => {
+  _resetMedia()
+  _resetStt()
+  writeCfg(BASE_CFG([card({ video: true })], { voiceEnabled: true, sttEnabled: true, voiceConfigStt: STT_VALID }))
+  const ctx = makeFakeCtx()
+  apply(ctx)
+  await waitFor(() => names(ctx).includes('analyze_media') && names(ctx).includes('transcribe'))
+  const d = ctx.registered.filter((x) => x && x.name === 'analyze_media').map((x) => x.description)
+  assert.equal(d.length, 1)
+  assert.ok(d[0].includes('transcribe'), 'STT on → video-capable registration must carry the transcribe notice')
 })
 
 // ---------- per-modality routing ----------

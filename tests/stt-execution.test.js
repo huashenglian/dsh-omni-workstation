@@ -63,6 +63,14 @@ test('sttEndpointFor strips trailing slashes and honors fixedUrl', () => {
   assert.equal(sttEndpointFor({ provider: 'custom', endpoint: 'http://x.test/v1///' }), 'http://x.test/v1')
 })
 
+test('sttEndpointFor appends /v1 to a bare custom endpoint (v2.13.1)', () => {
+  assert.equal(sttEndpointFor({ provider: 'custom', endpoint: 'http://x.test' }), 'http://x.test/v1')
+  assert.equal(sttEndpointFor({ provider: 'custom', endpoint: 'http://x.test/v1' }), 'http://x.test/v1')
+  assert.equal(sttEndpointFor({ provider: 'custom', endpoint: 'http://x.test/api/audio/transcriptions' }), 'http://x.test/api/audio/transcriptions')
+  // transcription URL built the same way transcribeBuffer builds it
+  assert.equal(sttEndpointFor({ provider: 'custom', endpoint: 'http://x.test' }) + '/audio/transcriptions', 'http://x.test/v1/audio/transcriptions')
+})
+
 test('sttSizeLimitFor: provider cap wins, 0 falls back to global MAX_STT_BYTES', () => {
   assert.equal(sttSizeLimitFor({ provider: 'openai' }), 25 * 1024 * 1024)
   assert.equal(sttSizeLimitFor({ provider: 'funasr' }), 64 * 1024 * 1024)
