@@ -2,6 +2,23 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.14 — 适配 dsh CLI/headless：配置文件双位置 + 免重启热加载 + JSON Schema
+
+- **CLI / headless 真正可用（此前完全不可用）**：`inject` 由 `['tools','webServer','llm']` 收窄为 `['tools','llm']`。cordis 语义是「inject 内的服务全部可用插件才加载」，而 `@deepseek-ai/dsh-headless` 的 patch 明确写着不挂 Host / HTTP server —— 也就是说 `dsh --profile headless "…"` 里插件**根本没加载过**，所有工具都不存在。现在 `/omni/*` 路由改为 `bindWebRoutes(ctx)`：有 `webServer` 才绑（`ctx.effect` 收 disposer，避免 `register` 重复路径直接 throw），并用 `ctx.inject(['webServer'], …)` 兜住「webServer 晚于插件提供」的情况；没有 webServer 的组合照样注册工具、不报错。
+- **配置文件位置：双位置兼容**（新增 `lib/config-path.js`，纯函数）：
+  1. `$DSH_OMNI_WORKSTATION_CONFIG_DIR/omni-vision.json`（测试/高级覆盖，语义不变）
+  2. `~/.dsh/omni-vision.json`（设了 `DSH_HOME` 则为 `$DSH_HOME/omni-vision.json`）—— **推荐位置**，存在即优先；全新安装也写这里
+  3. `~/.dsh/profiles/<profile>/node_modules/dsh-omni-workstation/omni-vision.json` —— 旧位置（v2.5–v2.13），home 没有配置时继续沿用，**不自动搬家、不丢配置**
+  每次读取都重新判定优先级（运行期新建/删除 home 文件会在下一次读取切换，并日志报 `config path changed`）。原 v2.5 的 legacy 探测（`settings.prepareDocument()` dirname / `$DSH_HOME` / `homedir()`）被这一级取代并删除。
+- **改文件免重启**：`agent/pre-step` 里按 `path+mtimeMs+size` 戳比对（无 watcher、无轮询），变了就重跑 `syncToolRegistration()` + `syncBuilderCommand()` —— 手改配置存盘后**下一个 agent 步**工具即出现/消失。自己写盘（设置页保存）的 mtime 记入 `selfWriteStamp`，不会把自动保存误报成「外部编辑」。
+- **坏配置不再被覆盖**：`loadConfig` 解析失败时**只内存回退** `.bak`，用户的文件原样保留（旧实现会 `copyFileSync(bak, file)`，手改少一个逗号就把整份改动丢掉）。`storeConfig` 改为「临时文件 + `renameSync`」原子替换（并发 profile 不会读到半截 JSON），写前 `mkdirSync(recursive)`，并且每次写盘把 `$schema` 补回第一个键（`normalizeConfig` 只回填已知字段，否则首次保存后补全提示就没了）。
+- **启动日志（CLI 唯一的反馈通道）**：`[dsh-omni-workstation] config: <绝对路径> (<home|plugin|home-new|env>) | vlm=on(2 cards) toolkit=on media=off imggen=off video=on(1) tts=off stt=off fallback=on`；无 webServer 时追加「无设置页与 /omni 路由，直接编辑该文件即可」；配置仍在旧位置 / 两份同时存在 / 一个模块都没生效（默认空卡）时各给一条 warn 并指出缺什么。
+- **JSON Schema**（新增 `omni-vision.schema.json`，随包发布）：draft 2020-12，33 个顶层键全覆盖、关键枚举（VLM 供应商 33 个 / 4 协议、生图 4 协议、视频 9 供应商 + 7 协议、语音 7 供应商、STT 5 供应商 + 4 输出样式）与代码常量对齐；插件启动/写盘时把 schema 复制到配置文件同目录，因此 `"$schema": "omni-vision.schema.json"` 在 home 与插件目录两种位置都能被编辑器解析。
+- **设置页「关于」显示配置文件绝对路径**（读 `GET/POST /omni/config` 的 `path`），web 用户也能一眼看到文件在哪。
+- **测试**：新增 5 个套件 —— `config-path`（优先级矩阵 8 例）、`config-write`（建目录/原子写/`$schema`/坏 JSON 不覆写 3 例）、`cli-mount`（无 webServer 挂载 + 14 条路由只绑一次 2 例）、`config-hot-reload`（改文件生效 / 关模块生效 2 例）、`schema-coverage`（schema 与 `normalizeConfig({})` 键集不漂移 + `$ref` 可达 5 例）。全量 **548/548 通过**（基线 528 + 20）。
+- **文档**：README（中/英）新增「配置文件 / Configuration」与「CLI / headless」两节（写明路径、优先级、Windows 示例、迁移命令、免重启与排错），「工作原理」「卸载」两段纠正（home 配置卸载后保留、插件目录内旧配置随插件移除）；新增 [`docs/reference/configuration.md`](../reference/configuration.md)（字段级参考 + 编辑器补全 + 排错表）；`package.json` `files` 补 `omni-vision.schema.json` 与 `lib/config-path.js`。
+- **不做**：不新增任何斜杠指令 / CLI 子命令（配置只用文件），不加文件监听器，不自动搬家旧配置，`package.json` 版本号仍为 `0.1.2`（按约定发布时才提）。
+
 ## 0.1.2 — 正式版（v2.13 里程碑）
 
 - package.json 版本由 `0.1.1` 提升为 **`0.1.2`**（设置页「关于」与 `GET /omni/config` 的 `version` 均由服务端运行时读取该文件，无需改前端，`lib/**` 不硬编码版本串）。本版对应开发里程碑 **v2.13 —— STT 语音转文字模块**（见下方 v2.13 条目）：新增 `voiceConfigStt` 配置层与 `sttEnabled` 子开关、5 家供应商共用 `openai-stt` 协议的 `transcribe` 工具（默认 funasr 本机零配置）、四种输出样式（text/timestamps/srt/vtt）、与 `analyze_media` 的三层冲突接管（STT 有效时音频一律走 transcribe，视频通道不受影响），以及 `/omni/models {stt}`、`/omni/key {stt}`、`/omni/stt/test` 新路由；已通过真实浏览器 E2E（SiliconFlow）验证，并修正了一处转写结果无损 JSON 序列化的真 bug（`f297558`）。

@@ -48,7 +48,7 @@ npx @deepseek-ai/dsh web
 
 ## Requirements
 
-- `dsh` CLI (DeepSeek Harness) with a `web` profile installed
+- `dsh` CLI (DeepSeek Harness) with a `web` profile — or any CLI/headless profile (see [CLI / headless](#cli--headless-no-browser))
 - `pnpm` on `PATH` (or use `npx --yes pnpm@<version>`)
 
 ## Quick Start
@@ -57,7 +57,28 @@ npx @deepseek-ai/dsh web
 2. On the VLM tab, click **Add Model** (or edit the default card): pick a provider, paste your API key, fetch and pick a model.
 3. Send the AI an image (or a local path) and ask about it — the `analyze_image` tool is now live.
 
-All configuration lives in a single JSON file, `omni-vision.json`, stored **inside the plugin installation directory** (git-ignored; contains real API keys — never commit it). The settings page reads and writes this file; you can also edit it directly while `dsh web` is stopped:
+## Configuration
+
+All settings live in **one JSON file**, `omni-vision.json`. The settings page writes it, and in a terminal-only setup it is the *only* way to configure the plugin — there are no extra slash commands to memorize.
+
+**Where the file lives** (highest priority first):
+
+| # | Path | When it is used |
+|---|---|---|
+| 1 | `$DSH_OMNI_WORKSTATION_CONFIG_DIR/omni-vision.json` | test / advanced override only |
+| 2 | `~/.dsh/omni-vision.json` — or `$DSH_HOME/omni-vision.json` when `DSH_HOME` is set | **recommended**; used whenever it exists, and the default target for a new install |
+| 3 | `~/.dsh/profiles/<profile>/node_modules/dsh-omni-workstation/omni-vision.json` | legacy location (v2.5–v2.13); still honoured while no home file exists |
+
+On Windows: `C:\Users\<you>\.dsh\omni-vision.json`. Everything the plugin persists lives **next to that file**: `omni-vision.json.bak` (recovery copy), `omni-vision.schema.json` (editor completion), `voice-library/` (cloned voice samples) and `transcripts/` (STT output).
+
+> [!TIP]
+> - **Hand edits apply without a restart.** The plugin re-reads the file on the next agent step and re-registers tools accordingly.
+> - The boot log prints the resolved path and which modules are live, e.g. `[dsh-omni-workstation] config: /home/you/.dsh/omni-vision.json (home) | vlm=on(2 cards) toolkit=on …`. Check it if you are unsure which file is in use.
+> - A JSON syntax error is reported with the path and **never overwrites your file** — the plugin keeps running on the last good `.bak` (in memory) until you fix it.
+> - The file holds real API keys: never commit it. The plugin writes `"$schema": "omni-vision.schema.json"` on every save, which gives editor autocomplete + validation; add that single line yourself only if you created the file outside the plugin (see [configuration reference](docs/reference/configuration.md)).
+> - Moving a legacy config to the stable location: `cp ~/.dsh/profiles/web/node_modules/dsh-omni-workstation/omni-vision.json ~/.dsh/` (PowerShell: `Copy-Item <src> ~/.dsh/omni-vision.json`). The home file wins from then on.
+
+Minimal hand-written config — one VLM card is enough to make `analyze_image` live:
 
 ```json
 {
@@ -77,6 +98,22 @@ All configuration lives in a single JSON file, `omni-vision.json`, stored **insi
   ]
 }
 ```
+
+## CLI / headless (no browser)
+
+The plugin loads in any composition that provides `tools` + `llm` — a web server is **not** required. Where there is no web surface, the `/omni/*` routes and the settings page simply do not exist, so configure it from the file:
+
+```bash
+# install into a CLI profile (any profile name works, e.g. headless)
+dsh plugin --profile headless add github:huashenglian/dsh-omni-workstation
+
+# add one valid VLM card to ~/.dsh/omni-vision.json (see above), then:
+dsh --profile headless "describe ./screenshot.png"
+```
+
+- `analyze_image`, the 6 vision tools, `generate_image` / `generate_video`, `speak` / `clone_voice` / `transcribe` all work — each gated by the same switches in the config file.
+- Browser-only extras: the settings page itself, the `/omni/*` HTTP routes, the in-chat visual preview rendered by `show_image` / `show_video` (the tools still work and return artifact paths) and the `/build-video-tool` slash command.
+- Web and CLI profiles read the **same** file, so you configure once and use it everywhere.
 
 ## Feature Overview
 
@@ -128,11 +165,12 @@ Today you can AI-build a **custom video tool**: type `/build-video-tool` in chat
 
 The package is **dual-face**:
 
-- **Host half** (`lib/index.js`) — a cordis plugin: registers tools on the global tools registry and `/omni/*` web routes; loads and persists `omni-vision.json`; provider-gated tool registration re-syncs on config changes.
+- **Host half** (`lib/index.js`) — a cordis plugin: registers tools on the global tools registry, loads and persists `omni-vision.json` (see [Configuration](#configuration)), and re-syncs registration on config changes — including changes made by hand while it runs. The `/omni/*` web routes are registered only where a `webServer` exists (web / desktop compositions); CLI and headless compositions get the tools without any HTTP surface.
 - **Client half** (`lib/client.js`) — the browser module (loaded via the `dsh.client` entry): registers the **Settings → Omni Workstation** section and its locale namespace (`settings.omni-workstation`).
 
 ## Documentation
 
+- [docs/reference/configuration.md](docs/reference/configuration.md) — every config file field, location precedence, minimal CLI setup (中文)
 - [docs/features/vlm.md](docs/features/vlm.md) — VLM analysis, card failover, mirror models, multimodal adaptation (中文)
 - [docs/features/vision-toolkit.md](docs/features/vision-toolkit.md) — the 6 vision tools (中文)
 - [docs/features/imggen.md](docs/features/imggen.md) — image generation & ComfyUI workflows (中文)
@@ -147,7 +185,7 @@ The package is **dual-face**:
 dsh plugin --profile web remove dsh-omni-workstation
 ```
 
-This removes the dependency and the bundle entry. Your `omni-vision.json` config file is left untouched.
+This removes the dependency and the bundle entry. A config at `~/.dsh/omni-vision.json` **survives** (delete it manually if you want the API keys gone); a legacy config inside the plugin directory is removed together with the plugin.
 
 ## License
 

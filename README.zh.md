@@ -48,7 +48,7 @@ npx @deepseek-ai/dsh web
 
 ## 环境要求
 
-- `dsh` CLI（DeepSeek Harness）且已安装 `web` profile
+- `dsh` CLI（DeepSeek Harness）且已装 `web` profile——或任意 CLI/headless profile（见 [CLI / headless](#cli--headless无浏览器)）
 - `PATH` 中有 `pnpm`（或用 `npx --yes pnpm@<version>` 代替）
 
 ## 快速开始
@@ -57,7 +57,28 @@ npx @deepseek-ai/dsh web
 2. 在 VLM Tab 点「添加模型」（或编辑默认卡片）：选供应商、粘贴 API Key、获取并选择模型。
 3. 给 AI 发一张图片（或一个本地路径）并提问——`analyze_image` 工具已就绪。
 
-所有配置都在一个 JSON 文件 `omni-vision.json` 中，存放于**插件安装目录内**（git 忽略；含真实 API Key，切勿提交）。设置页读写此文件；也可以在 `dsh web` 停止时直接编辑：
+## 配置文件
+
+所有配置都在**一个 JSON 文件** `omni-vision.json` 里。设置页会读写它；在纯终端（CLI/headless）环境里，它是**唯一**的配置入口——不需要记任何斜杠指令。
+
+**文件位置**（优先级由高到低）：
+
+| # | 路径 | 何时生效 |
+|---|---|---|
+| 1 | `$DSH_OMNI_WORKSTATION_CONFIG_DIR/omni-vision.json` | 仅测试 / 高级覆盖用 |
+| 2 | `~/.dsh/omni-vision.json`（设了 `DSH_HOME` 则是 `$DSH_HOME/omni-vision.json`） | **推荐**；只要存在就用它，新装也默认写这里 |
+| 3 | `~/.dsh/profiles/<profile>/node_modules/dsh-omni-workstation/omni-vision.json` | 旧位置（v2.5–v2.13）；home 没有配置时继续沿用 |
+
+Windows 示例：`C:\Users\<你>\.dsh\omni-vision.json`。插件持久化的其它东西都在**同一个目录**：`omni-vision.json.bak`（恢复副本）、`omni-vision.schema.json`（编辑器补全）、`voice-library/`（克隆音色样本）、`transcripts/`（STT 输出）。
+
+> [!TIP]
+> - **手改文件存盘即生效，不用重启**：插件在下一个 agent 步重新读取配置并重注册工具。
+> - 启动日志会打印实际使用的路径与各模块是否生效，例如 `[dsh-omni-workstation] config: /home/you/.dsh/omni-vision.json (home) | vlm=on(2 cards) toolkit=on …`；不确定用的是哪份就看它。
+> - JSON 语法写错时会报出路径，并且**绝不会覆写你的文件**——插件在内存里用上一份好的 `.bak` 继续跑，等你改好。
+> - 文件里有真实 API Key：切勿提交。每次保存插件都会写入 `"$schema": "omni-vision.schema.json"`（编辑器补全 + 校验）；只有在你用别的方式新建/编辑该文件时，才需要手动补这一行（详见[配置参考](docs/reference/configuration.md)）。
+> - 想把旧位置的配置搬到稳定位置：`cp ~/.dsh/profiles/web/node_modules/dsh-omni-workstation/omni-vision.json ~/.dsh/`（PowerShell：`Copy-Item <源> ~/.dsh/omni-vision.json`）。之后 home 文件优先。
+
+手写最小配置——一张 VLM 卡片就能让 `analyze_image` 生效：
 
 ```json
 {
@@ -77,6 +98,22 @@ npx @deepseek-ai/dsh web
   ]
 }
 ```
+
+## CLI / headless（无浏览器）
+
+只要组合提供了 `tools` + `llm`，插件就能加载——**不需要** web 服务。没有 web 面的组合里不存在 `/omni/*` 路由与设置页，所以直接改文件：
+
+```bash
+# 装进 CLI profile（profile 名随意，例如 headless）
+dsh plugin --profile headless add github:huashenglian/dsh-omni-workstation
+
+# 在 ~/.dsh/omni-vision.json 里写好一张有效 VLM 卡片后：
+dsh --profile headless "描述一下 ./screenshot.png"
+```
+
+- `analyze_image`、6 个视觉工具、`generate_image` / `generate_video`、`speak` / `clone_voice` / `transcribe` 都能用——同样由配置文件里的开关门控。
+- 仅浏览器可用的部分：设置页、`/omni/*` HTTP 路由、`show_image` / `show_video` 的可视化预览（工具本身仍可用，会返回工件路径）、`/build-video-tool` 斜杠指令。
+- web 与 CLI profile 读**同一份**文件，配一次到处可用。
 
 ## 功能总览
 
@@ -128,11 +165,12 @@ npx @deepseek-ai/dsh web
 
 本包是**双面结构**：
 
-- **宿主半**（`lib/index.js`）——cordis 插件：在全局工具注册表注册工具、提供 `/omni/*` Web 路由；加载并持久化 `omni-vision.json`；按供应商门控的工具注册在配置变化时自动重同步。
+- **宿主半**（`lib/index.js`）——cordis 插件：在全局工具注册表注册工具；加载并持久化 `omni-vision.json`（见[配置文件](#配置文件)）；配置变化（包括运行中手改文件）时自动重同步注册。`/omni/*` Web 路由只在存在 `webServer` 的组合（web / desktop）里注册；CLI 与 headless 组合拿到工具但没有 HTTP 面。
 - **浏览器半**（`lib/client.js`）——浏览器模块（经 `dsh.client` 入口加载）：注册 **设置 → 全模态** 区块及其语言命名空间（`settings.omni-workstation`）。
 
 ## 文档
 
+- [docs/reference/configuration.md](docs/reference/configuration.md) —— 配置文件全部字段、位置优先级、CLI 最小配置
 - [docs/features/vlm.md](docs/features/vlm.md) —— VLM 分析、卡片回退、镜像模型、多模态适应
 - [docs/features/vision-toolkit.md](docs/features/vision-toolkit.md) —— 6 个视觉工具
 - [docs/features/imggen.md](docs/features/imggen.md) —— 图像生成与 ComfyUI 工作流
@@ -147,7 +185,7 @@ npx @deepseek-ai/dsh web
 dsh plugin --profile web remove dsh-omni-workstation
 ```
 
-移除依赖与 bundle 条目。`omni-vision.json` 配置文件原样保留。
+移除依赖与 bundle 条目。位于 `~/.dsh/omni-vision.json` 的配置**会保留**（想连 API Key 一起清掉就手动删）；仍在插件安装目录里的旧配置随插件一起移除。
 
 ## License
 
