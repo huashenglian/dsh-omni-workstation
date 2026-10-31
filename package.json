@@ -16,7 +16,9 @@
                   "lib/vision-tools.js",
                   "lib/video-builder.js",
                   "lib/path-util.js",
+                  "lib/config-path.js",
                   "lib/vendor/",
+                  "omni-vision.schema.json",
                   "cordis.patch.yml",
                   "README.md",
                   "README.zh.md"
