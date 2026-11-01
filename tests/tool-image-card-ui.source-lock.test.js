@@ -49,3 +49,17 @@ test('per-image error marker cannot hide other images (child component + stable 
   assert.match(src, /key: it\.attachmentId/)
   assert.match(src, /maxHeight: maxHState\[0\]/)
 })
+
+test('ToolImageCard provides a click-to-zoom lightbox (v2.15)', () => {
+  assert.match(src, /omni-img-btn/)
+  assert.match(src, /omni-img-modal-el/)
+  assert.match(src, /omni-confirm-overlay/)
+  assert.match(src, /查看原图/)
+})
+
+test('ToolImageCard prefers the Gateway loadImage path (v2.15 render fix)', () => {
+  assert.match(src, /var loadImage = \(props && props\.loadImage\) \|\| null;/)
+  assert.match(src, /typeof loadImage !== "function"\) return;/)
+  assert.match(src, /loadImage\.peek/)
+  assert.match(src, /attachment: it\.attachment/)
+})

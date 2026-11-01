@@ -12,7 +12,7 @@ import { join } from 'node:path'
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-workstation-voice-'))
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-workstation-vcfg-'))
 
-const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef, isVoiceConfigValid: realIsVoiceConfigValid, resolveDoubaoClonePreset, runDoubaoTts, runIndexTts, doIndexTtsClone, runGptSovits, runVoxCpm, doVoxCpmClone, runTtsWebui } = await import('../lib/index.js')
+const { applyPatch, buildCloneVoiceToolDef, buildSpeakToolDef, isVoiceConfigValid: realIsVoiceConfigValid, isVoiceLive, resolveDoubaoClonePreset, runDoubaoTts, runIndexTts, doIndexTtsClone, runGptSovits, runVoxCpm, doVoxCpmClone, runTtsWebui } = await import('../lib/index.js')
 
 // ---- Reproduce pure voice helpers (not exported from index.js) ----
 
@@ -332,19 +332,20 @@ test('voice gate: voiceEnabled=true + valid config -> gate passes', () => {
   let cfg = applyPatch({}, { voiceEnabled: true })
   cfg = applyPatch(cfg, { voiceConfig: { field: 'apiKey', value: 'sk-test' } })
   cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'mimo-v2.5-tts' } })
-  assert.equal(cfg.voiceEnabled === true && isVoiceConfigValid(cfg.voiceConfig), true)
+  assert.equal(isVoiceLive(cfg), true)
 })
 
 test('voice gate: voiceEnabled=false -> gate fails regardless of config', () => {
-  let cfg = applyPatch({}, { voiceConfig: { field: 'apiKey', value: 'sk-test' } })
-  // voiceEnabled defaults false
-  assert.equal(cfg.voiceEnabled === true && isVoiceConfigValid(cfg.voiceConfig), false)
+  let cfg = applyPatch({}, { voiceEnabled: false, voiceConfig: { field: 'apiKey', value: 'sk-test' } })
+  cfg = applyPatch(cfg, { voiceConfig: { field: 'model', value: 'mimo-v2.5-tts' } })
+  assert.equal(isVoiceLive(cfg), false)
 })
 
-test('voice gate: voiceEnabled=true + invalid config -> gate fails', () => {
-  const cfg = applyPatch({}, { voiceEnabled: true })
-  // default voiceConfig has empty apiKey -> invalid for mimo
-  assert.equal(cfg.voiceEnabled === true && isVoiceConfigValid(cfg.voiceConfig), false)
+test('voice gate: default config is incomplete even though the module defaults ON', () => {
+  const cfg = applyPatch({}, {})
+  assert.equal(cfg.voiceEnabled, true) // v2.15: module default ON
+  // default voiceConfig has empty model/apiKey -> invalid for mimo
+  assert.equal(isVoiceLive(cfg), false)
 })
 
 // ---- voicePresets via applyPatch ----

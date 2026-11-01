@@ -58,9 +58,13 @@ test('text-only source: image blocks rewritten to analyze_image marker', async (
   assert.equal(content[0].type, 'text')
   assert.ok(content[0].text.includes('sha256:abc'), 'marker carries attachment id')
   assert.ok(content[0].text.includes('截图.png'), 'marker carries image name')
-  // v2.7.2: analyze_image unregistered (module switch off) → marker must fall back
-  // to the vision toolkit instead of pointing at a dead tool.
-  assert.ok(content[0].text.includes('视觉工具箱'), 'marker falls back to vision toolkit when analyze_image is unregistered')
+  // v2.15: analyze_image unregistered (module switch off) → the marker must not
+  // point at a dead tool. With no toolkit registration it states that no image
+  // analysis config is available; with the toolkit it names the local tools.
+  assert.ok(
+    content[0].text.includes('视觉工具箱') || content[0].text.includes('没有可用的图片分析配置'),
+    'marker does not point at a dead analyze_image tool',
+  )
   assert.ok(!content[0].text.includes('调用 analyze_image 工具'), 'no dead analyze_image reference')
   assert.ok(content[0].text.includes('attachment_id: "sha256:abc"'))
   assert.equal(content[1].type, 'text') // non-image blocks untouched

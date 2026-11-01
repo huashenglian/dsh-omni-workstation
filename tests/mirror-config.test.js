@@ -53,18 +53,23 @@ const resetTwins = () => { _resetLastSource(); return syncTwins(makeFakeCtx([]),
 
 // ---- normalizeMirrorConfig ----
 
-test('defaultMirrorConfig returns autoVisionEnabled=true (backward compat)', () => {
+test('defaultMirrorConfig returns autoVisionEnabled=false (v2.15 default)', () => {
   const d = defaultMirrorConfig()
-  assert.equal(d.autoVisionEnabled, true)
+  assert.equal(d.autoVisionEnabled, false)
   assert.equal(d.mirrorAllEnabled, false)
   assert.deepEqual(d.mappings, [])
 })
 
 test('normalizeMirrorConfig with undefined returns defaults', () => {
   const m = normalizeMirrorConfig(undefined)
-  assert.equal(m.autoVisionEnabled, true)
+  assert.equal(m.autoVisionEnabled, false)
   assert.equal(m.mirrorAllEnabled, false)
   assert.deepEqual(m.mappings, [])
+})
+
+test('normalizeMirrorConfig keeps an explicit autoVisionEnabled=true', () => {
+  const m = normalizeMirrorConfig({ autoVisionEnabled: true })
+  assert.equal(m.autoVisionEnabled, true)
 })
 
 test('normalizeMirrorConfig with custom values', () => {

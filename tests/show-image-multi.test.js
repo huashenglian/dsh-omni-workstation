@@ -166,8 +166,8 @@ test('【基线】全成功 → 返回无 skipped 键 + render 文本逐字一�
   const n2 = p2.replace(/\\/g, '/')
   const expected =
     '## 图片展示 · 快照\n\n' +
-    '![快照](file:///' + n1 + ')\n\n' +
-    '![快照](file:///' + n2 + ')\n\n' +
+    '![快照](' + n1 + ')\n\n' +
+    '![快照](' + n2 + ')\n\n' +
     '1. ' + n1 + ' (6x5)\n' +
     '2. ' + n2 + ' (7x8)'
   const text = tool.output.render({}, r).find((b) => b.type === 'text').text

@@ -20,17 +20,17 @@
     "vlmEnabled": {
       "type": "boolean",
       "default": true,
-      "description": "VLM 模块开关。关闭后 analyze_image / analyze_media 均不注册（0 token），图片分析的其它配置保留。"
+      "description": "VLM 模块开关（v2.15 起只决定上限）。还得有一张完整卡片（endpoint + model，自定义供应商另需 apiKey）或 fallbackConfig.models 非空，analyze_image 才注册；analyze_media 另需卡片开启 video/audio。配置不全时工具 schema 不进模型上下文（0 token）。"
     },
     "imggenEnabled": {
       "type": "boolean",
-      "default": false,
-      "description": "生图模块开关。关闭或 imggenConfig 无效时 generate_image 不注册。"
+      "default": true,
+      "description": "生图模块开关（v2.15 起默认开）。只有 imggenConfig 完整（endpoint/model/key，或 ComfyUI 等免 Key 路线）时 generate_image 才注册；配置不全时不注册（0 token）。"
     },
     "videoEnabled": {
       "type": "boolean",
-      "default": false,
-      "description": "视频模块开关。关闭或无有效视频卡时 generate_video / 各卡自定义工具均不注册。"
+      "default": true,
+      "description": "视频模块开关（v2.15 起默认开）。只有至少一张 videoCards[] 配置完整且 enabled 时，generate_video / 各卡自定义工具才注册。"
     },
     "videoCardLimit": {
       "type": "integer",
@@ -61,18 +61,18 @@
     },
     "voiceEnabled": {
       "type": "boolean",
-      "default": false,
-      "description": "语音模块总开关。关闭后 speak / clone_voice / transcribe 都不注册。"
+      "default": true,
+      "description": "语音模块总开关（v2.15 起默认开）。只有 ttsEnabled + voiceConfig / sttEnabled + voiceConfigStt 配置完整时，speak / clone_voice / transcribe 才注册。"
     },
     "ttsEnabled": {
       "type": "boolean",
-      "default": false,
-      "description": "语音合成（TTS）子开关，需 voiceEnabled 同时打开。"
+      "default": true,
+      "description": "语音合成（TTS）子开关，需 voiceEnabled 同时打开，且 voiceConfig 完整（部分供应商免 Key）时 speak / clone_voice 才注册。"
     },
     "sttEnabled": {
       "type": "boolean",
       "default": false,
-      "description": "语音转文字（STT）子开关，需 voiceEnabled 同时打开；打开后音频分析一律改走 transcribe。"
+      "description": "语音转文字（STT）子开关，需 voiceEnabled 同时打开；默认关，避免默认的本地 FunASR（免 Key）指向未启动的本机服务。打开后音频分析一律改走 transcribe。"
     },
     "voiceConfig": {
       "description": "TTS 配置（当前生效的那一套；预设池见 voicePresets）。",
@@ -142,7 +142,7 @@
     "visionToolsEnabled": {
       "type": "boolean",
       "default": true,
-      "description": "视觉工具箱总开关（zoom_image / sample_colors / image_diff / ocr_image / detect_elements / show_image / show_video）。"
+      "description": "视觉工具箱总开关（zoom_image / sample_colors / image_diff / ocr_image / detect_elements / show_image / show_video）。本地工具（zoom / sample_colors / image_diff / show_image / show_video）无需配置即可注册；ocr_image / detect_elements 另需一张完整 VLM 卡片或 fallbackConfig.models 非空。"
     },
     "visionToolToggles": {
       "type": "object",
@@ -152,8 +152,8 @@
         "zoom_image": { "type": "boolean", "description": "放大局部区域（本地计算，0 token）。" },
         "sample_colors": { "type": "boolean", "description": "主色采样（本地计算，0 token）。" },
         "image_diff": { "type": "boolean", "description": "图片差异对比（本地计算，0 token）。" },
-        "ocr_image": { "type": "boolean", "description": "OCR 提取文字。" },
-        "detect_elements": { "type": "boolean", "description": "可交互元素检测。" },
+        "ocr_image": { "type": "boolean", "description": "OCR 提取文字；需要一张完整 VLM 卡片或 fallbackConfig.models 非空（本地 Tesseract 可用时也可切换到 local 引擎）。" },
+        "detect_elements": { "type": "boolean", "description": "可交互元素检测；需要一张完整 VLM 卡片或 fallbackConfig.models 非空。" },
         "show_image": { "type": "boolean", "description": "在对话中展示图片（不分析）。" },
         "show_video": { "type": "boolean", "description": "在对话中展示视频播放器。" }
       }
@@ -165,8 +165,8 @@
       "properties": {
         "autoVisionEnabled": {
           "type": "boolean",
-          "default": true,
-          "description": "注册 auto-vision 路由：把当前会话模型的请求转发到本插件的 VLM 卡片链。"
+          "default": false,
+          "description": "注册 auto-vision 路由：把当前会话模型的请求转发到本插件的 VLM 卡片链（v2.15 起默认关闭，需手动开启）。"
         },
         "mirrorAllEnabled": {
           "type": "boolean",
@@ -182,7 +182,7 @@
     },
     "apis": {
       "type": "array",
-      "description": "VLM 卡片列表，按数组顺序自上而下失败切换。手写配置时至少要有 1 张有效卡（endpoint + model + apiKey）analyze_image 才会注册。",
+      "description": "VLM 卡片列表，按数组顺序自上而下失败切换。至少要有 1 张完整卡（endpoint + model，自定义供应商另需 apiKey）或 fallbackConfig.models 非空，analyze_image 才会注册。",
       "items": { "$ref": "#/$defs/apiCard" }
     },
     "imggenConfig": {
@@ -200,7 +200,7 @@
     },
     "fallbackConfig": {
       "type": "object",
-      "description": "纯文本兜底模型：VLM 卡片全部失败（或没有卡片）时，用当前会话模型 + 这些模型名重试。",
+      "description": "纯文本兜底模型：VLM 卡片全部失败时用当前会话模型 + 这些模型名重试。v2.15 起 models 非空也算「已配置」——即使一张卡片都没有，analyze_image 与 ocr_image / detect_elements 也会注册。",
       "additionalProperties": true,
       "properties": {
         "provider": { "type": "string", "description": "供应商 id（如 ovhcloud / openrouter）；留空表示跟随会话。" },

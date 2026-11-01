@@ -11,7 +11,7 @@ process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omni-w
 
 const {
   defaultVideoConfig, normalizeVideoConfig, maskedVideo, isVideoConfigValid,
-  applyPatch,
+  applyPatch, isVideoLive,
   VIDEO_PROVIDERS, VIDEO_PROTOCOLS, VIDEO_ASPECT_RATIOS,
   buildVideoSubmit, videoPollUrl, normalizeVideoStatus, extractVideoTaskId,
   klingJwt, agnesNumFrames, pathGet, pollVideoOnce, minimaxResolveUrl,
@@ -134,7 +134,7 @@ test('buildVideoSubmit qwen-token-plan: dashscope-video at DashScope endpoint (�
 
 test('applyPatch handles videoEnabled + videoCardPatch + saveVideoCardPreset + videoReset', () => {
   let cfg = applyPatch({}, {}) // normalizeConfig({}) equivalent
-  assert.equal(cfg.videoEnabled, false) // default OFF
+  assert.equal(cfg.videoEnabled, true) // v2.15: default ON (tool still needs a valid card)
   cfg = applyPatch(cfg, { videoEnabled: true })
   assert.equal(cfg.videoEnabled, true)
 
@@ -188,13 +188,13 @@ test('applyPatch: qwen-token-plan seeds DashScope endpoint (百炼通道)', () =
 
 test('videoVisible gate = videoEnabled && any valid enabled card', () => {
   let cfg = applyPatch({}, {})
-  assert.equal(cfg.videoEnabled === true && cfg.videoCards.some(c => c.enabled !== false && isVideoConfigValid(c.config)), false)
+  assert.equal(isVideoLive(cfg), false)
   cfg = applyPatch(cfg, { videoEnabled: true })
   const cid = cfg.videoCards[0].id
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'provider', value: 'agnes-cn' }, saveVideoCardPreset: { cardId: cid } })
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'apiKey', value: 'sk' }, saveVideoCardPreset: { cardId: cid } })
   cfg = applyPatch(cfg, { videoCardPatch: { id: cid, field: 'model', value: 'm' }, saveVideoCardPreset: { cardId: cid } })
-  assert.equal(cfg.videoEnabled === true && cfg.videoCards.some(c => c.enabled !== false && isVideoConfigValid(c.config)), true)
+  assert.equal(isVideoLive(cfg), true)
 })
 
 // ---- agnes helpers ----

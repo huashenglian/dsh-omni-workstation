@@ -62,6 +62,7 @@ const resetTwins = () => { _resetLastSource(); return syncTwins(makeFakeCtx([]),
 
 const validConfig = (port) => JSON.stringify({
   vlmEnabled: true,
+  mirrorConfig: { autoVisionEnabled: true },
   apis: [{ id: 'c_1', name: 'Test', provider: 'custom', protocol: 'openai-completions', endpoint: 'http://127.0.0.1:' + port + '/v1', apiKey: 'sk-test', model: 'm' }]
 })
 
@@ -75,7 +76,7 @@ test('gate off (shouldVlm=false) registers nothing', async () => {
 test('gate on (shouldVlm=true) registers the auto-vision twin', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['alpha'])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
 })
 

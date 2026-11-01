@@ -53,7 +53,7 @@ const resetTwins = () => { _resetLastSource(); return syncTwins(makeFakeCtx([]),
 test('v1.8: syncTwins registers ONE twin (route auto-vision) for the default first source provider', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['alpha', 'beta'])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   // v1.7 registered both alpha-omni-workstation AND beta-omni-workstation; v1.8 registers ONE 'auto-vision'.
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
 })
@@ -61,7 +61,7 @@ test('v1.8: syncTwins registers ONE twin (route auto-vision) for the default fir
 test('syncTwins disposes all twins when shouldVlm=false', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['alpha'])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   await syncTwins(ctx, {}, false)
   assert.equal(ctx.registrations.size, 0)
   assert.deepEqual(ctx.disposed, ['auto-vision'])
@@ -70,8 +70,8 @@ test('syncTwins disposes all twins when shouldVlm=false', async () => {
 test('syncTwins is idempotent on re-entry (no duplicate registration)', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['alpha'])
-  await syncTwins(ctx, {}, true)
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
   assert.equal(ctx.disposed.length, 0)
 })
@@ -79,7 +79,7 @@ test('syncTwins is idempotent on re-entry (no duplicate registration)', async ()
 test('syncTwins excludes -omni-workstation and -vision routes from the default pick', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['gamma', 'gamma-vision', 'gamma-omni-workstation'])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   // default = first non-twin provider = 'gamma'; twin route is 'auto-vision'.
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
 })
@@ -87,19 +87,19 @@ test('syncTwins excludes -omni-workstation and -vision routes from the default p
 test('syncTwins registers NO twin when no source provider exists', async () => {
   await resetTwins()
   const ctx = makeFakeCtx([])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   assert.equal(ctx.registrations.size, 0)
 })
 
 test('syncTwins keeps the single auto-vision twin when providers shrink', async () => {
   await resetTwins()
   const ctx = makeFakeCtx(['alpha', 'beta'])
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
   // 'alpha' disappears; the twin route 'auto-vision' is fixed — no re-registration,
   // the stream reads lastSourceProvider at call time.
   ctx.llm.listProviders = () => [{ id: 'beta', name: 'beta' }]
-  await syncTwins(ctx, {}, true)
+  await syncTwins(ctx, { mirrorConfig: { autoVisionEnabled: true } }, true)
   assert.deepEqual([...ctx.registrations.keys()], ['auto-vision'])
   assert.equal(ctx.disposed.length, 0, 'twin not disposed on provider shrink (fixed route)')
 })
