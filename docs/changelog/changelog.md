@@ -17,6 +17,7 @@
 - **设置页「关于」显示配置文件绝对路径**（读 `GET/POST /omni/config` 的 `path`），web 用户也能一眼看到文件在哪。
 - **测试**：新增 5 个套件 —— `config-path`（优先级矩阵 8 例）、`config-write`（建目录/原子写/`$schema`/坏 JSON 不覆写 3 例）、`cli-mount`（无 webServer 挂载 + 14 条路由只绑一次 2 例）、`config-hot-reload`（改文件生效 / 关模块生效 2 例）、`schema-coverage`（schema 与 `normalizeConfig({})` 键集不漂移 + `$ref` 可达 5 例）。全量 **548/548 通过**（基线 528 + 20）。
 - **文档**：README（中/英）新增「配置文件 / Configuration」与「CLI / headless」两节（写明路径、优先级、Windows 示例、迁移命令、免重启与排错），「工作原理」「卸载」两段纠正（home 配置卸载后保留、插件目录内旧配置随插件移除）；新增 [`docs/reference/configuration.md`](../reference/configuration.md)（字段级参考 + 编辑器补全 + 排错表）；`package.json` `files` 补 `omni-vision.schema.json` 与 `lib/config-path.js`。
+- **验证阶段修掉的两处真 bug**：① `resolveActiveConfig` 的 `exists` 默认值误写成 `() => false`，导致每次启动都判定成 `home-new`、**插件目录里的旧配置被静默忽略**（老用户等于丢配置）——改为默认 `node:fs` 的 `existsSync`，并补一条真实临时目录的回归用例；② `ctx.logger` 的 info/warn 在部分组合里不落到终端，CLI/headless 面看不到启动报告——`omniLog` 改为 warn/error 一律回显 stderr、无 `webServer` 时 info 也回显；「无设置页」提示延后 2.5s 判定（`webServer` 可能晚于插件提供，否则 web 启动会被误标成 headless）。
 - **不做**：不新增任何斜杠指令 / CLI 子命令（配置只用文件），不加文件监听器，不自动搬家旧配置，`package.json` 版本号仍为 `0.1.2`（按约定发布时才提）。
 
 ## 0.1.2 — 正式版（v2.13 里程碑）
