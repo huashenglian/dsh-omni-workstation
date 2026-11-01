@@ -15,7 +15,7 @@
 //      malformed bodies.
 //   B. `globalConfig.showImageMaxHeight` / `showVideoMaxHeight` round-trip
 //      through `applyPatch` → `masked` (the exact path the settings page uses)
-//      — defaults 180/360 and the 64..2000 clamp.
+//      — defaults 420/360 and the 64..2000 clamp.
 //   C. `show_video`'s `output.render` returns ONLY text blocks for every
 //      successful value — an image block there would be silently stripped by
 //      the plugin's own tool-result sanitizer on text-only models.
@@ -215,11 +215,11 @@ const baseCfg = () => ({
   apis: [{ id: 'c_beh', name: 'A', provider: 'custom', protocol: 'openai-completions', endpoint: 'https://a/v1', apiKey: 'sk-a', model: 'm-a' }]
 })
 
-test('B1 applyPatch → masked: 默认值为图片 180 / 视频 360', () => {
+test('B1 applyPatch → masked: 默认值为图片 420 / 视频 360', () => {
   const out = masked(applyPatch(baseCfg(), { globalConfig: { field: 'showImageMaxHeight', value: 500 } }))
   assert.equal(out.globalConfig.showImageMaxHeight, 500)
   assert.equal(out.globalConfig.showVideoMaxHeight, 360, '未触碰的兄弟项保持默认')
-  assert.equal(masked(baseCfg()).globalConfig.showImageMaxHeight, 180)
+  assert.equal(masked(baseCfg()).globalConfig.showImageMaxHeight, 420)
 })
 
 test('B2 applyPatch → masked: 越界值夹取到 64..2000（两个设置各自独立）', () => {
@@ -245,7 +245,7 @@ test('B3 applyPatch → masked: 数字字符串被强制转换, 垃圾值回落�
   assert.equal(typeof asNum.globalConfig.showVideoMaxHeight, 'number')
   for (const junk of ['', 'abc', null]) {
     const r = masked(applyPatch(baseCfg(), { globalConfig: { field: 'showImageMaxHeight', value: junk } }))
-    assert.equal(r.globalConfig.showImageMaxHeight, 180, 'value=' + JSON.stringify(junk))
+    assert.equal(r.globalConfig.showImageMaxHeight, 420, 'value=' + JSON.stringify(junk))
   }
 })
 

@@ -20,9 +20,9 @@ const baseCfg = () => ({
 
 // ---- (a) defaults ----
 
-test('normalizeConfig default showImageMaxHeight=180 / showVideoMaxHeight=360', () => {
+test('normalizeConfig default showImageMaxHeight=420 / showVideoMaxHeight=360', () => {
   const out = normalizeConfig({})
-  assert.equal(out.globalConfig.showImageMaxHeight, 180)
+  assert.equal(out.globalConfig.showImageMaxHeight, 420)
   assert.equal(out.globalConfig.showVideoMaxHeight, 360)
 })
 
@@ -66,9 +66,9 @@ test('normalizeConfig clamps an out-of-range stored value', () => {
 
 // ---- (d) non-numeric falls back to default ----
 
-test('non-numeric image max-height falls back to 180', () => {
+test('non-numeric image max-height falls back to 420', () => {
   for (const v of ['', 'abc', null]) {
-    assert.equal(applyPatch(baseCfg(), { globalConfig: { field: 'showImageMaxHeight', value: v } }).globalConfig.showImageMaxHeight, 180, `value=${String(v)}`)
+    assert.equal(applyPatch(baseCfg(), { globalConfig: { field: 'showImageMaxHeight', value: v } }).globalConfig.showImageMaxHeight, 420, `value=${String(v)}`)
   }
 })
 
@@ -94,7 +94,7 @@ test('image and video max-heights are independent', () => {
 
 test('masked() exposes both display heights to the client', () => {
   const out = masked(normalizeConfig(baseCfg()))
-  assert.equal(out.globalConfig.showImageMaxHeight, 180)
+  assert.equal(out.globalConfig.showImageMaxHeight, 420)
   assert.equal(out.globalConfig.showVideoMaxHeight, 360)
 })
 

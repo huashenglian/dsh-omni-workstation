@@ -228,7 +228,7 @@
           "default": true,
           "description": "动态多模态适应：按当前会话模型是否声明图片输入，切换 tool-result 图片清理与分析工具提示（开启且模型支持图片时 analyze_image 会被拦，要求直接看图）。"
         },
-        "showImageMaxHeight": { "type": "integer", "minimum": 80, "maximum": 1200, "description": "show_image 卡片预览最大高度（px）。" },
+        "showImageMaxHeight": { "type": "integer", "minimum": 64, "maximum": 2000, "default": 420, "description": "show_image 正文插图的最大高度（px，64–2000）。" },
         "showVideoMaxHeight": { "type": "integer", "minimum": 120, "maximum": 1600, "description": "show_video 卡片预览最大高度（px）。" }
       }
     },

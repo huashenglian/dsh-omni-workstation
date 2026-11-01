@@ -1,22 +1,13 @@
-// tool-image-card-ui.source-lock.test.js — T11: ToolImageCard collects ALL image
-// blocks, lays them out in a wrapping row and sizes them from
-// globalConfig.showImageMaxHeight.
+// tool-image-card-ui.source-lock.test.js — v2.16: show_image renders as a
+// conversation-BODY illustration (Turn tail), never inside the collapsible
+// tool fold.
 //
 // ⚠️ THIS IS A SOURCE-LEVEL REGRESSION LOCK, NOT BEHAVIOURAL COVERAGE.
 // Every assertion below is a regular expression against the RAW TEXT of
-// `lib/client.js`. Deleting the whole ToolImageCard feature from client.js can
-// still leave these regexes matching the surrounding scaffolding, so they pass
-// even when the feature is gone. That is exactly why the file was renamed (was
-// `tool-image-card-ui.test.js`): the old name implied UI behaviour it cannot
-// observe.
-//
-// `lib/client.js` line 1 is `window.__ModuleLoader__.load({...})` — a browser
-// bundle that cannot be imported from Node, and this repo has no jsdom /
-// testing-library, so rendering the real component is not possible here. The
-// genuinely reachable behaviour of this feature is covered by
-// `./media-display-behaviour.test.js` (`showImageMaxHeight` round-trips through
-// `applyPatch` → `masked`; the multi-image result carries `skipped`) and by the
-// browser E2E script. Do not count this file as proof that the strip renders.
+// `lib/client.js`. `lib/client.js` line 1 is `window.__ModuleLoader__.load({...})`
+// — a browser bundle that cannot be imported from Node, so rendering the real
+// component is not possible here. The genuinely reachable behaviour is covered
+// by the browser E2E (the figure must appear outside `.omni-toolview-card`).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -25,41 +16,36 @@ import { dirname, join } from 'node:path'
 
 const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'client.js'), 'utf8')
 
-test('ToolImageCard no longer stops at the first image block', () => {
-  assert.doesNotMatch(src, /imgBlock = b; break/)
-  assert.doesNotMatch(src, /imgBlock = bj; break/)
-  assert.match(src, /collectFrom\(outer\.content\)/)
-  assert.match(src, /collectFrom\(toolviewCollectBlocks\(props\)\)/)
+test('show_image no longer owns a tool.call.toolview card (it would sit in the fold)', () => {
+  assert.doesNotMatch(src, /id: "omni-view-show_image"/)
+  assert.doesNotMatch(src, /function ToolImageCard/)
 })
 
-test('sanitized-marker fallback still recovers attachment ids (all of them)', () => {
-  assert.match(src, /附件 id「\(\[\^」\]\+\)」/)
-  assert.match(src, /while \(\(m = re\.exec\(text\)\) !== null\)/)
+test('illustration registers on conversation.chat.turnTail', () => {
+  assert.match(src, /slots\.inject\("conversation\.chat\.turnTail"/)
+  assert.match(src, /name: "conversation\.chat\.turnTail", id: "omni-illustration"/)
 })
 
-test('image strip is a wrapping row and each img uses the configured max height', () => {
-  assert.match(src, /\.omni-toolview-imgs \{ display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px;/)
-  assert.match(src, /maxHeight: maxHeight/)
-  assert.doesNotMatch(src, /style: \{ maxWidth: "100%", maxHeight: 360/)
-  assert.match(src, /showImageMaxHeight/)
+test('illustration pulls show_image paths from the Turn and skips ones the AI already inlined', () => {
+  assert.match(src, /function turnImagePaths\(snapshot, turnNo\)/)
+  assert.match(src, /root\.name !== "show_image"/)
+  assert.match(src, /function assistantMentions\(snapshot, turnNo, path\)/)
+  // Only a real Markdown image counts as "already inlined" — not prose quoting the path.
+  assert.match(src, /var re = \/!\\\[\[\^\\\]\]\*\\\]\\\(\(\[\^\)/)
 })
 
-test('per-image error marker cannot hide other images (child component + stable key)', () => {
-  assert.match(src, /function ToolImageView\(props\)/)
-  assert.match(src, /key: it\.attachmentId/)
-  assert.match(src, /maxHeight: maxHState\[0\]/)
-})
-
-test('ToolImageCard provides a click-to-zoom lightbox (v2.15)', () => {
-  assert.match(src, /omni-img-btn/)
-  assert.match(src, /omni-img-modal-el/)
-  assert.match(src, /omni-confirm-overlay/)
+test('illustration is a centered light-novel figure with caption and click-to-zoom', () => {
+  assert.match(src, /"\.omni-illus \{ display: flex; flex-direction: column; align-items: center;/)
+  assert.match(src, /"\.omni-illus-img \{ display: block; max-width: 100%; max-height: min\(70vh, 560px\);/)
+  assert.match(src, /"\.omni-illus-cap \{/)
+  assert.match(src, /className: "omni-img-btn omni-illus-open"/)
+  assert.match(src, /className: "omni-img-modal-el"/)
   assert.match(src, /查看原图/)
 })
 
-test('ToolImageCard prefers the Gateway loadImage path (v2.15 render fix)', () => {
-  assert.match(src, /var loadImage = \(props && props\.loadImage\) \|\| null;/)
-  assert.match(src, /typeof loadImage !== "function"\) return;/)
-  assert.match(src, /loadImage\.peek/)
-  assert.match(src, /attachment: it\.attachment/)
+test('hooks stay unconditional (outer gate + inner body split)', () => {
+  assert.match(src, /function OmniIllustration\(props\)/)
+  assert.match(src, /function OmniIllustrationBody\(props\)/)
+  assert.match(src, /if \(typeof props\.useChat !== "function" \|\| turnNo === null\) return null;/)
+  assert.match(src, /var key = props\.useChat\(function \(snapshot\)/)
 })
