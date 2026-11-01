@@ -3,6 +3,8 @@
 //           → <pluginDir>/omni-vision.json（旧位置）→ 新建到 <dshHome>
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   CONFIG_FILE_NAME,
@@ -80,4 +82,29 @@ test('expandHomePath 只展开当前用户形式', () => {
   assert.equal(expandHomePath('~alice/x'), '~alice/x')
   assert.equal(expandHomePath('/abs/x'), '/abs/x')
   assert.ok(!expandHomePath(join('~', 'x')).startsWith('~'))
+})
+
+// 回归：exists 的默认值必须是真实文件系统探测。曾经写成 () => false，
+// 结果每次启动都判定成 home-new，插件目录里的旧配置被静默忽略（等于丢配置）。
+test('默认 exists = 真实 fs 探测：旧位置配置必须被识别', () => {
+  const realHome = mkdtempSync(join(tmpdir(), 'omni-cfgpath-home-'))
+  const realPlugin = mkdtempSync(join(tmpdir(), 'omni-cfgpath-plugin-'))
+  const env = { DSH_HOME: realHome }
+
+  // 1) 只有插件目录有配置 → 沿用旧位置（绝不能被当成 home-new）
+  writeFileSync(join(realPlugin, CONFIG_FILE_NAME), '{}', 'utf8')
+  const onlyPlugin = resolveActiveConfig({ pluginDir: realPlugin, env })
+  assert.equal(onlyPlugin.source, 'plugin', '只有插件目录有配置时必须沿用旧位置')
+  assert.equal(onlyPlugin.file, join(realPlugin, CONFIG_FILE_NAME))
+
+  // 2) home 也有了 → home 优先
+  writeFileSync(join(realHome, CONFIG_FILE_NAME), '{}', 'utf8')
+  assert.equal(resolveActiveConfig({ pluginDir: realPlugin, env }).source, 'home')
+
+  // 3) 两处都没有（新的 home）→ home-new
+  const emptyHome = mkdtempSync(join(tmpdir(), 'omni-cfgpath-empty-'))
+  const emptyPlugin = mkdtempSync(join(tmpdir(), 'omni-cfgpath-emptyplugin-'))
+  const none = resolveActiveConfig({ pluginDir: emptyPlugin, env: { DSH_HOME: emptyHome } })
+  assert.equal(none.source, 'home-new')
+  assert.equal(none.file, join(emptyHome, CONFIG_FILE_NAME))
 })

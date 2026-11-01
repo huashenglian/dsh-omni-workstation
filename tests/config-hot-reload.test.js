@@ -11,10 +11,20 @@ const dshHome = mkdtempSync(join(tmpdir(), 'omni-hotreload-'))
 process.env.DSH_HOME = dshHome
 delete process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR
 
+// 先播种 home 配置：插件目录里可能有本仓库的 dev 配置（旧位置），
+// 不播种就会读到那份而不是本用例要手改的临时 home 文件。
+const cfgFile = join(dshHome, 'omni-vision.json')
+writeFileSync(cfgFile, JSON.stringify({
+  retryCount: 3,
+  vlmEnabled: true,
+  visionToolsEnabled: true,
+  videoEnabled: false,
+  apis: [{ id: 'c_hot', name: 'Hot', provider: 'custom', protocol: 'openai-completions', endpoint: 'http://hot', apiKey: 'sk-hot', model: 'hot-model', enabled: true, timeoutMs: 60000 }]
+}), 'utf8')
+
 const { apply } = await import('../lib/index.js')
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-const cfgFile = join(dshHome, 'omni-vision.json')
 
 const registered = new Set()
 const listeners = new Map()

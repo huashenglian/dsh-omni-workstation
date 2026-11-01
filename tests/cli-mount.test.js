@@ -4,13 +4,21 @@
 //  · 启动即在 home 位置建出配置 + 同目录 schema
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const dshHome = mkdtempSync(join(tmpdir(), 'omni-cli-mount-'))
 process.env.DSH_HOME = dshHome
 delete process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR
+
+// 先播种 home 配置：插件目录里可能存在本仓库的 dev 配置（旧位置优先级低于 home），
+// 不播种的话本用例会读到那份 dev 配置而不是这里的临时 home。
+writeFileSync(join(dshHome, 'omni-vision.json'), JSON.stringify({
+  retryCount: 3,
+  vlmEnabled: true,
+  apis: [{ id: 'c_mount', name: 'Mount', provider: 'custom', protocol: 'openai-completions', endpoint: 'http://mount', apiKey: 'sk-mount', model: 'mount-model', enabled: true, timeoutMs: 60000 }]
+}), 'utf8')
 
 const { apply } = await import('../lib/index.js')
 
@@ -46,10 +54,11 @@ test('无 webServer 也能挂载：工具注册、零路由', async () => {
   assert.equal(routes.length, 0, 'CLI/headless 面不得注册 HTTP 路由')
   assert.ok(tools.includes('analyze_image'), '默认兜底模型可用 → analyze_image 应注册')
   assert.ok(tools.includes('zoom_image'), '视觉工具箱应注册')
-  assert.ok(existsSync(join(dshHome, 'omni-vision.json')), '新装应在 ~/.dsh 建出配置')
+  assert.ok(existsSync(join(dshHome, 'omni-vision.json')), '应读取 ~/.dsh 里的配置')
   assert.ok(existsSync(join(dshHome, 'omni-vision.schema.json')), 'schema 应复制到配置同目录')
+  // 种子文件没写 $schema：apply 只读取不落盘，$schema 在 storeConfig 时补（见 config-write 套件）。
   const cfg = JSON.parse(readFileSync(join(dshHome, 'omni-vision.json'), 'utf8'))
-  assert.equal(cfg.$schema, 'omni-vision.schema.json')
+  assert.equal(cfg.apis[0].model, 'mount-model', '读到的必须是 home 里的配置')
 })
 
 test('有 webServer 时注册全部路由，重复 apply 不重复绑定', async () => {
