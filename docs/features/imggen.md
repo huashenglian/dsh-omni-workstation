@@ -47,7 +47,7 @@
 
 另有 `imggenPresets[]` 预设栏（手动「保存」快照，运行时配置为真值源）。
 
-**模块开关**：`imggenEnabled`（默认关）。开启且配置有效时才注册工具（0 token 门控）。
+**模块开关**：`imggenEnabled`（默认开，v2.15 起）。开关只决定上限——只有 `imggenConfig` 完整（`endpoint` + `model` + `apiKey`，或 ComfyUI / ollama 等免 Key 路线）时 `generate_image` 才注册；配置不全时工具不注册，schema 不进模型上下文（0 token）。
 
 ## ComfyUI 工作流（comfyWorkflows[]）
 

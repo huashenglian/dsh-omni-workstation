@@ -87,13 +87,15 @@ agnes · agnes-cn · anthropic · ant-ling · cerebras · fireworks · google ·
 - `models[]`：有序模型列表（从上到下回退），默认预置 5 个模型
 - `timeoutMs`：默认 `120000`
 
+**v2.15 起兜底也算「已配置」**：`models` 非空时，即使 `apis[]` 里一张完整卡都没有，`analyze_image` 仍会注册（见下方「模块开关」）。
+
 ## 镜像模型（mirrorConfig）
 
 把普通文本模型以「多模态条目」形式镜像进 /model 选择器，选定后走 VLM 卡片链看图：
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `autoVisionEnabled` | `true` | `auto-vision` 自动路由条目——自动路由到最近使用的模型 |
+| `autoVisionEnabled` | `false` | `auto-vision` 自动路由条目——自动路由到最近使用的模型。**v2.15 起默认关闭**，需要在设置页手动打开（显式写 `true` 的旧配置保持开启） |
 | `mirrorAllEnabled` | `false` | 镜像全部供应商为多模态条目（掩盖下方映射列表） |
 | `mappings[]` | `[]` | 自定义映射：`{ originalProvider, originalModel, mirrorName }`，镜像名留空则用 `<原模型>-vision` |
 
@@ -120,7 +122,12 @@ JPEG→PNG 重编码兜底：服务端对 JPEG 载荷报 400/415 解码错误（
 
 ## 模块开关
 
-`vlmEnabled`（默认开）。关闭即注销 `analyze_image` 与 `analyze_media` 工具，配置完整保留。
+`vlmEnabled`（默认开）**只决定上限**。`analyze_image` 真正注册的条件是以下之一：
+
+- `apis[]` 里至少有一张完整卡片（`endpoint` + `model`，`custom` 还需 `apiKey`）；
+- `fallbackConfig.models` 非空（兜底模型算「已配置」，直接用当前会话模型跑）。
+
+两者都不满足时不注册工具，schema 不进模型上下文（0 token）。`analyze_media` 另有条件：至少一张卡开启 `video` / `audio` 模态。关闭 `vlmEnabled` 则一律注销，配置完整保留。
 
 ## Related
 

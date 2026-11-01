@@ -125,7 +125,7 @@ dsh --profile headless "describe ./screenshot.png"
 | [Video](docs/features/video.md) | `generate_video` (+ per-card names) | Multi-card (limit 10), 7 protocols, `/build-video-tool` AI builder with `custom-adapter` runtime |
 | [Voice](docs/features/voice.md) | `speak` · `clone_voice` · `transcribe` | MiMo / MiniMax / Doubao + IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI; zero-registration inline & persisted cloning; speech-to-text via one OpenAI-compatible protocol (local FunASR by default, no key needed) |
 
-Every module has its own switch — turning one off unregisters its tools completely (0 token cost) while keeping your configuration.
+Every module has its own switch (on by default, except the STT sub-switch), but a switch alone is not enough: turning one off unregisters its tools completely, and an incomplete configuration never registers the tool at all (0 token cost) while keeping your configuration.
 
 ## Why a plugin instead of a Skill or a fixed script
 

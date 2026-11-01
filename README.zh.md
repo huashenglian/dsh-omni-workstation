@@ -125,7 +125,7 @@ dsh --profile headless "描述一下 ./screenshot.png"
 | [视频生成](docs/features/video.md) | `generate_video`（+每卡片独立工具名） | 多卡片（上限 10）、7 种协议、`/build-video-tool` AI 构建指令与 `custom-adapter` 运行时 |
 | [语音](docs/features/voice.md) | `speak` · `clone_voice` · `transcribe` | MiMo / MiniMax / 豆包 + IndexTTS / GPT-SoVITS / VoxCPM / TTS-WebUI；零注册内联克隆与持久化克隆；语音转文字走一套 OpenAI 兼容协议（默认本地 FunASR，无需 Key） |
 
-每个模块都有独立开关——关闭即完全注销工具（0 token 成本），配置完整保留。
+每个模块都有独立开关（默认开，STT 子开关默认关），但开关只是上限：关闭即完全注销工具；配置不完整时工具同样不会注册（0 token），已有配置完整保留。
 
 ## 为何选插件，而不是 Skill / 固定脚本
 

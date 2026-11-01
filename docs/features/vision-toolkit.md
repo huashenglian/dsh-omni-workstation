@@ -4,6 +4,15 @@
 
 7 个 AI 可调用视觉工具，与 `analyze_image` 共享同一套图片来源解析（`resolveImage`：本地路径 / `sha256:` 附件 id）与卡片回退链。其中 5 个纯本地计算，零 token 成本。由 `visionToolsEnabled` 开关（默认开，第三模块开关）控制，另支持每个工具独立开关（`visionToolToggles`）。
 
+## 注册条件（v2.15）
+
+| 工具 | 需要什么 |
+|---|---|
+| `zoom_image` · `sample_colors` · `image_diff` · `show_image` · `show_video` | 只需 `visionToolsEnabled !== false` 与自身开关未关闭，**不需要任何 API 配置** |
+| `ocr_image` · `detect_elements` | 另需一张完整 VLM 卡片（`endpoint` + `model` + `apiKey`），**或** `fallbackConfig.models` 非空 |
+
+配置不满足时这两个工具完全不注册，schema 不进模型上下文（0 token），不会出现「调用了才发现没有卡片」的空转。
+
 ## 工具一览
 
 | 工具 | 关键参数 | 功能 | token 成本 |
@@ -75,7 +84,7 @@ VLM 返回严格 JSON 的编号数组 `[{ number, label, box }]`，坐标为原�
 | `image_paths` | string[] | 一次展示多张的路径数组，**最多 8 张**；非空时优先于 `image_path` / `attachment_id` |
 | `label` | string | 展示标题，默认「图片」 |
 
-在对话中内联显示图片（markdown + 附件块 + 工具卡片），不分析内容。
+在对话中内联显示图片（markdown + 附件块 + 工具卡片），不分析内容。**v2.15 起单图可点击放大**（同页遮罩 + 原图，Esc / 点遮罩 / 关闭按钮退出）；输出路径为绝对路径，可被 dsh 原生 Markdown 图片渲染器接住（不再用 `file:///` 前缀）。卡片优先走 Tool 槽的 Gateway `loadImage` 读取附件，因此在新版 dsh 壳子里也能正常显示；只有 sanitized marker（仅剩附件 id）时才回退到旧 session 读取路径。
 
 多图时工具卡片内**横向并排**渲染（可换行）；单张解析失败只让该张显示错误标记，其余照常显示。返回 `{ ok, path, width, height, count, images[] }`——`path`/`width`/`height` 始终是首张（兼容单图），`images[]` 为全部图片。
 

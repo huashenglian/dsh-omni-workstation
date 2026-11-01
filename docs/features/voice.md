@@ -4,8 +4,8 @@
 
 语音模块提供 `speak`（文本转语音）、`clone_voice`（音色克隆）与 `transcribe`（语音转文字）三个工具。TTS 侧支持 3 家云端供应商 + 4 个本地供应商动态注册；STT 侧 5 家共用一套 OpenAI 兼容协议。
 
-- **TTS 门控**：`voiceEnabled === true && ttsEnabled === true && 配置有效`（默认关，关闭即 0 token）
-- **STT 门控**：`voiceEnabled === true && sttEnabled === true && 配置有效`（默认关，关闭即 0 token）
+- **TTS 门控**：`voiceEnabled !== false && ttsEnabled !== false && voiceConfig` 完整（v2.15 起两个开关默认开；配置不全仍不注册，0 token）
+- **STT 门控**：`voiceEnabled !== false && sttEnabled === true && voiceConfigStt` 完整（`sttEnabled` **默认关**——默认配置是免 Key 的本地 FunASR，开了会指向未启动的本机服务；关闭即 0 token）
 
 ![语音设置面板](../images/omni-panel-voice.png)
 
@@ -80,7 +80,7 @@
 
 ## 语音转文字（transcribe）
 
-把音频/录音转成文字。门控 `voiceEnabled === true && sttEnabled === true && isSttConfigValid(voiceConfigStt)`，**默认关闭**——关闭或配置无效时工具完全不注册（schema 不注入，0 token）。
+把音频/录音转成文字。门控 `voiceEnabled !== false && sttEnabled === true && isSttConfigValid(voiceConfigStt)`。`voiceEnabled` 默认开，但 **`sttEnabled` 默认关**（D1：默认配置是免 Key 的本地 FunASR，默认开就会指向大概率没启动的本机服务）；关闭或配置不完整时工具完全不注册（schema 不注入，0 token）。
 
 ### 供应商
 

@@ -2,6 +2,15 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.15 — 默认全开 / 严格工具门禁 / 图片灯箱 / dsh 源码启动
+
+- **模块默认改开**：生图（`imggenEnabled`）、视频（`videoEnabled`）、语音总开关（`voiceEnabled`）由 `false` 改为 `true`；`ttsEnabled` 保持 `true`；`sttEnabled` **保持默认关**（D1：默认配置是免 Key 的本地 FunASR，默认开就会指向未启动的本机服务）；`visionToolsEnabled` 保持 `true`。只影响「字段缺失」的配置，显式写入的 `false` 原样保留（D3）。
+- **auto-vision 默认关闭**：`mirrorConfig.autoVisionEnabled` 由 `true` 改为 `false`；显式 `true` 的旧配置仍生效，模型选择器里不再默认出现 `auto-vision`。
+- **开关只决定上限，工具只在配置完整时注册**：所有工具注册、`/omni/config` 可见性与启动日志统一走同一组门禁谓词（`isVlmLive` / `isImggenLive` / `isVideoLive` / `isVoiceLive` / `isSttLive` / `isMediaLive` / `toolkitToolNames`）。配置不完整时 schema 不进模型上下文（0 token）。**兜底模型算「已配置」（D2）**：`fallbackConfig.models` 非空时 `analyze_image` 仍注册，即使一张完整卡都没有。
+- **工具箱收窄**：`zoom_image` / `sample_colors` / `image_diff` / `show_image` / `show_video` 无需任何配置；`ocr_image` / `detect_elements` 需要一张完整 VLM 卡片或非空的 `fallbackConfig.models`，否则不注册。
+- **`show_image` 强化**：单图点击放大灯箱（同页遮罩 + 原图，Esc / 点遮罩 / 关闭按钮退出）；输出改为绝对路径，可被 dsh 原生 Markdown 图片渲染器接住（不再用 `file:///` 前缀）。`generate_image` 输出同步改绝对路径。多图 ≤8 与高度设置不变。toolview 改用 Tool 槽提供的 Gateway `loadImage`（旧 `sessions.binding(sessionId)` 在新壳子里拿不到附件，卡片会显示「图片读取失败」）；仅剩附件 id、没有完整 ref 的 sanitized marker 仍保留旧读取路径。
+- **`dsh web` 从源码启动修复**：本地 `deepseek-harness` 源码树缺 client/typert 构建产物导致 `startup failed: 1 required plugin did not activate`。执行 `pnpm run build`（或 `build:artifacts`）生成产物即可，**不修改 dsh 源码**。构建步骤见 [`docs/plan/v2.15-defaults-gating-image-display.md`](../plan/v2.15-defaults-gating-image-display.md)。
+
 ## v2.14 — 适配 dsh CLI/headless：配置文件双位置 + 免重启热加载 + JSON Schema
 
 - **CLI / headless 真正可用（此前完全不可用）**：`inject` 由 `['tools','webServer','llm']` 收窄为 `['tools','llm']`。cordis 语义是「inject 内的服务全部可用插件才加载」，而 `@deepseek-ai/dsh-headless` 的 patch 明确写着不挂 Host / HTTP server —— 也就是说 `dsh --profile headless "…"` 里插件**根本没加载过**，所有工具都不存在。现在 `/omni/*` 路由改为 `bindWebRoutes(ctx)`：有 `webServer` 才绑（`ctx.effect` 收 disposer，避免 `register` 重复路径直接 throw），并用 `ctx.inject(['webServer'], …)` 兜住「webServer 晚于插件提供」的情况；没有 webServer 的组合照样注册工具、不报错。

@@ -35,29 +35,46 @@
 | `$schema` | 每次写盘由插件补在第一个键，供编辑器补全；手动新建文件时自己加一行即可 |
 | 未知字段 | 插件只读取自己认识的字段，多出来的键不会报错（但保存时会被丢弃） |
 
+## 2.1 开关不等于可用（v2.15）
+
+模块开关只决定**上限**。只有当对应配置**完整**时，插件才把工具 schema 交给模型；配置不全等于没配，工具不注册，也就 0 token：
+
+| 模块 | 注册工具需要的完整配置 |
+|---|---|
+| VLM | 至少一张完整卡片（`endpoint` + `model`，`custom` 还需 `apiKey`）**或** `fallbackConfig.models` 非空 |
+| 生图 | `imggenConfig` 完整（`endpoint` + `model` + `apiKey`，ComfyUI / ollama 等免 Key 路线除外） |
+| 视频 | 至少一张 `videoCards[]` 的 `enabled !== false` 且 `config` 完整 |
+| TTS | `voiceEnabled` + `ttsEnabled` + `voiceConfig` 完整 |
+| STT | `voiceEnabled` + `sttEnabled` + `voiceConfigStt` 完整（**`sttEnabled` 默认关**） |
+| `analyze_media` | 有卡开启 `video` / `audio` 且协议支持；STT 生效时音频由 `transcribe` 接管 |
+| 视觉工具箱本地工具 | `zoom_image` / `sample_colors` / `image_diff` / `show_image` / `show_video`：无需任何配置 |
+| 视觉工具箱 VLM 工具 | `ocr_image` / `detect_elements`：需一张完整 VLM 卡片**或** `fallbackConfig.models` 非空 |
+
+**兜底也算配置（D2）**：`fallbackConfig.models` 非空时，即使 `apis[]` 里一张完整卡都没有，`analyze_image`（以及 `ocr_image` / `detect_elements`）仍会注册，用当前会话模型跑兜底链。想彻底不注册就清空 `models`。
+
 ## 3. 顶层字段
 
 > 完整机读定义见仓库根 `omni-vision.schema.json`（编辑器补全即来自它）。
 
 | 字段 | 类型 | 默认 | 作用 |
 |---|---|---|---|
-| `vlmEnabled` | bool | `true` | VLM 模块总开关（关闭 → `analyze_image` / `analyze_media` 不注册，0 token） |
+| `vlmEnabled` | bool | `true` | VLM 模块总开关（只决定上限；见 §2.1 的「开关不等于可用」） |
 | `retryCount` | 1–10 | `3` | VLM 单次调用的总尝试次数（含首次） |
 | `apis` | array | 1 张空卡 | **VLM 卡片列表**，自上而下失败切换（见 §4） |
-| `fallbackConfig` | object | 内置模型列表 | 卡片全失败 / 无卡片时的兜底：`{provider, models[], timeoutMs}` |
+| `fallbackConfig` | object | 内置模型列表 | 兜底模型：`{provider, models[], timeoutMs}`。卡片全失败时救援；`models` 非空**也算已配置**（见 §2.1） |
 | `globalConfig` | object | 见 §6 | 全局行为：退避、动态多模态适应、显示尺寸等 |
-| `visionToolsEnabled` | bool | `true` | 视觉工具箱总开关 |
+| `visionToolsEnabled` | bool | `true` | 视觉工具箱总开关（本地工具无需配置；`ocr_image` / `detect_elements` 需 VLM 配置） |
 | `visionToolToggles` | object | 全 `true` | 逐个工具开关：`zoom_image` / `sample_colors` / `image_diff` / `ocr_image` / `detect_elements` / `show_image` / `show_video` |
 | `mirrorConfig` | object | 见 §7 | 镜像模型 / auto-vision 路由 |
-| `imggenEnabled` | bool | `false` | 生图模块开关（还需 `imggenConfig` 有效才注册 `generate_image`） |
+| `imggenEnabled` | bool | `true` | 生图模块开关（v2.15 起默认开；还需 `imggenConfig` 完整才注册 `generate_image`） |
 | `imggenConfig` | object | `provider=custom` | 生图配置（§5） |
-| `videoEnabled` | bool | `false` | 视频模块开关；关闭或无有效视频卡 → 不注册任何视频工具 |
+| `videoEnabled` | bool | `true` | 视频模块开关（v2.15 起默认开；无配置完整的视频卡则仍不注册任何视频工具） |
 | `videoCards` | array | 1 张默认空卡 | 视频卡片列表（每卡一个工具，上限 `videoCardLimit`） |
 | `videoCardLimit` | 1–10 | `10` | 视频卡数量硬顶 |
 | `videoBuilderEnabled` | bool | `true` | 是否注册 `/build-video-tool` 斜杠指令（需要 `commands` 服务，headless 无） |
-| `voiceEnabled` | bool | `false` | 语音模块总开关 |
-| `ttsEnabled` | bool | `false` | TTS 子开关（需 `voiceEnabled`） |
-| `sttEnabled` | bool | `false` | STT 子开关（需 `voiceEnabled`）；打开后音频分析一律改走 `transcribe` |
+| `voiceEnabled` | bool | `true` | 语音模块总开关（v2.15 起默认开；配置不完整时语音工具仍不注册） |
+| `ttsEnabled` | bool | `true` | TTS 子开关（需 `voiceEnabled` + `voiceConfig` 完整） |
+| `sttEnabled` | bool | `false` | STT 子开关（需 `voiceEnabled` + `voiceConfigStt` 完整）；默认关，避免指向未启动的本地 FunASR。打开后音频分析一律改走 `transcribe` |
 | `voiceConfig` / `voiceConfigStt` | object | 见 §8 | TTS / STT 配置 |
 | `voicePresets` / `voicePresetsStt` / `activeVoicePreset` / `activeVoicePresetStt` | — | — | 语音预设池与当前选中项 |
 | `voiceLibrary` | array | `[]` | 克隆音色库（`{id,name,provider,samplePath,createdAt}`） |
@@ -93,7 +110,7 @@
 | `video` / `audio` | 允许该卡分析视频 / 音频（`analyze_media`）；STT 开启时音频走 `transcribe` |
 | 有效性判定 | `endpoint`（或内置地址）+ `model` + `apiKey`（免 Key 供应商除外）齐全才算有效卡 |
 
-> 完全没有有效卡时，只要 `fallbackConfig.models` 非空，`analyze_image` 仍会注册（用当前会话模型跑）。
+> 没有完整卡片时，只要 `fallbackConfig.models` 非空，`analyze_image` 仍会注册（用当前会话模型跑兜底链，v2.15 起兜底算「已配置」）。
 
 ## 5. 生图（`imggenConfig`）
 
@@ -131,7 +148,7 @@
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `autoVisionEnabled` | `true` | 注册 `auto-vision` 路由：会话模型走本插件的卡片链 |
+| `autoVisionEnabled` | `false` | 注册 `auto-vision` 路由：会话模型走本插件的卡片链（v2.15 起默认关，显式写 `true` 仍生效） |
 | `mirrorAllEnabled` | `false` | 为每个供应商都生成 `*-omni-workstation` 镜像路由（会让模型列表变长） |
 | `mappings` | `[]` | 自定义映射路由（`{id,name,provider,model…}`） |
 
@@ -204,5 +221,5 @@ STT（`voiceConfigStt`，供应商 `openai` / `groq` / `siliconflow` / `funasr` 
 | 日志提示「配置仍在插件安装目录（旧位置）」 | 配置在 `node_modules` 里，升级/重装会丢；复制到 `~/.dsh/omni-vision.json` |
 | 改完文件没反应 | 看日志是否有 `config reloaded from disk`；没有则是下一次 agent 步才检查（插件不会后台轮询） |
 | 日志报 JSON 解析失败 | 按报错的行列修好并存盘即可，你的文件不会被覆盖 |
-| 语音 / 视频工具不出现 | 三段门控全开：模块开关 + 子开关 + 配置有效（`videoCards[].config` / `voiceConfig`） |
-| 只想用 OCR / 图片差异等本地工具 | 只要 `visionToolsEnabled !== false` 即注册，不需要卡片；其中 `ocr_image` 默认本地 Tesseract（`engine: vlm` 才用卡片），`detect_elements` 需要有效卡片 |
+| 语音 / 视频工具不出现 | 三段门控全开：模块开关 + 子开关 + 配置完整（`videoCards[].config` / `voiceConfig` / `voiceConfigStt`）。v2.15 起开关默认开，所以最常见的原因是配置还没填完 |
+| 只想用 OCR / 图片差异等本地工具 | `visionToolsEnabled !== false` 即注册本地 5 个工具（`zoom_image` / `sample_colors` / `image_diff` / `show_image` / `show_video`）；`ocr_image`（本地 Tesseract 可用时）与 `detect_elements` 还需一张完整 VLM 卡片或非空的 `fallbackConfig.models` |

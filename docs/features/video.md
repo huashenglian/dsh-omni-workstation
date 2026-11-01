@@ -36,7 +36,7 @@ DashScope 协议额外参数：`reference_video`（参考/待编辑视频，本�
 
 `{ id, name, type, toolName, description, enabled, collapsed, source, config, activePreset }`
 
-- 每卡片独立工具注册：`videoEnabled === true`（默认关，模块开关）且 `enabled !== false` 且配置有效。
+- 每卡片独立工具注册：`videoEnabled !== false`（默认开，v2.15 起）且 `enabled !== false` 且 `config` 完整。开关只决定上限——没有任何配置完整的卡片时不注册任何视频工具（schema 不进模型上下文，0 token）。
 - `videoCardLimit`：卡片上限，默认 10、硬顶 10（`videoCardAdd`/`videoCardAddAi` 物理门禁）。
 - 共享预设池 `videoPresets[]`（v2.12）：所有卡片共用同一套预设快照，卡片只保留 `activePreset` 引用。
 - `source: 'ai'` 为 AI 构建的卡片：头部显示 AI 徽章、不渲染预设栏、toolName 不被 type 推导覆盖。
