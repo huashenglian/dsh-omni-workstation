@@ -4,7 +4,7 @@
 
 # dsh-omni-workstation
 
-[![version](https://img.shields.io/badge/version-0.1.2-blue)](https://github.com/huashenglian/dsh-omni-workstation)
+[![version](https://img.shields.io/badge/version-0.2.0--beta.1-orange)](https://github.com/huashenglian/dsh-omni-workstation)
 [![license](https://img.shields.io/badge/license-MIT-green)](#license)
 [![platform](https://img.shields.io/badge/platform-DeepSeek%20Harness-orange)](https://github.com/deepseek-ai)
 
@@ -30,7 +30,7 @@ dsh plugin --profile web add ./dsh-omni-workstation
 dsh plugin --profile web add github:huashenglian/dsh-omni-workstation
 
 # tarball 安装（pnpm pack / npm pack 打包后）
-dsh plugin --profile web add ./dsh-omni-workstation-0.1.2.tgz
+dsh plugin --profile web add ./dsh-omni-workstation-0.2.0-beta.1.tgz
 ```
 
 `dsh plugin add` 会自动安装依赖，并把该 bundle 追加到 `dsh.profile.bundles`。

@@ -2,6 +2,12 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.16 / 0.2.0-beta.1 — show_image 改为正文插图
+
+- **图片移到对话正文**：`show_image` 不再注册 `tool.call.toolview` 卡片（那张卡落在「已调用工具」折叠区里，默认看不到）。新增 `conversation.chat.turnTail` 插图槽：本轮所有 `show_image` 的图片以「轻小说插图」样式出现在**回复正文结尾**（居中、圆角、带文件名图注、点击放大灯箱），与工具折叠状态无关。
+- **AI 可决定穿插段落**：模型若在最终回复里写 `![说明](绝对路径)`，dsh 原生 Markdown 会就地渲染；插图槽检测到该路径已被正文引用就跳过它，避免同一张图出现两次。仅「正文里真的写了图片语法」才算，**只是嘴上说「已展示 D:\...png」不会**让插图消失。
+- **版本号**：`package.json` 由 `0.1.2` 提升为 **`0.2.0-beta.1`**（未发布、未打 tag、未推送）。设置页「关于」与 `GET /omni/config.version` 运行时读取该文件。
+
 ## v2.15 — 默认全开 / 严格工具门禁 / 图片灯箱 / dsh 源码启动
 
 - **模块默认改开**：生图（`imggenEnabled`）、视频（`videoEnabled`）、语音总开关（`voiceEnabled`）由 `false` 改为 `true`；`ttsEnabled` 保持 `true`；`sttEnabled` **保持默认关**（D1：默认配置是免 Key 的本地 FunASR，默认开就会指向未启动的本机服务）；`visionToolsEnabled` 保持 `true`。只影响「字段缺失」的配置，显式写入的 `false` 原样保留（D3）。

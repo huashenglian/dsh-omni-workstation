@@ -142,7 +142,7 @@
 | `backoffBase` / `backoffMax` | `800` / `5000` | 普通错误重试退避（毫秒） |
 | `backoff429Base` / `backoff429Max` | `2000` / `10000` | 429 限流退避（毫秒） |
 | `retryStatusCodes` | `402,408,429,500,502,503,504,NET` | 触发重试的状态码，`NET` = 网络错误 |
-| `showImageMaxHeight` / `showVideoMaxHeight` | `180` / `360` | 卡片内预览最大高度（px） |
+| `showImageMaxHeight` / `showVideoMaxHeight` | `420` / `360` | 正文插图 / 视频预览最大高度（px，64–2000；插图实际下限 320，避免旧值 180 把插图压成缩略图） |
 
 ## 7. 镜像模型（`mirrorConfig`）
 
