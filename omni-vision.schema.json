@@ -395,6 +395,13 @@
               "description": "语音提示词：speak / transcribe / clone_voice 的分工。"
             }
           }
+        },
+        "analyzeImageMaxCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 6,
+          "description": "analyze_image 单次最多接收的图片张数（v2.18，硬拦截：超过直接拒绝，不发起请求）。1 = 只能单图（v2.17 行为）；上限 20。"
         }
       }
     },
