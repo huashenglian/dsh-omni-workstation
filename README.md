@@ -161,6 +161,14 @@ Today you can AI-build a **custom video tool**: type `/build-video-tool` in chat
 
 **Settings → Omni Workstation** — four tabs (VLM / Image Gen / Video / Voice) plus a global settings tab. Every edit auto-saves and takes effect immediately; no Save button.
 
+The settings tab also carries three AI-behaviour controls (v2.17):
+
+| Where | Effect |
+|---|---|
+| Switch on the fallback card header | Off = a failed card list fails outright instead of falling back to weak free models; with no valid card `analyze_image` is not registered at all |
+| Extensions → "Native vision first" | Default off. On = a model that declares image input is denied `analyze_image` unless it passes `native_vision_failed: true`; keep it off when the model's own vision is weak (pixel art, UI detail) |
+| Plugin prompts card | Per-module prompts (vision / toolkit / image gen / video / voice) editable with one-click restore; saved text applies on the next step |
+
 ## How It Works
 
 The package is **dual-face**:

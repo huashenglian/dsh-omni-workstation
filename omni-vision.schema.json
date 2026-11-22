@@ -47,17 +47,23 @@
     "videoCards": {
       "type": "array",
       "description": "视频卡片列表（每张卡 = 一个供应商配置 + 一个可调用工具）。通常由设置页或 AI 建卡维护。",
-      "items": { "$ref": "#/$defs/videoCard" }
+      "items": {
+        "$ref": "#/$defs/videoCard"
+      }
     },
     "videoPresets": {
       "type": "array",
       "description": "跨卡片共享的视频预设池。",
-      "items": { "$ref": "#/$defs/namedPreset" }
+      "items": {
+        "$ref": "#/$defs/namedPreset"
+      }
     },
     "videoCustomTypes": {
       "type": "array",
       "description": "AI 建卡时新增的自定义类型标签。",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "voiceEnabled": {
       "type": "boolean",
@@ -81,7 +87,9 @@
     "voicePresets": {
       "type": "array",
       "description": "TTS 预设池。",
-      "items": { "$ref": "#/$defs/namedPreset" }
+      "items": {
+        "$ref": "#/$defs/namedPreset"
+      }
     },
     "activeVoicePreset": {
       "type": "string",
@@ -94,7 +102,9 @@
     "voicePresetsStt": {
       "type": "array",
       "description": "STT 预设池。",
-      "items": { "$ref": "#/$defs/namedPreset" }
+      "items": {
+        "$ref": "#/$defs/namedPreset"
+      }
     },
     "activeVoicePresetStt": {
       "type": "string",
@@ -107,12 +117,29 @@
         "type": "object",
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string", "description": "音色名（speak 的 voice 参数可直接用它）。" },
-          "provider": { "type": "string", "description": "来源供应商（mimo / minimax / doubao …）。" },
-          "type": { "type": "string", "description": "clone 等类型标记。" },
-          "samplePath": { "type": "string", "description": "参考音频绝对路径。" },
-          "createdAt": { "type": "number", "description": "创建时间（毫秒）。" }
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "音色名（speak 的 voice 参数可直接用它）。"
+          },
+          "provider": {
+            "type": "string",
+            "description": "来源供应商（mimo / minimax / doubao …）。"
+          },
+          "type": {
+            "type": "string",
+            "description": "clone 等类型标记。"
+          },
+          "samplePath": {
+            "type": "string",
+            "description": "参考音频绝对路径。"
+          },
+          "createdAt": {
+            "type": "number",
+            "description": "创建时间（毫秒）。"
+          }
         }
       }
     },
@@ -123,15 +150,44 @@
         "type": "object",
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "speakerId": { "type": "string", "description": "复刻得到的 speaker_id（S_ 前缀）。" },
-          "refAudioPath": { "type": "string", "description": "复刻用的参考音频路径（≥5s）。" },
-          "cloneModel": { "type": "string", "description": "复刻模型，默认 seed-icl-2.0。" },
-          "appId": { "type": "string", "description": "V1 App ID。" },
-          "accessToken": { "type": "string", "description": "V1 Access Token。" },
-          "apiKey": { "type": "string", "description": "V3 API Key。" },
-          "apiVersion": { "type": "string", "enum": ["v1", "v3"], "description": "该预设使用的协议版本。" }
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "speakerId": {
+            "type": "string",
+            "description": "复刻得到的 speaker_id（S_ 前缀）。"
+          },
+          "refAudioPath": {
+            "type": "string",
+            "description": "复刻用的参考音频路径（≥5s）。"
+          },
+          "cloneModel": {
+            "type": "string",
+            "description": "复刻模型，默认 seed-icl-2.0。"
+          },
+          "appId": {
+            "type": "string",
+            "description": "V1 App ID。"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "V1 Access Token。"
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "V3 API Key。"
+          },
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "v1",
+              "v3"
+            ],
+            "description": "该预设使用的协议版本。"
+          }
         }
       }
     },
@@ -147,15 +203,38 @@
     "visionToolToggles": {
       "type": "object",
       "description": "逐个工具的开关；缺省为 true。",
-      "additionalProperties": { "type": "boolean" },
+      "additionalProperties": {
+        "type": "boolean"
+      },
       "properties": {
-        "zoom_image": { "type": "boolean", "description": "放大局部区域（本地计算，0 token）。" },
-        "sample_colors": { "type": "boolean", "description": "主色采样（本地计算，0 token）。" },
-        "image_diff": { "type": "boolean", "description": "图片差异对比（本地计算，0 token）。" },
-        "ocr_image": { "type": "boolean", "description": "OCR 提取文字；需要一张完整 VLM 卡片或 fallbackConfig.models 非空（本地 Tesseract 可用时也可切换到 local 引擎）。" },
-        "detect_elements": { "type": "boolean", "description": "可交互元素检测；需要一张完整 VLM 卡片或 fallbackConfig.models 非空。" },
-        "show_image": { "type": "boolean", "description": "在对话中展示图片（不分析）。" },
-        "show_video": { "type": "boolean", "description": "在对话中展示视频播放器。" }
+        "zoom_image": {
+          "type": "boolean",
+          "description": "放大局部区域（本地计算，0 token）。"
+        },
+        "sample_colors": {
+          "type": "boolean",
+          "description": "主色采样（本地计算，0 token）。"
+        },
+        "image_diff": {
+          "type": "boolean",
+          "description": "图片差异对比（本地计算，0 token）。"
+        },
+        "ocr_image": {
+          "type": "boolean",
+          "description": "OCR 提取文字；需要一张完整 VLM 卡片或 fallbackConfig.models 非空（本地 Tesseract 可用时也可切换到 local 引擎）。"
+        },
+        "detect_elements": {
+          "type": "boolean",
+          "description": "可交互元素检测；需要一张完整 VLM 卡片或 fallbackConfig.models 非空。"
+        },
+        "show_image": {
+          "type": "boolean",
+          "description": "在对话中展示图片（不分析）。"
+        },
+        "show_video": {
+          "type": "boolean",
+          "description": "在对话中展示视频播放器。"
+        }
       }
     },
     "mirrorConfig": {
@@ -176,14 +255,19 @@
         "mappings": {
           "type": "array",
           "description": "自定义映射路由：{id, name, provider, model} 等。",
-          "items": { "type": "object", "additionalProperties": true }
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
         }
       }
     },
     "apis": {
       "type": "array",
       "description": "VLM 卡片列表，按数组顺序自上而下失败切换。至少要有 1 张完整卡（endpoint + model，自定义供应商另需 apiKey）或 fallbackConfig.models 非空，analyze_image 才会注册。",
-      "items": { "$ref": "#/$defs/apiCard" }
+      "items": {
+        "$ref": "#/$defs/apiCard"
+      }
     },
     "imggenConfig": {
       "description": "生图配置（当前生效的那一套；预设池见 imggenPresets）。",
@@ -192,7 +276,9 @@
     "imggenPresets": {
       "type": "array",
       "description": "生图预设池。",
-      "items": { "$ref": "#/$defs/namedPreset" }
+      "items": {
+        "$ref": "#/$defs/namedPreset"
+      }
     },
     "activeImggenPreset": {
       "type": "string",
@@ -200,16 +286,31 @@
     },
     "fallbackConfig": {
       "type": "object",
-      "description": "纯文本兜底模型：VLM 卡片全部失败时用当前会话模型 + 这些模型名重试。v2.15 起 models 非空也算「已配置」——即使一张卡片都没有，analyze_image 与 ocr_image / detect_elements 也会注册。",
+      "description": "纯文本兜底模型：VLM 卡片全部失败时用当前会话模型 + 这些模型名重试。v2.15 起 models 非空也算「已配置」；v2.17 起 enabled=false 时整条兜底链停用（analyze_image 在无完整卡片时随之隐藏）。",
       "additionalProperties": true,
       "properties": {
-        "provider": { "type": "string", "description": "供应商 id（如 ovhcloud / openrouter）；留空表示跟随会话。" },
+        "provider": {
+          "type": "string",
+          "description": "供应商 id（如 ovhcloud / openrouter）；留空表示跟随会话。"
+        },
         "models": {
           "type": "array",
           "description": "兜底模型名列表（按顺序尝试）。留空数组表示不使用兜底。",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 600000, "description": "单次兜底请求超时（毫秒）。" }
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 600000,
+          "description": "单次兜底请求超时（毫秒）。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "兜底模型总开关（v2.17）。关闭后所有卡片失败即报错，不再回退到能力较弱的免费模型。"
+        }
       }
     },
     "globalConfig": {
@@ -217,19 +318,84 @@
       "description": "全局行为开关（设置页「全局」tab）。",
       "additionalProperties": true,
       "properties": {
-        "backoffBase": { "type": "integer", "minimum": 0, "description": "普通错误重试退避基数（毫秒）。" },
-        "backoffMax": { "type": "integer", "minimum": 0, "description": "普通错误重试退避上限（毫秒）。" },
-        "backoff429Base": { "type": "integer", "minimum": 0, "description": "429 限流退避基数（毫秒）。" },
-        "backoff429Max": { "type": "integer", "minimum": 0, "description": "429 限流退避上限（毫秒）。" },
-        "retryStatusCodes": { "type": "string", "description": "触发重试的状态码清单，逗号分隔；NET 表示网络错误。" },
-        "verifyReminder": { "type": "boolean", "description": "生图后是否提醒模型立即视觉验证。" },
+        "backoffBase": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "普通错误重试退避基数（毫秒）。"
+        },
+        "backoffMax": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "普通错误重试退避上限（毫秒）。"
+        },
+        "backoff429Base": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "429 限流退避基数（毫秒）。"
+        },
+        "backoff429Max": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "429 限流退避上限（毫秒）。"
+        },
+        "retryStatusCodes": {
+          "type": "string",
+          "description": "触发重试的状态码清单，逗号分隔；NET 表示网络错误。"
+        },
+        "verifyReminder": {
+          "type": "boolean",
+          "description": "生图后是否提醒模型立即视觉验证。"
+        },
         "dynamicMultimodalAdapt": {
           "type": "boolean",
           "default": true,
           "description": "动态多模态适应：按当前会话模型是否声明图片输入，切换 tool-result 图片清理与分析工具提示（开启且模型支持图片时 analyze_image 会被拦，要求直接看图）。"
         },
-        "showImageMaxHeight": { "type": "integer", "minimum": 64, "maximum": 2000, "default": 420, "description": "show_image 正文插图的最大高度（px，64–2000）。" },
-        "showVideoMaxHeight": { "type": "integer", "minimum": 120, "maximum": 1600, "description": "show_video 卡片预览最大高度（px）。" }
+        "showImageMaxHeight": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 2000,
+          "default": 420,
+          "description": "show_image 正文插图的最大高度（px，64–2000）。"
+        },
+        "showVideoMaxHeight": {
+          "type": "integer",
+          "minimum": 120,
+          "maximum": 1600,
+          "description": "show_video 卡片预览最大高度（px）。"
+        },
+        "nativeVisionGate": {
+          "type": "boolean",
+          "default": false,
+          "description": "原生视觉优先（v2.17）：开启且动态多模态适应开启时，声明支持图片的模型调用 analyze_image 会被拦截，需传 native_vision_failed=true 才放行。默认关闭——模型自带视觉较差（如像素素材）时保持关闭。"
+        },
+        "prompts": {
+          "type": "object",
+          "description": "按模块覆盖内置提示词（v2.17）：留空/缺省用内置默认，设置页「插件提示词」卡片可编辑与重置。",
+          "additionalProperties": false,
+          "properties": {
+            "vlm": {
+              "type": "string",
+              "description": "图片相关提示词：何时直接看图、何时改用 analyze_image。"
+            },
+            "toolkit": {
+              "type": "string",
+              "description": "视觉工具箱提示词：zoom / sample_colors / image_diff / ocr / detect 的量化用法。"
+            },
+            "imggen": {
+              "type": "string",
+              "description": "生图提示词：生成后必须视觉验证。"
+            },
+            "video": {
+              "type": "string",
+              "description": "视频提示词：提交前确认参数、避免重复提交。"
+            },
+            "voice": {
+              "type": "string",
+              "description": "语音提示词：speak / transcribe / clone_voice 的分工。"
+            }
+          }
+        }
       }
     },
     "comfyWorkflows": {
@@ -239,21 +405,65 @@
         "type": "object",
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "workflow": { "type": "string", "description": "API 格式工作流 JSON 字符串。" },
-          "uiWorkflow": { "type": "string", "description": "原始 UI 格式工作流 JSON 字符串（自定义节点需要时用）。" },
-          "mapping": { "type": "object", "additionalProperties": true, "description": "角色 → 节点/字段映射（sampler / checkpoint / latent / positive / negative …）。" },
-          "steps": { "type": ["integer", "string"], "description": "注入的采样步数（空字符串 = 不注入）。" },
-          "cfg": { "type": ["number", "string"], "description": "注入的 CFG（空字符串 = 不注入）。" },
-          "scheduler": { "type": "string" },
-          "seed": { "type": ["integer", "string"] }
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "workflow": {
+            "type": "string",
+            "description": "API 格式工作流 JSON 字符串。"
+          },
+          "uiWorkflow": {
+            "type": "string",
+            "description": "原始 UI 格式工作流 JSON 字符串（自定义节点需要时用）。"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "角色 → 节点/字段映射（sampler / checkpoint / latent / positive / negative …）。"
+          },
+          "steps": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "注入的采样步数（空字符串 = 不注入）。"
+          },
+          "cfg": {
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "注入的 CFG（空字符串 = 不注入）。"
+          },
+          "scheduler": {
+            "type": "string"
+          },
+          "seed": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
         }
       }
     },
     "activeComfyWorkflow": {
       "type": "string",
       "description": "当前生效的 ComfyUI 工作流 id（空 = 未选）。"
+    },
+    "meta": {
+      "type": "object",
+      "description": "插件内部状态（v2.17）：记录上次运行的版本，用于发现被静默回退的安装。",
+      "additionalProperties": true,
+      "properties": {
+        "lastKnownVersion": {
+          "type": "string",
+          "description": "上次运行时记录的插件版本（自动维护，勿手改）。"
+        }
+      }
     }
   },
   "$defs": {
@@ -262,17 +472,62 @@
       "description": "一张 VLM 卡片。固定供应商（内置 URL）的 endpoint/protocol 由插件覆盖，手写时只需 apiKey + model。",
       "additionalProperties": true,
       "properties": {
-        "id": { "type": "string", "description": "卡片 id（唯一即可，如 c_vlm_main）。" },
-        "name": { "type": "string", "description": "卡片显示名。" },
+        "id": {
+          "type": "string",
+          "description": "卡片 id（唯一即可，如 c_vlm_main）。"
+        },
+        "name": {
+          "type": "string",
+          "description": "卡片显示名。"
+        },
         "provider": {
           "type": "string",
-          "enum": ["custom", "ollama", "comfyui", "agnes", "agnes-cn", "anthropic", "ant-ling", "cerebras", "fireworks", "google", "groq", "huggingface", "kimi-coding", "minimax", "minimax-cn", "moonshotai", "moonshotai-cn", "nvidia", "openai", "openrouter", "qwen-token-plan", "qwen-token-plan-cn", "together", "vercel-ai-gateway", "xai", "xiaomi", "xiaomi-token-plan-ams", "xiaomi-token-plan-cn", "xiaomi-token-plan-sgp", "zai", "bailian", "zai-coding-cn", "ovhcloud"],
+          "enum": [
+            "custom",
+            "ollama",
+            "comfyui",
+            "agnes",
+            "agnes-cn",
+            "anthropic",
+            "ant-ling",
+            "cerebras",
+            "fireworks",
+            "google",
+            "groq",
+            "huggingface",
+            "kimi-coding",
+            "minimax",
+            "minimax-cn",
+            "moonshotai",
+            "moonshotai-cn",
+            "nvidia",
+            "openai",
+            "openrouter",
+            "qwen-token-plan",
+            "qwen-token-plan-cn",
+            "together",
+            "vercel-ai-gateway",
+            "xai",
+            "xiaomi",
+            "xiaomi-token-plan-ams",
+            "xiaomi-token-plan-cn",
+            "xiaomi-token-plan-sgp",
+            "zai",
+            "bailian",
+            "zai-coding-cn",
+            "ovhcloud"
+          ],
           "default": "custom",
           "description": "供应商。custom 需要自己填 endpoint + protocol；ollama 免 Key。"
         },
         "protocol": {
           "type": "string",
-          "enum": ["openai-completions", "openai-responses", "anthropic-messages", "google-gemini"],
+          "enum": [
+            "openai-completions",
+            "openai-responses",
+            "anthropic-messages",
+            "google-gemini"
+          ],
           "default": "openai-completions",
           "description": "请求协议。绝大多数 OpenAI 兼容端点用 openai-completions。"
         },
@@ -295,18 +550,77 @@
           "default": 120000,
           "description": "单次请求超时（毫秒）。"
         },
-        "contextWindow": { "type": "integer", "description": "上下文窗口（token），仅用于 UI 提示。" },
-        "maxOutput": { "type": "integer", "description": "最大输出（token），仅用于 UI 提示。" },
-        "enabled": { "type": "boolean", "default": true, "description": "关闭后该卡不参与失败切换。" },
-        "collapsed": { "type": "boolean", "description": "设置页卡片是否折叠（纯 UI）。" },
-        "video": { "type": "boolean", "default": false, "description": "允许该卡分析视频（analyze_media）。" },
-        "audio": { "type": "boolean", "default": false, "description": "允许该卡分析音频（analyze_media；STT 开启时音频改走 transcribe）。" }
+        "contextWindow": {
+          "type": "integer",
+          "description": "上下文窗口（token），仅用于 UI 提示。"
+        },
+        "maxOutput": {
+          "type": "integer",
+          "description": "最大输出（token），仅用于 UI 提示。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "关闭后该卡不参与失败切换。"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "description": "设置页卡片是否折叠（纯 UI）。"
+        },
+        "video": {
+          "type": "boolean",
+          "default": false,
+          "description": "允许该卡分析视频（analyze_media）。"
+        },
+        "audio": {
+          "type": "boolean",
+          "default": false,
+          "description": "允许该卡分析音频（analyze_media；STT 开启时音频改走 transcribe）。"
+        }
       },
-      "required": ["provider", "model"],
+      "required": [
+        "provider",
+        "model"
+      ],
       "allOf": [
         {
-          "if": { "properties": { "provider": { "enum": ["custom", "openai", "anthropic", "google", "openrouter", "ovhcloud", "groq", "deepseek", "xai", "together", "fireworks", "cerebras", "huggingface", "nvidia", "vercel-ai-gateway", "zai", "moonshotai", "kimi-coding", "bailian", "qwen-token-plan", "minimax", "xiaomi", "ant-ling", "agnes"] } } },
-          "then": { "required": ["apiKey"] }
+          "if": {
+            "properties": {
+              "provider": {
+                "enum": [
+                  "custom",
+                  "openai",
+                  "anthropic",
+                  "google",
+                  "openrouter",
+                  "ovhcloud",
+                  "groq",
+                  "deepseek",
+                  "xai",
+                  "together",
+                  "fireworks",
+                  "cerebras",
+                  "huggingface",
+                  "nvidia",
+                  "vercel-ai-gateway",
+                  "zai",
+                  "moonshotai",
+                  "kimi-coding",
+                  "bailian",
+                  "qwen-token-plan",
+                  "minimax",
+                  "xiaomi",
+                  "ant-ling",
+                  "agnes"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "apiKey"
+            ]
+          }
         }
       ]
     },
@@ -315,25 +629,86 @@
       "description": "生图配置（单套，预设池见 imggenPresets）。",
       "additionalProperties": true,
       "properties": {
-        "provider": { "type": "string", "description": "供应商 id（同 apis[].provider 的枚举；comfyui 走 ComfyUI，bailian 走 DashScope）。" },
+        "provider": {
+          "type": "string",
+          "description": "供应商 id（同 apis[].provider 的枚举；comfyui 走 ComfyUI，bailian 走 DashScope）。"
+        },
         "protocol": {
           "type": "string",
-          "enum": ["openai-images", "openai-completions", "dashscope-image", "comfyui-image"],
+          "enum": [
+            "openai-images",
+            "openai-completions",
+            "dashscope-image",
+            "comfyui-image"
+          ],
           "default": "openai-images",
           "description": "生图协议。comfyui / bailian 会强制改写。"
         },
-        "endpoint": { "type": "string", "description": "Base URL。" },
-        "apiPath": { "type": "string", "description": "自定义提交路径（留空用协议默认，如 /images/generations）。" },
-        "apiKey": { "type": "string", "description": "API Key（本地 ComfyUI 通常留空）。" },
-        "model": { "type": "string", "description": "模型 / checkpoint 名。" },
-        "vae": { "type": "string", "description": "ComfyUI VAELoader 文件名（留空 = 不注入）。" },
-        "clip": { "type": "string", "description": "ComfyUI CLIPLoader 文件名（留空 = 不注入）。" },
-        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000, "default": 300000, "description": "单次请求超时（毫秒）。" },
-        "retryCount": { "type": "integer", "minimum": 1, "maximum": 10, "default": 2, "description": "总尝试次数。" },
-        "responseFormat": { "type": "string", "enum": ["auto", "b64_json", "url"], "default": "auto", "description": "期望的返回格式。" },
-        "filterImageModels": { "type": "boolean", "default": true, "description": "拉模型列表时是否过滤掉非生图模型。" },
-        "comfyWorkflows": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "（旧字段）工作流随配置顶层 comfyWorkflows 存放。" },
-        "activeComfyWorkflow": { "type": "string", "description": "（旧字段）见顶层 activeComfyWorkflow。" }
+        "endpoint": {
+          "type": "string",
+          "description": "Base URL。"
+        },
+        "apiPath": {
+          "type": "string",
+          "description": "自定义提交路径（留空用协议默认，如 /images/generations）。"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API Key（本地 ComfyUI 通常留空）。"
+        },
+        "model": {
+          "type": "string",
+          "description": "模型 / checkpoint 名。"
+        },
+        "vae": {
+          "type": "string",
+          "description": "ComfyUI VAELoader 文件名（留空 = 不注入）。"
+        },
+        "clip": {
+          "type": "string",
+          "description": "ComfyUI CLIPLoader 文件名（留空 = 不注入）。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 900000,
+          "default": 300000,
+          "description": "单次请求超时（毫秒）。"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2,
+          "description": "总尝试次数。"
+        },
+        "responseFormat": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "b64_json",
+            "url"
+          ],
+          "default": "auto",
+          "description": "期望的返回格式。"
+        },
+        "filterImageModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "拉模型列表时是否过滤掉非生图模型。"
+        },
+        "comfyWorkflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "description": "（旧字段）工作流随配置顶层 comfyWorkflows 存放。"
+        },
+        "activeComfyWorkflow": {
+          "type": "string",
+          "description": "（旧字段）见顶层 activeComfyWorkflow。"
+        }
       }
     },
     "videoConfig": {
@@ -343,58 +718,193 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["custom", "agnes", "agnes-cn", "dashscope", "kling", "volc", "minimax", "qwen-token-plan", "qwen-token-plan-cn"],
+          "enum": [
+            "custom",
+            "agnes",
+            "agnes-cn",
+            "dashscope",
+            "kling",
+            "volc",
+            "minimax",
+            "qwen-token-plan",
+            "qwen-token-plan-cn"
+          ],
           "default": "custom",
           "description": "视频供应商。"
         },
         "protocol": {
           "type": "string",
-          "enum": ["openai-videos", "dashscope-video", "kling-video", "volc-video", "minimax-video", "async-task", "custom-adapter"],
+          "enum": [
+            "openai-videos",
+            "dashscope-video",
+            "kling-video",
+            "volc-video",
+            "minimax-video",
+            "async-task",
+            "custom-adapter"
+          ],
           "default": "openai-videos",
           "description": "提交/轮询协议。custom-adapter 用 adapterCode 自定义全流程。"
         },
-        "endpoint": { "type": "string", "description": "Base URL（固定供应商留空用内置地址）。" },
-        "apiKey": { "type": "string", "description": "API Key。" },
-        "model": { "type": "string", "description": "模型 id。" },
-        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 3600000, "default": 600000, "description": "整任务超时（毫秒）。" },
-        "pollIntervalMs": { "type": "integer", "minimum": 500, "maximum": 60000, "default": 5000, "description": "轮询间隔（毫秒）。" },
-        "retryCount": { "type": "integer", "minimum": 1, "maximum": 10, "default": 1, "description": "总尝试次数。" },
-        "filterVideoModels": { "type": "boolean", "default": true, "description": "拉模型列表时是否过滤。" },
-        "seconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 5, "description": "视频时长（秒）。" },
-        "aspectRatio": { "type": "string", "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"], "default": "16:9", "description": "画面比例。" },
-        "resolution": { "type": "string", "description": "分辨率标签（如 720p / 1080p，取决于供应商）。" },
-        "submitPath": { "type": "string", "description": "提交接口路径（async-task / custom 用）。" },
-        "pollPath": { "type": "string", "description": "轮询接口路径（async-task / custom 用）。" },
-        "taskIdField": { "type": "string", "description": "响应里任务 id 的取值路径（留空用协议默认）。" },
-        "statusField": { "type": "string", "default": "status", "description": "状态字段名。" },
-        "resultField": { "type": "string", "default": "metadata.url", "description": "结果视频 URL 的取值路径。" },
-        "doneStatus": { "type": "string", "default": "completed", "description": "表示完成的状态值。" },
-        "adapterCode": { "type": "string", "description": "custom-adapter 协议的 JS 适配器源码（buildSubmit / parseTaskId / pollUrl / parseStatus）。" }
+        "endpoint": {
+          "type": "string",
+          "description": "Base URL（固定供应商留空用内置地址）。"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API Key。"
+        },
+        "model": {
+          "type": "string",
+          "description": "模型 id。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "default": 600000,
+          "description": "整任务超时（毫秒）。"
+        },
+        "pollIntervalMs": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 60000,
+          "default": 5000,
+          "description": "轮询间隔（毫秒）。"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1,
+          "description": "总尝试次数。"
+        },
+        "filterVideoModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "拉模型列表时是否过滤。"
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 5,
+          "description": "视频时长（秒）。"
+        },
+        "aspectRatio": {
+          "type": "string",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4"
+          ],
+          "default": "16:9",
+          "description": "画面比例。"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "分辨率标签（如 720p / 1080p，取决于供应商）。"
+        },
+        "submitPath": {
+          "type": "string",
+          "description": "提交接口路径（async-task / custom 用）。"
+        },
+        "pollPath": {
+          "type": "string",
+          "description": "轮询接口路径（async-task / custom 用）。"
+        },
+        "taskIdField": {
+          "type": "string",
+          "description": "响应里任务 id 的取值路径（留空用协议默认）。"
+        },
+        "statusField": {
+          "type": "string",
+          "default": "status",
+          "description": "状态字段名。"
+        },
+        "resultField": {
+          "type": "string",
+          "default": "metadata.url",
+          "description": "结果视频 URL 的取值路径。"
+        },
+        "doneStatus": {
+          "type": "string",
+          "default": "completed",
+          "description": "表示完成的状态值。"
+        },
+        "adapterCode": {
+          "type": "string",
+          "description": "custom-adapter 协议的 JS 适配器源码（buildSubmit / parseTaskId / pollUrl / parseStatus）。"
+        }
       }
     },
     "videoCard": {
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "description": "卡片名（也用于工具显示名）。" },
-        "type": { "type": "string", "description": "类型标签：general / t2v / i2v / 自定义类型。" },
-        "toolName": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$", "description": "暴露给模型的工具名，全局唯一（AI 卡必填）。" },
-        "description": { "type": "string", "description": "工具描述（告诉模型什么时候用它）。" },
-        "enabled": { "type": "boolean", "default": true, "description": "关闭后该卡不注册工具。" },
-        "collapsed": { "type": "boolean", "description": "设置页折叠状态（纯 UI）。" },
-        "source": { "type": "string", "enum": ["user", "ai"], "description": "user=用户手建，ai=/build-video-tool 生成。" },
-        "config": { "$ref": "#/$defs/videoConfig" },
-        "activePreset": { "type": "string", "description": "该卡当前套用的预设 id。" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "description": "卡片名（也用于工具显示名）。"
+        },
+        "type": {
+          "type": "string",
+          "description": "类型标签：general / t2v / i2v / 自定义类型。"
+        },
+        "toolName": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$",
+          "description": "暴露给模型的工具名，全局唯一（AI 卡必填）。"
+        },
+        "description": {
+          "type": "string",
+          "description": "工具描述（告诉模型什么时候用它）。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "关闭后该卡不注册工具。"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "description": "设置页折叠状态（纯 UI）。"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "user",
+            "ai"
+          ],
+          "description": "user=用户手建，ai=/build-video-tool 生成。"
+        },
+        "config": {
+          "$ref": "#/$defs/videoConfig"
+        },
+        "activePreset": {
+          "type": "string",
+          "description": "该卡当前套用的预设 id。"
+        }
       }
     },
     "namedPreset": {
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "config": { "type": "object", "additionalProperties": true, "description": "预设内容（对应模块的 config 形状）。" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "预设内容（对应模块的 config 形状）。"
+        }
       }
     },
     "voiceConfig": {
@@ -404,41 +914,146 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["mimo", "minimax", "doubao", "indextts", "gptsovits", "voxcpm", "tts-webui"],
+          "enum": [
+            "mimo",
+            "minimax",
+            "doubao",
+            "indextts",
+            "gptsovits",
+            "voxcpm",
+            "tts-webui"
+          ],
           "default": "mimo",
           "description": "TTS 供应商。"
         },
         "protocol": {
           "type": "string",
-          "enum": ["mimo-tts", "minimax-tts", "doubao-tts", "indextts-tts", "gptsovits-tts", "voxcpm-tts", "openai-speech"],
+          "enum": [
+            "mimo-tts",
+            "minimax-tts",
+            "doubao-tts",
+            "indextts-tts",
+            "gptsovits-tts",
+            "voxcpm-tts",
+            "openai-speech"
+          ],
           "description": "协议（随供应商自动改写）。"
         },
-        "endpoint": { "type": "string", "description": "Base URL（本地供应商默认 127.0.0.1）。" },
-        "apiKey": { "type": "string", "description": "API Key（本地供应商可留空）。" },
-        "model": { "type": "string", "description": "模型 id（如 mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0）。" },
-        "voiceId": { "type": "string", "description": "音色 id / 复刻得到的 voice_id。" },
-        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 600000, "default": 120000, "description": "单次请求超时（毫秒）。" },
-        "retryCount": { "type": "integer", "minimum": 1, "maximum": 10, "default": 1, "description": "总尝试次数。" },
-        "outputFormat": { "type": "string", "description": "输出音频格式（wav / mp3 / hex→mp3 等，随供应商而定）。" },
-        "styleInstruction": { "type": "string", "description": "风格指令（情感/语气提示）。" },
-        "singMode": { "type": "boolean", "description": "演唱模式（部分供应商支持）。" },
-        "optimizeText": { "type": "boolean", "description": "是否让服务端优化文本。" },
-        "voiceSamplePath": { "type": "string", "description": "MiMo 内联克隆用的参考音频路径。" },
-        "streamOutput": { "type": "boolean", "description": "是否流式返回。" },
-        "filterVoiceModels": { "type": "boolean", "default": true, "description": "拉模型列表时是否过滤。" },
-        "appId": { "type": "string", "description": "豆包 V1 App ID。" },
-        "accessKey": { "type": "string", "description": "豆包 V1 Access Token / Access Key。" },
-        "emoStrategy": { "type": "string", "description": "豆包情感策略。" },
-        "emoWeight": { "type": "string", "description": "豆包情感权重。" },
-        "mode": { "type": "string", "description": "VoxCPM 等供应商的 clone / design 模式。" },
-        "region": { "type": "string", "description": "区域（cn / global）。" },
-        "apiVersion": { "type": "string", "enum": ["v1", "v3"], "description": "豆包协议版本（V1=App ID+Access Token / V3=API Key）。" },
-        "gptModel": { "type": "string", "description": "GPT-SoVITS 模型标识（v2:xxx）。" },
-        "sovitsModel": { "type": "string", "description": "GPT-SoVITS SoVITS 模型标识。" },
-        "refAudioPath": { "type": "string", "description": "本地供应商参考音频路径。" },
-        "refText": { "type": "string", "description": "参考音频对应的文本（GPT-SoVITS 需要）。" },
-        "promptLang": { "type": "string", "description": "参考文本语言。" },
-        "textLang": { "type": "string", "description": "合成文本语言。" }
+        "endpoint": {
+          "type": "string",
+          "description": "Base URL（本地供应商默认 127.0.0.1）。"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API Key（本地供应商可留空）。"
+        },
+        "model": {
+          "type": "string",
+          "description": "模型 id（如 mimo-v2.5-tts / speech-2.8-hd / seed-tts-2.0）。"
+        },
+        "voiceId": {
+          "type": "string",
+          "description": "音色 id / 复刻得到的 voice_id。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 600000,
+          "default": 120000,
+          "description": "单次请求超时（毫秒）。"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1,
+          "description": "总尝试次数。"
+        },
+        "outputFormat": {
+          "type": "string",
+          "description": "输出音频格式（wav / mp3 / hex→mp3 等，随供应商而定）。"
+        },
+        "styleInstruction": {
+          "type": "string",
+          "description": "风格指令（情感/语气提示）。"
+        },
+        "singMode": {
+          "type": "boolean",
+          "description": "演唱模式（部分供应商支持）。"
+        },
+        "optimizeText": {
+          "type": "boolean",
+          "description": "是否让服务端优化文本。"
+        },
+        "voiceSamplePath": {
+          "type": "string",
+          "description": "MiMo 内联克隆用的参考音频路径。"
+        },
+        "streamOutput": {
+          "type": "boolean",
+          "description": "是否流式返回。"
+        },
+        "filterVoiceModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "拉模型列表时是否过滤。"
+        },
+        "appId": {
+          "type": "string",
+          "description": "豆包 V1 App ID。"
+        },
+        "accessKey": {
+          "type": "string",
+          "description": "豆包 V1 Access Token / Access Key。"
+        },
+        "emoStrategy": {
+          "type": "string",
+          "description": "豆包情感策略。"
+        },
+        "emoWeight": {
+          "type": "string",
+          "description": "豆包情感权重。"
+        },
+        "mode": {
+          "type": "string",
+          "description": "VoxCPM 等供应商的 clone / design 模式。"
+        },
+        "region": {
+          "type": "string",
+          "description": "区域（cn / global）。"
+        },
+        "apiVersion": {
+          "type": "string",
+          "enum": [
+            "v1",
+            "v3"
+          ],
+          "description": "豆包协议版本（V1=App ID+Access Token / V3=API Key）。"
+        },
+        "gptModel": {
+          "type": "string",
+          "description": "GPT-SoVITS 模型标识（v2:xxx）。"
+        },
+        "sovitsModel": {
+          "type": "string",
+          "description": "GPT-SoVITS SoVITS 模型标识。"
+        },
+        "refAudioPath": {
+          "type": "string",
+          "description": "本地供应商参考音频路径。"
+        },
+        "refText": {
+          "type": "string",
+          "description": "参考音频对应的文本（GPT-SoVITS 需要）。"
+        },
+        "promptLang": {
+          "type": "string",
+          "description": "参考文本语言。"
+        },
+        "textLang": {
+          "type": "string",
+          "description": "合成文本语言。"
+        }
       }
     },
     "sttConfig": {
@@ -448,20 +1063,73 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["openai", "groq", "siliconflow", "funasr", "custom"],
+          "enum": [
+            "openai",
+            "groq",
+            "siliconflow",
+            "funasr",
+            "custom"
+          ],
           "default": "funasr",
           "description": "STT 供应商。funasr 是本机零 Key 默认项。"
         },
-        "protocol": { "type": "string", "enum": ["openai-stt"], "default": "openai-stt", "description": "唯一的 STT 协议。" },
-        "endpoint": { "type": "string", "description": "Base URL（如 http://127.0.0.1:8000/v1）。" },
-        "apiKey": { "type": "string", "description": "API Key（本地 FunASR 可留空）。" },
-        "model": { "type": "string", "description": "模型（如 sensevoice / whisper-1）。" },
-        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000, "default": 120000, "description": "单次请求超时（毫秒）。" },
-        "retryCount": { "type": "integer", "minimum": 1, "maximum": 10, "default": 1, "description": "总尝试次数（仅网络 / 429 / 5xx 重试）。" },
-        "language": { "type": "string", "description": "语言代码（留空自动）。" },
-        "outputMode": { "type": "string", "enum": ["text", "timestamps", "srt", "vtt"], "default": "text", "description": "输出样式；srt/vtt 会落字幕文件。" },
-        "hotwords": { "type": "string", "description": "热词（作为 prompt 传给服务端，逗号分隔）。" },
-        "extraParams": { "type": "string", "description": "附加表单参数的 JSON 字符串。" }
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "openai-stt"
+          ],
+          "default": "openai-stt",
+          "description": "唯一的 STT 协议。"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Base URL（如 http://127.0.0.1:8000/v1）。"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API Key（本地 FunASR 可留空）。"
+        },
+        "model": {
+          "type": "string",
+          "description": "模型（如 sensevoice / whisper-1）。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 900000,
+          "default": 120000,
+          "description": "单次请求超时（毫秒）。"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1,
+          "description": "总尝试次数（仅网络 / 429 / 5xx 重试）。"
+        },
+        "language": {
+          "type": "string",
+          "description": "语言代码（留空自动）。"
+        },
+        "outputMode": {
+          "type": "string",
+          "enum": [
+            "text",
+            "timestamps",
+            "srt",
+            "vtt"
+          ],
+          "default": "text",
+          "description": "输出样式；srt/vtt 会落字幕文件。"
+        },
+        "hotwords": {
+          "type": "string",
+          "description": "热词（作为 prompt 传给服务端，逗号分隔）。"
+        },
+        "extraParams": {
+          "type": "string",
+          "description": "附加表单参数的 JSON 字符串。"
+        }
       }
     }
   }
