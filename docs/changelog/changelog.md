@@ -12,7 +12,7 @@
 - **输入框改为失焦钳制（req 5）**：`show_image` / `show_video` 的最大高度输入框改成草稿态，`blur` / Enter 才钳制（Esc 还原）；`videoCardLimit` 同病同治。此前输入「100」会被立刻改写成 64，根本打不进去。
 - **版本回退告警**：配置新增 `meta.lastKnownVersion`。当运行版本比记录版本更旧（profile 依赖被重置成注册表旧版本时会发生），启动日志 warn，设置页「关于」显示黄色提示与修复命令。
 - **镜像模型**：保留（dsh 核心上传门禁读用户所选模型的 `inputModalities`，插件层绕不过），文案改为说明「声明含 image 可直接上传，纯文本模型需镜像或换模型」，卡片默认折叠。
-- **版本号**：`package.json` → **`0.2.1-beta.1`**（未发布）。
+- **版本号**：`package.json` → **`0.2.1-beta.1`**（**2026-11-23 已发布**：发布树 `main`/`master` @ `2833e99` + tag `v0.2.1-beta.1` + Release id `454583170`（prerelease）+ npm dist-tag `beta`；`latest` 仍是 `0.1.2`）。
 
 ## v2.16 / 0.2.0-beta.1 — show_image 改为正文插图
 
