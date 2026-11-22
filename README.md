@@ -119,7 +119,7 @@ dsh --profile headless "describe ./screenshot.png"
 
 | Module | Tool | Highlights |
 |---|---|---|
-| [VLM](docs/features/vlm.md) | `analyze_image` | Ordered API card list, single-request failover, per-card timeout, JPEG→PNG fallback, 28 built-in providers, mirror models, dynamic multimodal adaptation |
+| [VLM](docs/features/vlm.md) | `analyze_image` | Ordered API card list, single-request failover, per-card timeout, JPEG→PNG fallback, 28 built-in providers, mirror models, dynamic multimodal adaptation, **multi-image comparison (hard cap 1–20, default 6)** |
 | [Vision Toolkit](docs/features/vision-toolkit.md) | `zoom_image` · `sample_colors` · `image_diff` · `ocr_image` · `detect_elements` · `show_image` | 4 tools are pure-local (zero tokens); shared image resolution + card chain; artifact paths only |
 | [Image Gen](docs/features/imggen.md) | `generate_image` | OpenAI / DashScope / ComfyUI protocols, multi-workflow management with role mapping, reference-image support, auto verify reminder |
 | [Video](docs/features/video.md) | `generate_video` (+ per-card names) | Multi-card (limit 10), 7 protocols, `/build-video-tool` AI builder with `custom-adapter` runtime |

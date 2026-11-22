@@ -119,7 +119,7 @@ dsh --profile headless "描述一下 ./screenshot.png"
 
 | 模块 | 工具 | 亮点 |
 |---|---|---|
-| [VLM 图像分析](docs/features/vlm.md) | `analyze_image` | 有序 API 卡片链、单请求内回退、每卡超时、JPEG→PNG 重编码兜底、28 家内置供应商、镜像模型、动态多模态适应 |
+| [VLM 图像分析](docs/features/vlm.md) | `analyze_image` | 有序 API 卡片链、单请求内回退、每卡超时、JPEG→PNG 重编码兜底、28 家内置供应商、镜像模型、动态多模态适应、**多图对照（硬上限 1–20，默认 6）** |
 | [视觉工具箱](docs/features/vision-toolkit.md) | `zoom_image` · `sample_colors` · `image_diff` · `ocr_image` · `detect_elements` · `show_image` | 4 个纯本地工具零 token 成本；共享图片来源解析与卡片链；只返回工件路径 |
 | [图像生成](docs/features/imggen.md) | `generate_image` | OpenAI / DashScope / ComfyUI 三种路线、多工作流管理 + 角色映射、参考图、生图后自动视觉验证提醒 |
 | [视频生成](docs/features/video.md) | `generate_video`（+每卡片独立工具名） | 多卡片（上限 10）、7 种协议、`/build-video-tool` AI 构建指令与 `custom-adapter` 运行时 |

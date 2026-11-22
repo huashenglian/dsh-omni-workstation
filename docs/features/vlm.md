@@ -10,11 +10,28 @@ VLM 模块为 AI 提供 `analyze_image` 与 `analyze_media` 两个工具：把�
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `image_path` | string | 二选一 | 图片本地路径（绝对路径，或相对当前工作目录） |
-| `attachment_id` | string | 二选一 | 对话中上传图片的附件 id（形如 `sha256:...`）；两者同传时以此为准 |
-| `question` | string | 是 | 分析需求，例如「这张图表反映了什么趋势？」 |
+| `image_path` | string | 四选一 | 单张图片本地路径（绝对路径，或相对当前工作目录） |
+| `attachment_id` | string | 四选一 | 对话中上传图片的附件 id（形如 `sha256:...`）；与 `image_path` 同传时以此为准 |
+| `image_paths` | string[] | 四选一 | 多张图片路径（v2.18），按顺序作为「图1、图2…」 |
+| `attachment_ids` | string[] | 四选一 | 多个附件 id（v2.18），支持唯一前缀（如 `sha256:1a2b3c4d`） |
+| `question` | string | 是 | 分析需求，例如「这张图表反映了什么趋势？」；多图时用「图1/图2」指代 |
 
-返回 `{ ok, answer, model, api, attempts, usage }`——回答文本、实际使用的模型与卡片、尝试次数。
+返回 `{ ok, answer, model, api, attempts, imageCount, usage }`——回答文本、实际使用的模型与卡片、尝试次数、本次发送的图片张数。
+
+### 多图对照（v2.18）
+
+```
+analyze_image({
+  image_paths: ["D:/work/v1.png", "D:/work/v2.png"],
+  question: "图1 和图2 的按钮区域在配色、圆角、间距上分别有什么不同？"
+})
+```
+
+- 多张图 **合并进同一个请求**（四种协议都支持），文本块前会列出 `图1：v1.png`、`图2：v2.png`，所以跨供应商也能对上号。
+- **张数硬上限**：`globalConfig.analyzeImageMaxCount`（默认 6，范围 1–20）。超限的调用在解析阶段**直接抛错**，不会发出请求、不消耗 VLM token；报错包含当前上限与「分批调用」建议。设为 `1` 即 v2.17 的单图行为。
+- 其它闸门：单张 ≤ 20MB（报错指明「第 N 张（文件名）」）、合计 ≤ 40MB。
+- 失败回退：多图被 413/400 拒绝时，同一张卡先**整批降采样重试一次**；JPEG 仍会逐张尝试 JPEG→PNG；兜底卡始终使用降采样副本。
+- 与 `image_diff` 的分工：**语义**差异（配色/布局/文案）用 `analyze_image` 多图；**像素**差异（错位多少、色值变了多少）用 `image_diff`（本地计算，出热力图）。
 
 **与原生视觉的关系**：若当前会话模型本身支持视觉输入（多模态模型），AI 会优先直接看图，仅失败时才回退 `analyze_image`（见下文「动态多模态适应」）；纯文本模型则固定使用本工具。
 
