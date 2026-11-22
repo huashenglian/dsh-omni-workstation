@@ -2,6 +2,18 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.17 / 0.2.1-beta.1 — 兜底开关 / 原生视觉优先开关 / 提示词卡片 / 输入框失焦钳制
+
+- **兜底模型可停用（req 1）**：`fallbackConfig.enabled`（默认 `true`），卡片头部展开图标左侧新增开关。关闭后所有卡片失败**直接报错**，不再退回能力较弱的免费模型；若一张完整卡都没有，`analyze_image` / `ocr_image` / `detect_elements` 随之不注册（0 token），而不是拿兜底模型硬顶。所有判定统一走 `fallbackHasModels()`（语义改为「真的会被调用」）。
+- **原生视觉优先改为开关（req 3）**：`globalConfig.nativeVisionGate` **默认关闭**。开启（且「动态多模态适应」开启、当前模型声明图片输入）时，`analyze_image` 被拦截并提示「若你实际看不到图片，重试并传 native_vision_failed: true」——文案不再暴露「动态多模态适应」这类插件内部机制。关闭时（默认）模型可直接调用 VLM，适合像素游戏等「模型自带视觉较弱」的场景。
+- **`read_image` 失败兜底提醒**：`tools/post-execute` 监听原生 `read_image` 的失败结果，在 VLM 有效且动态适应开启时追加一句「若你看不到图片内容，改用 analyze_image（image_path 传同一路径）」。异常一律放行原结果。
+- **插件提示词卡片（req 4）**：设置页新增「插件提示词」卡片（位于模块开关与扩展卡片之间），5 个小卡：视觉分析 / 视觉工具箱 / 生图 / 视频 / 语音。每行右侧 🖊 打开编辑弹窗（textarea + 恢复默认 + 保存），自定义过的行带「已自定义」标记。文案存 `globalConfig.prompts`，留空即恢复默认。
+- **提示词注入**：`systemPrompt.section({name:'omni:workstation', order:2950})` 把「已启用模块」的提示词拼成一段系统提示；文本是 provider，面板保存后**下一步即生效**，无需重启；模块全关则整段消失（0 token）。
+- **输入框改为失焦钳制（req 5）**：`show_image` / `show_video` 的最大高度输入框改成草稿态，`blur` / Enter 才钳制（Esc 还原）；`videoCardLimit` 同病同治。此前输入「100」会被立刻改写成 64，根本打不进去。
+- **版本回退告警**：配置新增 `meta.lastKnownVersion`。当运行版本比记录版本更旧（profile 依赖被重置成注册表旧版本时会发生），启动日志 warn，设置页「关于」显示黄色提示与修复命令。
+- **镜像模型**：保留（dsh 核心上传门禁读用户所选模型的 `inputModalities`，插件层绕不过），文案改为说明「声明含 image 可直接上传，纯文本模型需镜像或换模型」，卡片默认折叠。
+- **版本号**：`package.json` → **`0.2.1-beta.1`**（未发布）。
+
 ## v2.16 / 0.2.0-beta.1 — show_image 改为正文插图
 
 - **图片移到对话正文**：`show_image` 不再注册 `tool.call.toolview` 卡片（那张卡落在「已调用工具」折叠区里，默认看不到）。新增 `conversation.chat.turnTail` 插图槽：本轮所有 `show_image` 的图片以「轻小说插图」样式出现在**回复正文结尾**（居中、圆角、带文件名图注、点击放大灯箱），与工具折叠状态无关。

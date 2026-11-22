@@ -99,14 +99,29 @@ agnes · agnes-cn · anthropic · ant-ling · cerebras · fireworks · google ·
 | `mirrorAllEnabled` | `false` | 镜像全部供应商为多模态条目（掩盖下方映射列表） |
 | `mappings[]` | `[]` | 自定义映射：`{ originalProvider, originalModel, mirrorName }`，镜像名留空则用 `<原模型>-vision` |
 
-## 动态多模态适应（v2.11.3 起；v2.13.2 硬拦截）
+## 动态多模态适应 + 原生视觉优先（v2.11.3 起；v2.17 起闸门改为开关）
 
-`globalConfig.dynamicMultimodalAdapt`（默认开，设置 → 开关扩展 → VLM）：
+`globalConfig.dynamicMultimodalAdapt`（默认开，设置 → 开关扩展 → VLM）决定「按当前模型能力自适应」：
 
 - **开**：按当前对话模型是否声明图片输入（`inputModalities` 含 image）自适应——多模态模型直接看图（跳过 tool-result 图片 sanitize，生图验证提示用「必须立即视觉验证此图片…」）；纯文本模型固定 `analyze_image`。
-- **v2.13.2 硬拦截**：当开关开启 **且** 当前模型声明图片输入时，`tools/pre-execute` 会在派发前拦截 `analyze_image` 并拒绝（`kind: 'deny'` + 中文 reason），让 AI 必须用 `read_image` / 直接看图。**兜底**仅当 `analyze_image(..., native_vision_failed: true)` 时放行——这是给「模型实际看不到图片」的唯一逃生口：(a) 消息里根本没图片 / 附件 ID 找不到，(b) 视觉调用报错（如 `read_image` 失败 / 401 / 400 / 端点返回 vision-not-supported），(c) image 字段被错误填到实际不支持图片的模型。**只针对 `analyze_image`**——`zoom_image`/`sample_colors`/`image_diff`/`ocr_image`/`detect_elements` 五个工具箱工具没有原生视觉替代，是真有功能差异的辅助工具，保持可调。
-- **关**：闸门完全失效，回到 v2.11.3 之前的旧行为（始终 `analyze_image` 路径）。
-- **实现**：纯函数 `nativeVisionDenyReason(dynamicAdapt, acceptsImages, toolName, args)` + 同名 `tools/pre-execute` 监听器调用；不阻塞 dispatch（`next()` 兜底）。新增 `analyze_image.native_vision_failed: boolean` 工具参数（无 `required` 键，避免 schema authorError）。
+- **关**：回到 v2.11.3 之前的旧行为（始终 `analyze_image` 路径）。
+
+`globalConfig.nativeVisionGate`（**v2.17 新增，默认关**，设置 → 开关扩展 → VLM → 「原生视觉优先」）：
+
+- **开启**（且动态适应开启、当前模型声明图片输入）时，`tools/pre-execute` 在派发前拦截 `analyze_image`，reason 为一句可执行的话：「analyze_image 未执行：当前模型可直接看图，请直接查看图片（或 read_image）。若你实际看不到图片，重试并传 native_vision_failed: true。」**不含插件机制术语**。
+- 逃生口：`analyze_image(..., native_vision_failed: true)` 直接放行（模型实际看不到图、image 字段被错配到不支持图片的模型等）。
+- **默认关**的原因：模型「声明支持图片」不等于「看得准」。像素素材、UI 细节、精确色值时，专用 VLM 往往明显更好；默认拦截会让这类任务拿不到更可靠的结论。
+- 只针对 `analyze_image`——`zoom_image`/`sample_colors`/`image_diff`/`ocr_image`/`detect_elements` 没有原生视觉替代，始终可调。
+
+**原生图片读取失败时的提醒**（v2.17）：`tools/post-execute` 监听原生 `read_image` 的失败结果，在 VLM 有效且动态适应开启时追加一句「若你看不到图片内容，改用 analyze_image（image_path 传同一路径）」。监听器任何异常都放行原结果。
+
+**实现**：纯函数 `nativeVisionDenyReason(gate, dynamicAdapt, acceptsImages, toolName, args)` + `tools/pre-execute` 调用；`analyze_image.native_vision_failed: boolean` 仍为可选参数（无 `required` 键）。
+
+## 插件提示词（v2.17）
+
+`globalConfig.prompts` 存 5 个模块的提示词覆盖（`vlm` / `toolkit` / `imggen` / `video` / `voice`），留空表示用内置默认。设置页「插件提示词」卡片可逐条编辑、一键恢复默认。
+
+注入方式：`systemPrompt.section({ name: 'omni:workstation', order: 2950, text: () => buildPromptText(liveCfg) })`——只拼接「已启用模块」的段落，全关则整段消失（0 token）；文本是 provider，面板保存后下一步即生效，无需重启。默认文案的控制点：不暴露插件内部机制、不重复工具 description、单条 ≤ 300 字。
 
 ## 回退与重试参数（globalConfig）
 
@@ -125,7 +140,7 @@ JPEG→PNG 重编码兜底：服务端对 JPEG 载荷报 400/415 解码错误（
 `vlmEnabled`（默认开）**只决定上限**。`analyze_image` 真正注册的条件是以下之一：
 
 - `apis[]` 里至少有一张完整卡片（`endpoint` + `model`，`custom` 还需 `apiKey`）；
-- `fallbackConfig.models` 非空（兜底模型算「已配置」，直接用当前会话模型跑）。
+- `fallbackConfig.models` 非空 **且** `fallbackConfig.enabled !== false`（兜底模型算「已配置」，直接用当前会话模型跑；开关关闭后这条通道失效）。
 
 两者都不满足时不注册工具，schema 不进模型上下文（0 token）。`analyze_media` 另有条件：至少一张卡开启 `video` / `audio` 模态。关闭 `vlmEnabled` 则一律注销，配置完整保留。
 
