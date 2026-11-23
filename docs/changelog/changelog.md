@@ -2,6 +2,14 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.19.1 / 0.2.2-beta.3 — 恢复「真正无视觉」错误的强提示
+
+- **只给 `IMAGE_UNSUPPORTED_MODEL` 追加提示**：`read_image` 失败时读取 `result.error.info.code`，仅当路由本身不支持图片输入（dsh 的 `IMAGE_UNSUPPORTED_MODEL`）才追加一句强提示：「当前模型没有视觉能力，看不到图片；不要再用 read_image，立刻改用 analyze_image（传 image_path / attachment_id 并给出具体问题）」。
+- **其它错误继续原样返回**：`.ts` 路径、格式不符、文件过大、损坏、无错误码等一律不追加任何插件文案，避免把「用错路径」误翻译成「没有视觉能力」。
+- **能力段补充兜底句**：视觉模型的能力声明加入「如果你实际看不到图片内容（没有收到图像），不要假装看过，直接用 analyze_image」——覆盖「声明了 image 但实际无视觉」的模型（如 ZhipuAI/GLM-5.2）。
+- **纯文本读图风险写进提示**：实测发现部分上游纯文本模型调用 `read_image` 会让请求直接中断，因此纯文本能力段与 `IMAGE_UNSUPPORTED_MODEL` 强提示都明确写「会被拒绝、部分上游还会让本次请求直接中断」。
+- **版本号**：`package.json` → **`0.2.2-beta.3`**（**2026-11-23 已发布**：发布树 `main`/`master` + tag `v0.2.2-beta.3` + GitHub Release（prerelease）+ npm dist-tag `beta`；`latest` 仍是 `0.1.2`）。真机验证因上游纯文本读图会中断请求而中止；单测 607 全绿。
+
 ## v2.19 / 0.2.2-beta.2 — 视觉能力声明 / 移除 read_image 误判提示 / 上限对模型可见
 
 - **修复「一次 read_image 读错文件，AI 从此以为自己没有视觉」**：删除 v2.17 的 `read_image` 失败追加提示（它不区分原因，把 `.ts` 路径错误也翻译成「你看不到图片，改用 analyze_image」）。现在 `read_image` 成功/失败都**原封不动返回 dsh 原生结果**，AI 按真实报错自行修正。

@@ -175,31 +175,59 @@ test('listener: text-only model → analyze_image allowed', async () => {
   _resetLastSource()
 })
 
-// ---------- v2.19: read_image failures are returned verbatim ----------
+// ---------- v2.19.1: only IMAGE_UNSUPPORTED_MODEL gets the analyze_image hint ----------
 
 const nextAccept = async () => ({ kind: 'accept' })
+const VLM_CARD = {
+  id: 'c1', name: 'T', provider: 'custom', protocol: 'openai-completions',
+  endpoint: 'https://example.invalid/v1', apiKey: 'sk-x', model: 'vlm', enabled: true
+}
+const readImageResult = (code) => ({
+  isError: true,
+  error: { message: 'x', ...(code ? { info: { name: 'ImageInputError', code } } : {}) },
+  content: [{ type: 'text', text: 'Error: cannot read "a.ts": ...' }]
+})
 
-test('post-execute: read_image 失败不再追加任何插件文案（v2.19 移除）', async () => {
-  writeCfg(BASE_CFG({ fallbackConfig: { provider: 'ovhcloud', models: ['Qwen2.5-VL-72B-Instruct'], timeoutMs: 1000 } }))
+test('post-execute: IMAGE_UNSUPPORTED_MODEL → 强烈提示改用 analyze_image', async () => {
+  writeCfg(BASE_CFG({ apis: [VLM_CARD] }))
   const ctx = makeFakeCtx()
   apply(ctx)
   await primePreStep(ctx)
-  // The listener used by v2.17 is gone; if a future refactor re-registers one,
-  // it must still pass the original result through untouched.
   const fn = ctx.listeners.get('tools/post-execute')
-  const result = { isError: true, content: [{ type: 'text', text: 'cannot read "a.ts": not an image' }] }
-  const decision = fn
-    ? await fn({ name: 'read_image', arguments: { file_path: 'a.ts' }, agent: { session: { events: [] } } }, result, nextAccept)
-    : { kind: 'accept' }
+  assert.equal(typeof fn, 'function')
+  const decision = await fn({ name: 'read_image', arguments: { file_path: 'a.png' }, agent: { session: { events: [] } } }, readImageResult('IMAGE_UNSUPPORTED_MODEL'), nextAccept)
   assert.equal(decision.kind, 'accept')
-  assert.equal(decision.content, undefined, '不得追加 analyze_image 或其他提示')
+  assert.equal(decision.content.length, 2, '原生报错保留 + 追加一句')
+  assert.ok(String(decision.content[0].text).includes('cannot read'), '原生报错必须保留在前')
+  const hint = String(decision.content[1].text)
+  assert.ok(hint.includes('没有视觉能力'))
+  assert.ok(hint.includes('analyze_image'))
 })
 
-test('post-execute: 其他工具失败 / 成功结果 一律不动', async () => {
+test('post-execute: 路径/格式/过大等错误原样返回，不追加任何文案', async () => {
+  writeCfg(BASE_CFG({ apis: [VLM_CARD] }))
+  const ctx = makeFakeCtx()
+  apply(ctx)
+  await primePreStep(ctx)
+  const fn = ctx.listeners.get('tools/post-execute')
+  for (const code of ['IMAGE_UNSUPPORTED_FORMAT', 'IMAGE_INVALID', 'IMAGE_TOO_LARGE', 'IMAGE_DIMENSION_TOO_LARGE', undefined]) {
+    const decision = await fn({ name: 'read_image', arguments: { file_path: 'a.ts' }, agent: {} }, readImageResult(code), nextAccept)
+    assert.equal(decision.kind, 'accept')
+    assert.equal(decision.content, undefined, code + ' 不得追加内容')
+  }
+  const ok = await fn({ name: 'read_image', arguments: {}, agent: {} }, { isError: false, content: [] }, nextAccept)
+  assert.equal(ok.content, undefined, '成功结果不追加')
+  const other = await fn({ name: 'read', arguments: {}, agent: {} }, readImageResult('IMAGE_UNSUPPORTED_MODEL'), nextAccept)
+  assert.equal(other.content, undefined, '非 read_image 不追加')
+})
+
+test('post-execute: VLM 未配置时不追加（analyze_image 也没注册）', async () => {
+  writeCfg(BASE_CFG({ apis: [], fallbackConfig: { provider: 'ovhcloud', models: [], timeoutMs: 1000, enabled: false } }))
   const ctx = makeFakeCtx()
   apply(ctx)
   const fn = ctx.listeners.get('tools/post-execute')
-  assert.equal(fn, undefined, 'v2.19 不再注册 post-execute 监听')
+  const decision = await fn({ name: 'read_image', arguments: {}, agent: {} }, readImageResult('IMAGE_UNSUPPORTED_MODEL'), nextAccept)
+  assert.equal(decision.content, undefined)
 })
 
 // ---------- v2.19: native vision hint follows capability, not the gate ----------
