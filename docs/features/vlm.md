@@ -28,12 +28,12 @@ analyze_image({
 ```
 
 - 多张图 **合并进同一个请求**（四种协议都支持），文本块前会列出 `图1：v1.png`、`图2：v2.png`，所以跨供应商也能对上号。
-- **张数硬上限**：`globalConfig.analyzeImageMaxCount`（默认 6，范围 1–20）。超限的调用在解析阶段**直接抛错**，不会发出请求、不消耗 VLM token；报错包含当前上限与「分批调用」建议。设为 `1` 即 v2.17 的单图行为。
+- **张数硬上限**：`globalConfig.analyzeImageMaxCount`（默认 6，范围 1–20）。超限的调用在解析阶段**直接抛错**，不会发出请求、不消耗 VLM token；报错包含当前上限与「分批调用」建议。设为 `1` 即 v2.17 的单图行为。**上限数字同时写进工具 description、多图参数说明和系统提示词**（v2.19），模型不需要猜；改设置会重注册工具，描述与拦截始终一致。
 - 其它闸门：单张 ≤ 20MB（报错指明「第 N 张（文件名）」）、合计 ≤ 40MB。
 - 失败回退：多图被 413/400 拒绝时，同一张卡先**整批降采样重试一次**；JPEG 仍会逐张尝试 JPEG→PNG；兜底卡始终使用降采样副本。
 - 与 `image_diff` 的分工：**语义**差异（配色/布局/文案）用 `analyze_image` 多图；**像素**差异（错位多少、色值变了多少）用 `image_diff`（本地计算，出热力图）。
 
-**与原生视觉的关系**：若当前会话模型本身支持视觉输入（多模态模型），AI 会优先直接看图，仅失败时才回退 `analyze_image`（见下文「动态多模态适应」）；纯文本模型则固定使用本工具。
+**与原生视觉的关系**（v2.19 起按场景描述）：本工具的主场景是**模型自身没有视觉能力时看图**；模型自身能看图时，它是精确分析的辅助（像素级细节、精确色值/坐标、图内文字、UI 布局）。具体当前模型能不能看图，由每回合的「【你的视觉能力】」段按 `inputModalities` 明确告知（见下文「动态多模态适应」）。
 
 ## 工具：analyze_media（视频 / 音频）
 
@@ -130,9 +130,15 @@ agnes · agnes-cn · anthropic · ant-ling · cerebras · fireworks · google ·
 - **默认关**的原因：模型「声明支持图片」不等于「看得准」。像素素材、UI 细节、精确色值时，专用 VLM 往往明显更好；默认拦截会让这类任务拿不到更可靠的结论。
 - 只针对 `analyze_image`——`zoom_image`/`sample_colors`/`image_diff`/`ocr_image`/`detect_elements` 没有原生视觉替代，始终可调。
 
-**原生图片读取失败时的提醒**（v2.17）：`tools/post-execute` 监听原生 `read_image` 的失败结果，在 VLM 有效且动态适应开启时追加一句「若你看不到图片内容，改用 analyze_image（image_path 传同一路径）」。监听器任何异常都放行原结果。
+**每回合视觉能力声明**（v2.19）：`system-prompt/assemble` 监听按当前步骤的 `modelSelection` 解析 `inputModalities`，在模块提示词后插入「【你的视觉能力】」段：
 
-**实现**：纯函数 `nativeVisionDenyReason(gate, dynamicAdapt, acceptsImages, toolName, args)` + `tools/pre-execute` 调用；`analyze_image.native_vision_failed: boolean` 仍为可选参数（无 `required` 键）。
+- 声明含 `image` + 动态适应开启 → 明确说「当前模型支持图片输入，用户上传的和 `read_image` 返回的图片你都能直接看到」；并说明历史里「无法查看图片 / 改用 analyze_image」类提示只针对当时那次调用（例如把非图片文件当图片读），避免 AI 自我设限。
+- 纯文本模型 → 只说「不能直接看图，用 `analyze_image`」，**绝不出现「支持图片输入」**。
+- 动态适应关闭 / 能力无法解析 / VLM 未配置 → 不注入。
+
+**`read_image` 失败不再追加提示**（v2.19 移除了 v2.17 的行为）：此前只要 VLM 有效就追加「若你看不到图片内容，改用 analyze_image」；这会把 `.ts` 路径、格式不符、文件过大等**路径/格式错误**误翻译成「没有视觉能力」，导致 AI 之后持续调用 `analyze_image`。现在 dsh 原始报错原样返回，AI 按真实原因自行修正。
+
+**实现**：纯函数 `nativeVisionDenyReason(gate, dynamicAdapt, acceptsImages, toolName, args)` + `tools/pre-execute` 调用；`analyze_image.native_vision_failed: boolean` 仍为可选参数（无 `required` 键）。能力声明由纯函数 `buildVisionCapabilityText({accepts, adaptive, gate})` 生成，四态可单测。
 
 ## 插件提示词（v2.17）
 

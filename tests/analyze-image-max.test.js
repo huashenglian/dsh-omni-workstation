@@ -1,15 +1,17 @@
 // analyze-image-max.test.js — v2.18 图片张数上限的配置链路 + 提示词动态取值
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'omni-aimax-'))
-process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = process.env.DSH_HOME
+const home = mkdtempSync(join(tmpdir(), 'omni-aimax-'))
+process.env.DSH_HOME = home
+process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = home
 
 const {
-  normalizeConfig, applyPatch, masked, buildPromptText, DEFAULT_PROMPTS, applyPromptVars
+  normalizeConfig, applyPatch, masked, buildPromptText, DEFAULT_PROMPTS, applyPromptVars,
+  buildAnalyzeToolDef, syncToolRegistration, apply
 } = await import('../lib/index.js')
 
 const CARD = {
@@ -63,4 +65,53 @@ test('用户自定义提示词里的 {{max}} 同样生效', () => {
     globalConfig: { analyzeImageMaxCount: 3, prompts: { vlm: '一次最多 {{max}} 张，多了就分批。' } }
   })
   assert.ok(buildPromptText(cfg).includes('一次最多 3 张'))
+})
+
+// ---------- v2.19: 上限写进工具描述（按注册时签名重注册） ----------
+
+test('buildAnalyzeToolDef：描述与多图参数都带当前上限，场景顺序正确', () => {
+  const def = buildAnalyzeToolDef(3)
+  assert.ok(def.description.includes('最多 3 张'), 'description 必须带数字')
+  assert.ok(def.parameters.properties.image_paths.description.includes('最多 3 张'))
+  assert.ok(def.parameters.properties.attachment_ids.description.includes('最多 3 张'))
+  const noVision = def.description.indexOf('没有视觉能力')
+  const assist = def.description.indexOf('辅助')
+  assert.ok(noVision > 0, '必须先写「没有视觉能力」的主场景')
+  assert.ok(assist > noVision, '「辅助」场景排在主场景之后')
+  assert.ok(!/兜底|复核/.test(def.description), '不要用贬低本工具定位的词')
+})
+
+test('上限变化触发 analyze_image 重注册，描述跟着变', async () => {
+  const writeCfg = (n) => writeFileSync(join(home, 'omni-vision.json'), JSON.stringify({
+    apis: [CARD],
+    globalConfig: { analyzeImageMaxCount: n }
+  }))
+  const registered = []
+  const listeners = new Map()
+  const fakeCtx = {
+    get: () => undefined,
+    tools: {
+      register: (def) => {
+        registered.push(def)
+        return () => { const i = registered.indexOf(def); if (i >= 0) registered.splice(i, 1) }
+      }
+    },
+    llm: { listProviders: () => [], registerAdapter: () => () => {}, registration: () => null, stream: async function* () {}, on: () => {}, effect: () => {} },
+    logger: { warn: () => {} },
+    on: (e, fn) => listeners.set(e, fn),
+    effect: (fn) => fn()
+  }
+  writeCfg(6)
+  apply(fakeCtx)
+  await syncToolRegistration()
+  let live = registered.filter((d) => d.name === 'analyze_image')
+  assert.equal(live.length, 1)
+  assert.ok(live[0].description.includes('最多 6 张'))
+
+  writeCfg(2)
+  await syncToolRegistration()
+  live = registered.filter((d) => d.name === 'analyze_image')
+  assert.equal(live.length, 1, '旧定义必须先注销，不能重复注册')
+  assert.ok(live[0].description.includes('最多 2 张'))
+  assert.ok(live[0].parameters.properties.image_paths.description.includes('最多 2 张'))
 })

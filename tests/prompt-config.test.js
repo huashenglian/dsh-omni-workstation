@@ -14,7 +14,7 @@ process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = process.env.DSH_HOME
 
 const {
   normalizeConfig, applyPatch, buildPromptText, promptTextFor, hasPromptOverride,
-  normalizePrompts, DEFAULT_PROMPTS, PROMPT_KEYS
+  normalizePrompts, DEFAULT_PROMPTS, PROMPT_KEYS, buildVisionCapabilityText
 } = await import('../lib/index.js')
 
 const CARD = {
@@ -88,4 +88,40 @@ test('applyPatch：写入覆盖 / 空串清除 / 未知 key 忽略', () => {
 
   const reset = applyPatch(cfg, { globalConfig: 'reset' })
   assert.deepEqual(reset.globalConfig.prompts, {})
+})
+
+// ---------- v2.19: 不可编辑的图片上限行 + 每回合能力声明 ----------
+
+test('buildPromptText：图片上限是独立硬事实，用户覆盖也挤不掉', () => {
+  const cfg = normalizeConfig({ apis: [CARD], globalConfig: { analyzeImageMaxCount: 4 } })
+  assert.ok(buildPromptText(cfg).includes('【图片上限】单次 analyze_image 最多 4 张'))
+  const custom = normalizeConfig({
+    apis: [CARD],
+    globalConfig: { analyzeImageMaxCount: 4, prompts: { vlm: '我自己的看图策略。' } }
+  })
+  const text = buildPromptText(custom)
+  assert.ok(text.includes('我自己的看图策略。'))
+  assert.ok(text.includes('【图片上限】单次 analyze_image 最多 4 张'), '覆盖提示词不能移除硬上限')
+})
+
+test('buildVisionCapabilityText：纯文本模型绝不说「能看图」', () => {
+  const vision = buildVisionCapabilityText({ accepts: true, adaptive: true, gate: false })
+  assert.ok(vision.includes('支持图片输入'))
+  assert.ok(vision.includes('不要因此放弃自己看图'))
+
+  const textOnly = buildVisionCapabilityText({ accepts: false, adaptive: true, gate: false })
+  assert.ok(textOnly.includes('不能直接看图'))
+  assert.ok(textOnly.includes('analyze_image'))
+  assert.ok(!textOnly.includes('支持图片输入'), '纯文本不能出现「支持图片输入」')
+  assert.ok(!textOnly.includes('你都能直接看到'))
+
+  assert.equal(buildVisionCapabilityText({ accepts: true, adaptive: false, gate: false }), '', 'adapt 关闭不声明')
+  assert.equal(buildVisionCapabilityText({ accepts: null, adaptive: true, gate: false }), '', '未知不声明')
+  assert.equal(buildVisionCapabilityText(), '')
+})
+
+test('buildVisionCapabilityText：原生视觉优先开启时补一句拦截说明', () => {
+  const text = buildVisionCapabilityText({ accepts: true, adaptive: true, gate: true })
+  assert.ok(text.includes('原生视觉优先'))
+  assert.ok(text.includes('会被程序拦截'))
 })

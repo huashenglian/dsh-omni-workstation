@@ -15,7 +15,7 @@ const dshHome = mkdtempSync(join(tmpdir(), 'omni-workstation-dvgate-'))
 process.env.DSH_HOME = dshHome
 process.env.DSH_OMNI_WORKSTATION_CONFIG_DIR = dshHome
 
-const { apply, nativeVisionDenyReason, _setLastSource, _resetLastSource, _setLastSourceAcceptsImages } = await import('../lib/index.js')
+const { apply, nativeVisionDenyReason, toolImageMarker, syncToolRegistration, _setLastSource, _resetLastSource, _setLastSourceAcceptsImages } = await import('../lib/index.js')
 
 const writeCfg = (obj) => writeFileSync(join(dshHome, 'omni-vision.json'), JSON.stringify(obj))
 
@@ -175,45 +175,50 @@ test('listener: text-only model → analyze_image allowed', async () => {
   _resetLastSource()
 })
 
-// ---------- v2.17: read_image failure → analyze_image fallback hint ----------
+// ---------- v2.19: read_image failures are returned verbatim ----------
 
 const nextAccept = async () => ({ kind: 'accept' })
 
-test('post-execute: read_image 失败 + VLM 有效 → 追加 analyze_image 兜底提示', async () => {
-  _resetLastSource()
+test('post-execute: read_image 失败不再追加任何插件文案（v2.19 移除）', async () => {
   writeCfg(BASE_CFG({ fallbackConfig: { provider: 'ovhcloud', models: ['Qwen2.5-VL-72B-Instruct'], timeoutMs: 1000 } }))
   const ctx = makeFakeCtx()
   apply(ctx)
   await primePreStep(ctx)
+  // The listener used by v2.17 is gone; if a future refactor re-registers one,
+  // it must still pass the original result through untouched.
   const fn = ctx.listeners.get('tools/post-execute')
-  assert.equal(typeof fn, 'function', 'tools/post-execute listener must be registered')
-
-  const result = { isError: true, content: [{ type: 'text', text: 'cannot read "a.png": not an image' }] }
-  const decision = await fn({ name: 'read_image', arguments: { file_path: 'a.png' }, agent: { session: { events: [] } } }, result, nextAccept)
+  const result = { isError: true, content: [{ type: 'text', text: 'cannot read "a.ts": not an image' }] }
+  const decision = fn
+    ? await fn({ name: 'read_image', arguments: { file_path: 'a.ts' }, agent: { session: { events: [] } } }, result, nextAccept)
+    : { kind: 'accept' }
   assert.equal(decision.kind, 'accept')
-  assert.equal(decision.content.length, 2)
-  assert.ok(String(decision.content[0].text).includes('not an image'), '原错误内容保留在前')
-  assert.ok(String(decision.content[1].text).includes('analyze_image'), '应提示改用 analyze_image')
+  assert.equal(decision.content, undefined, '不得追加 analyze_image 或其他提示')
 })
 
 test('post-execute: 其他工具失败 / 成功结果 一律不动', async () => {
   const ctx = makeFakeCtx()
   apply(ctx)
   const fn = ctx.listeners.get('tools/post-execute')
-  const other = await fn({ name: 'read', arguments: {}, agent: {} }, { isError: true, content: [] }, nextAccept)
-  assert.equal(other.kind, 'accept')
-  assert.equal(other.content, undefined, '非 read_image 不追加内容')
-
-  const ok = await fn({ name: 'read_image', arguments: {}, agent: {} }, { isError: false, content: [] }, nextAccept)
-  assert.equal(ok.content, undefined, '成功结果不追加内容')
+  assert.equal(fn, undefined, 'v2.19 不再注册 post-execute 监听')
 })
 
-test('post-execute: VLM 无效（无卡片且兜底关闭）→ 不追加提示', async () => {
-  writeCfg(BASE_CFG({ fallbackConfig: { provider: 'ovhcloud', models: ['m'], timeoutMs: 1000, enabled: false } }))
+// ---------- v2.19: native vision hint follows capability, not the gate ----------
+
+test('gate 关闭 + 视觉模型 → 图片 marker 仍优先自身视觉', async () => {
+  _setLastSource('custom', 'vlm')
+  writeCfg(BASE_CFG({
+    apis: [{
+      id: 'c1', name: 'T', provider: 'custom', protocol: 'openai-completions',
+      endpoint: 'https://example.invalid/v1', apiKey: 'sk-x', model: 'vlm', enabled: true
+    }],
+    globalConfig: { dynamicMultimodalAdapt: true, nativeVisionGate: false }
+  }))
   const ctx = makeFakeCtx()
   apply(ctx)
   await primePreStep(ctx)
-  const fn = ctx.listeners.get('tools/post-execute')
-  const decision = await fn({ name: 'read_image', arguments: {}, agent: {} }, { isError: true, content: [{ type: 'text', text: 'x' }] }, nextAccept)
-  assert.equal(decision.content, undefined)
+  await syncToolRegistration()
+  const text = String(toolImageMarker({ attachment: { attachmentId: 'sha256:abc', name: 'a.png' } }).text)
+  assert.ok(text.includes('优先用当前模型自身视觉能力'), text)
+  assert.ok(text.includes('只有确实看不到图片内容时才调用 analyze_image'), 'gate 关闭不应把视觉模型推给 analyze_image')
+  _resetLastSource()
 })

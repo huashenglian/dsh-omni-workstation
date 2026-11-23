@@ -2,6 +2,20 @@
 
 > [Back to root AGENTS.md](..)
 
+## v2.19 / 0.2.2-beta.2 — 视觉能力声明 / 移除 read_image 误判提示 / 上限对模型可见
+
+- **修复「一次 read_image 读错文件，AI 从此以为自己没有视觉」**：删除 v2.17 的 `read_image` 失败追加提示（它不区分原因，把 `.ts` 路径错误也翻译成「你看不到图片，改用 analyze_image」）。现在 `read_image` 成功/失败都**原封不动返回 dsh 原生结果**，AI 按真实报错自行修正。
+- **每回合视觉能力声明（仅由模型能力决定）**：新增 `system-prompt/assemble` 监听，按当前步骤 `modelSelection` 解析 `inputModalities`：
+  - 声明含 `image` 且「动态多模态适应」开启 → 明确告知「当前模型支持图片输入」，并点明历史里「无法查看图片」类提示只针对当时某次调用，避免 AI 自我设限。
+  - 纯文本模型 → 只说「不能直接看图，用 analyze_image」，**绝不出现「支持图片输入」**。
+  - 动态适应关闭 / 能力无法解析 / VLM 未配置 → 整段不注入（0 token）。
+- **`analyze_image` 描述改为场景排序**：主场景是「模型自身没有视觉能力时用它看图」，次场景才是「有视觉能力时的精确分析辅助」；不使用「兜底 / 复核」这类贬低定位的词。
+- **图片张数上限对模型可见**：上限数字写入工具 description、`image_paths`/`attachment_ids` 参数说明、系统提示词不可编辑的「【图片上限】」行（用户自定义提示词也挤不掉）。设置改动会按签名重注册 `analyze_image`，描述里的数字与硬拦截始终一致；不再出现「上限 6、AI 却按 1 张分批」。
+- **设置页收紧**：「单次最多图片数」移除长说明，只保留标签 + 数字框 + 单位「张」，悬停显示「1–20，默认 6」。
+- **`viewImageToolHint` 修正**：原生视觉优先**关闭**时，视觉模型的图片 marker 也指向自身视觉（此前只看开关，会把视觉模型推给 analyze_image）。
+- **测试**：606 全绿（新增 8：能力段四态、上限重注册、工具描述场景排序、read_image 原样返回、marker 文案）。
+- **版本号**：`package.json` → **`0.2.2-beta.2`**（**2026-11-23 已发布**：发布树 `main`/`master` + tag `v0.2.2-beta.2` + GitHub Release（prerelease）+ npm dist-tag `beta`；`latest` 仍是 `0.1.2`）。
+
 ## v2.18 / 0.2.2-beta.1 — analyze_image 多图对照（硬上限）
 
 - **一次传多张图**：`analyze_image` 新增 `image_paths` / `attachment_ids`（数组，按顺序编号「图1、图2…」）。四种协议（openai-completions / responses / anthropic / gemini）都会把多张图放进**同一个请求**，文本块前缀列出「图1：a.png」，模型能回答「图1 和图2 的按钮有什么区别」。单图老参数与单图行为完全不变。
